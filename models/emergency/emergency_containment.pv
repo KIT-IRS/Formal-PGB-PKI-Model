@@ -1,0 +1,43 @@
+(*
+   Live adversarial emergency containment, with compromised PGB-I.
+   See docs/EMERGENCY_CONTAINMENT.md for assumptions and expected attack traces.
+   Load common_primitives, reshare_primitives, emergency_containment_processes.
+   These are NEW, UNVERIFIED ProVerif 2.05 contracts, not saved proof results.
+   Reference policy: committee voting requires a regular root credential
+   plus independent suitability and fresh key possession.
+*)
+
+query attacker(skCard).
+query attacker(skC1Device).
+query attacker(skC2Device).
+query attacker(skDregDevice).
+query attacker(share1(e0)).
+query attacker(share2(e0)).
+query attacker(share1(e1)).
+query attacker(share2(e1)).
+query attacker(share3(e1)).
+query D: device, PK: pkey; event(ContainmentHonestPartial(D, PK)) ==> event(ContainmentCardGrant(D, PK)).
+query D: device, PK: pkey; event(ContainmentRegularAccepted(D, PK)) ==> event(ContainmentCardGrant(D, PK)).
+query D: device, PK: pkey; event(ContainmentApproved(D, PK)) ==> event(ContainmentRegularEvidence(D, PK)).
+query D: device, PK: pkey; event(ContainmentApproved(D, PK)) ==> event(ContainmentEligible(D, PK)).
+query D: device, PK: pkey; event(ContainmentDelivered(D, PK)) ==> event(ContainmentApproved(D, PK)).
+query event(ContainmentAttackRegular(Dadv)).
+query event(ContainmentAttackPartial(Dadv)).
+query event(ContainmentAttackVote(Dadv)).
+query event(ContainmentAttackApproved(Dadv)).
+query event(ContainmentAttackDelivered(Dadv)).
+query event(ContainmentAttackActivated(Dadv)).
+query attacker(reachContainmentEmergency).
+query attacker(reachContainmentAdmissionAttempt).
+query attacker(reachContainmentCommitteeAttempt).
+query attacker(reachContainmentRegular).
+query attacker(reachContainmentHonestPartial).
+query attacker(reachContainmentHonestVote).
+query attacker(reachContainmentApproved).
+query attacker(reachContainmentDelivered).
+query attacker(reachContainmentActivated).
+query attacker(reachContainmentAttackApproved).
+query attacker(reachContainmentAttackDelivered).
+query attacker(reachContainmentAttackActivated).
+
+process EmergencyContainment(false)

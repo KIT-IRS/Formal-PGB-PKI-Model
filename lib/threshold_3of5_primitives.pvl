@@ -1,0 +1,124 @@
+(*
+   Focused 3-of-5 threshold sanity abstraction
+
+   Purpose:
+   Extends the shared 2-of-3 threshold vocabulary with a separate, bounded
+   3-of-5 instance used only by threshold_3of5_sanity.pv. The library lists
+   every one of the ten distinct 3-member subsets of five shareholders.
+
+   This is deliberately not a generic t-of-n construction and does not model
+   the complete PGB-PKI lifecycle with five certification nodes. Its purpose is
+   only to check that the symbolic threshold abstraction behaves as expected
+   for a second concrete threshold size.
+*)
+
+(* ----------------------------------------------------------------------- *)
+(* 3-of-5 signer identities and additional shares                         *)
+(* ----------------------------------------------------------------------- *)
+
+type signerTriple.
+
+(*
+   signerTriple values identify which valid three-share combination produced a
+   signature. pkWrong35 is a separate root anchor used only for the negative
+   wrong-root test; no valid 3-of-5 signature verifies under it.
+*)
+const pkChord35, pkWrong35: rootPublicKey.
+const triple123, triple124, triple125, triple134, triple135: signerTriple.
+const triple145, triple234, triple235, triple245, triple345: signerTriple.
+
+(* share1-share3 come from common_primitives.pvl; this bounded instance adds
+   the fourth and fifth epoch-specific shareholder identities. *)
+fun share4(epoch): thresholdShare [private].
+fun share5(epoch): thresholdShare [private].
+
+(* ----------------------------------------------------------------------- *)
+(* Valid 3-of-5 combinations                                               *)
+(* ----------------------------------------------------------------------- *)
+
+(*
+   As in the 2-of-3 abstraction, threshold-signature constructors are private:
+   the attacker cannot create one directly. A signature can be obtained only
+   through one of the explicit combineThree reductions below.
+*)
+
+fun thresholdSig123_35(epoch, thresholdMessage): thresholdSignature [private].
+fun thresholdSig124_35(epoch, thresholdMessage): thresholdSignature [private].
+fun thresholdSig125_35(epoch, thresholdMessage): thresholdSignature [private].
+fun thresholdSig134_35(epoch, thresholdMessage): thresholdSignature [private].
+fun thresholdSig135_35(epoch, thresholdMessage): thresholdSignature [private].
+fun thresholdSig145_35(epoch, thresholdMessage): thresholdSignature [private].
+fun thresholdSig234_35(epoch, thresholdMessage): thresholdSignature [private].
+fun thresholdSig235_35(epoch, thresholdMessage): thresholdSignature [private].
+fun thresholdSig245_35(epoch, thresholdMessage): thresholdSignature [private].
+fun thresholdSig345_35(epoch, thresholdMessage): thresholdSignature [private].
+
+(*
+   There is one reduction for each of the ten distinct triples. Every partial
+   must sign the same message with a share from the same epoch. No reduction is
+   provided for fewer than three distinct shares, duplicate shares, mixed
+   epochs, or mixed messages, so such combinations cannot yield a valid
+   thresholdSignature in this abstraction.
+*)
+reduc
+  forall e: epoch, m: thresholdMessage;
+    combineThree(partialSign(m, share1(e)), partialSign(m, share2(e)),
+             partialSign(m, share3(e))) = thresholdSig123_35(e, m);
+  forall e: epoch, m: thresholdMessage;
+    combineThree(partialSign(m, share1(e)), partialSign(m, share2(e)),
+             partialSign(m, share4(e))) = thresholdSig124_35(e, m);
+  forall e: epoch, m: thresholdMessage;
+    combineThree(partialSign(m, share1(e)), partialSign(m, share2(e)),
+             partialSign(m, share5(e))) = thresholdSig125_35(e, m);
+  forall e: epoch, m: thresholdMessage;
+    combineThree(partialSign(m, share1(e)), partialSign(m, share3(e)),
+             partialSign(m, share4(e))) = thresholdSig134_35(e, m);
+  forall e: epoch, m: thresholdMessage;
+    combineThree(partialSign(m, share1(e)), partialSign(m, share3(e)),
+             partialSign(m, share5(e))) = thresholdSig135_35(e, m);
+  forall e: epoch, m: thresholdMessage;
+    combineThree(partialSign(m, share1(e)), partialSign(m, share4(e)),
+             partialSign(m, share5(e))) = thresholdSig145_35(e, m);
+  forall e: epoch, m: thresholdMessage;
+    combineThree(partialSign(m, share2(e)), partialSign(m, share3(e)),
+             partialSign(m, share4(e))) = thresholdSig234_35(e, m);
+  forall e: epoch, m: thresholdMessage;
+    combineThree(partialSign(m, share2(e)), partialSign(m, share3(e)),
+             partialSign(m, share5(e))) = thresholdSig235_35(e, m);
+  forall e: epoch, m: thresholdMessage;
+    combineThree(partialSign(m, share2(e)), partialSign(m, share4(e)),
+             partialSign(m, share5(e))) = thresholdSig245_35(e, m);
+  forall e: epoch, m: thresholdMessage;
+    combineThree(partialSign(m, share3(e)), partialSign(m, share4(e)),
+             partialSign(m, share5(e))) = thresholdSig345_35(e, m).
+
+(* ----------------------------------------------------------------------- *)
+(* Verification under the 3-of-5 Chord root                               *)
+(* ----------------------------------------------------------------------- *)
+
+(*
+   Verification returns the corresponding signerTriple only for a threshold
+   signature produced for the exact message under pkChord35. In particular,
+   there is intentionally no verification reduction for pkWrong35.
+*)
+reduc
+  forall e: epoch, m: thresholdMessage;
+    verifyThreshold35(thresholdSig123_35(e, m), m, pkChord35) = triple123;
+  forall e: epoch, m: thresholdMessage;
+    verifyThreshold35(thresholdSig124_35(e, m), m, pkChord35) = triple124;
+  forall e: epoch, m: thresholdMessage;
+    verifyThreshold35(thresholdSig125_35(e, m), m, pkChord35) = triple125;
+  forall e: epoch, m: thresholdMessage;
+    verifyThreshold35(thresholdSig134_35(e, m), m, pkChord35) = triple134;
+  forall e: epoch, m: thresholdMessage;
+    verifyThreshold35(thresholdSig135_35(e, m), m, pkChord35) = triple135;
+  forall e: epoch, m: thresholdMessage;
+    verifyThreshold35(thresholdSig145_35(e, m), m, pkChord35) = triple145;
+  forall e: epoch, m: thresholdMessage;
+    verifyThreshold35(thresholdSig234_35(e, m), m, pkChord35) = triple234;
+  forall e: epoch, m: thresholdMessage;
+    verifyThreshold35(thresholdSig235_35(e, m), m, pkChord35) = triple235;
+  forall e: epoch, m: thresholdMessage;
+    verifyThreshold35(thresholdSig245_35(e, m), m, pkChord35) = triple245;
+  forall e: epoch, m: thresholdMessage;
+    verifyThreshold35(thresholdSig345_35(e, m), m, pkChord35) = triple345.

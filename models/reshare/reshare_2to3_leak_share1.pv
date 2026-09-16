@@ -1,0 +1,645 @@
+(*
+   PGB-PKI 2-to-3 resharing with copied share1(e0)
+
+   Purpose:
+   Tests the e0 -> e1 committee update after the attacker learns C1's current
+   threshold share. C1 remains available for C3's preceding regular admission,
+   but its honest committee-voter process is deliberately not instantiated.
+
+   High-level flow:
+   1. C3 still completes genuine regular admission through honest C1/C2 signers
+      and is independently marked certification-capable.
+   2. For the committee update, honest C2 performs the complete candidate,
+      proposal, credential, and committee-PoP validation and emits its vote.
+   3. The leaked share1(e0) supplies the second partial without an honest C1
+      committee-vote event, so the authorized C3 transition can still proceed.
+   4. One leaked share alone cannot authorize an unrelated attacker-owned Dadv
+      target because honest C2 will not vote for it.
+   5. The approved C3 transition then uses the same ideal e1 share delivery,
+      three-member activation, and root-continuity checks as the baseline.
+
+   Expected result:
+   - share1(e0) is intentionally attacker-known, while the remaining private
+     keys and threshold shares stay secret;
+   - any successful committee approval still requires C2's honest vote plus the
+     same candidate's eligibility and completed regular admission;
+   - Dadv cannot obtain committee approval or an e1 certification share;
+   - the nine lifecycle/leak reachability canaries are intentionally reachable.
+
+   Run with:
+
+     proverif -lib common_primitives.pvl -lib reshare_primitives.pvl \
+       reshare_2to3_leak_share1.pv
+*)
+
+(* ----------------------------------------------------------------------- *)
+(* Fixed architecture instance and local state                              *)
+(* ----------------------------------------------------------------------- *)
+
+(*
+   net is the public attacker-controlled network. The private channels are
+   internal synchronization/state plumbing between honest processes: they pass
+   successful admission, trusted eligibility, resharing state, and activation
+   acknowledgments without treating those local state transitions as network
+   authorization messages.
+*)
+free net: channel.
+free cardProvision: channel [private].
+free admittedCandidate: channel [private].
+free eligibility: channel [private].
+free reshareState: channel [private].
+free activatedC1, activatedC2, activatedC3: channel [private].
+
+const pgbA: pgb.
+(*
+   C1/C2 are the current committee, C3 is the candidate added by this
+   transition, and O1 is an existing ordinary member. Dreg is retained only as
+   a representative ordinary-device identifier for the no-share activation
+   sanity query below; it has no active protocol role in this focused model.
+*)
+const C1, C2, C3, O1, Dreg: device.
+const Dadv: device.
+const e0, e1: epoch.
+
+free skCard: skey [private].
+free skC1Device: skey [private].
+free skC2Device: skey [private].
+free skC3Device: skey [private].
+free skO1Device: skey [private].
+free skAdv: skey.
+
+free reachSetup: bitstring [private].
+free reachRegularMembershipAuthorized: bitstring [private].
+free reachCommitteeApproved: bitstring [private].
+free reachShareC1: bitstring [private].
+free reachShareC2: bitstring [private].
+free reachShareC3: bitstring [private].
+free reachCommitteeActivated: bitstring [private].
+free reachRootContinuity: bitstring [private].
+free reachShare1Leak: bitstring [private].
+
+(*
+   ProVerif tables model persistent internal facts. "insert" later records a
+   fact and "get" allows a process to continue only if a matching entry exists.
+   authorizedForCommittee therefore links committee processing to a completed
+   regular admission, while eligibleForCommittee separately records the trusted
+   decision that the device is certification-capable. Table entries are not
+   attacker-controlled merely because protocol traffic travels over net.
+*)
+table authorizedForCommittee(device, pkey, serial, certificate).
+table eligibleForCommittee(device, pkey).
+
+(* ----------------------------------------------------------------------- *)
+(* Security and sanity queries                                              *)
+(* ----------------------------------------------------------------------- *)
+
+(*
+   All listed long-term keys and shares except share1(e0) should remain secret.
+   share1(e0) is deliberately disclosed later, so its attacker query is the one
+   expected secrecy failure in this block.
+*)
+query attacker(skCard).
+query attacker(skC1Device).
+query attacker(skC2Device).
+query attacker(skC3Device).
+query attacker(skO1Device).
+query attacker(share1(e0)).
+query attacker(share2(e0)).
+query attacker(share3(e0)).
+query attacker(share1(e1)).
+query attacker(share2(e1)).
+query attacker(share3(e1)).
+
+(*
+   Committee authority is deliberately separate from ordinary membership.
+   C3 must first have genuine regular admission, then pass the independent
+   eligibility and committee-specific PoP checks before an old member may vote.
+*)
+query G: device, PK: pkey, T: serial,
+      SAdmission: serial, NCompletion: nonce;
+  event(RegularMembershipAuthorized(G, C3, PK, T, SAdmission, NCompletion))
+  ==>
+  event(CardAuthorized(pgbA, C3, PK, T)).
+
+query V: device, PK: pkey, SAdmission: serial, SUpdate: serial, N: nonce;
+  inj-event(CommitteePoPVerified(V, C3, PK, SAdmission, SUpdate, N))
+  ==>
+  inj-event(CommitteePoPProduced(C3, PK, V, SAdmission, SUpdate, N)).
+
+query V: device, D: device, PK: pkey,
+      TAdmission: serial, SAdmission: serial, SUpdate: serial,
+      NCompletion: nonce, NCommittee: nonce;
+  event(CommitteeCandidateAuthenticated(V, D, PK, SAdmission, SUpdate))
+  ==>
+  event(CertificationEligible(D, PK)) &&
+  event(RegularMembershipAuthorized(
+    C1, D, PK, TAdmission, SAdmission, NCompletion)) &&
+  event(CommitteePoPVerified(V, D, PK, SAdmission, SUpdate, NCommittee)).
+
+(* A committee vote can occur only after that voter authenticated the candidate. *)
+query V: device, D: device, PK: pkey,
+      SAdmission: serial, SUpdate: serial;
+  event(CommitteeVote(V, e0, e1, D, PK, SAdmission, SUpdate))
+  ==>
+  event(CommitteeCandidateAuthenticated(V, D, PK, SAdmission, SUpdate)).
+
+(* With C1's share copied, every approval still requires C2's honest vote and
+   the same candidate's eligibility and completed regular admission. *)
+query D: device, PK: pkey, SAdmission: serial, SUpdate: serial,
+      TAdmission: serial, NCompletion: nonce;
+  event(CommitteeApproved(e0, e1, D, PK, SAdmission, SUpdate))
+  ==>
+  event(CommitteeVote(C2, e0, e1, D, PK, SAdmission, SUpdate)) &&
+  event(CertificationEligible(D, PK)) &&
+  event(RegularMembershipAuthorized(
+    C1, D, PK, TAdmission, SAdmission, NCompletion)).
+
+(* A proposal naming the attacker-owned Dadv remains below threshold. *)
+query SAdmission: serial, SUpdate: serial;
+  event(CommitteeApproved(
+    e0, e1, Dadv, pk(skAdv), SAdmission, SUpdate)).
+
+query SUpdate: serial;
+  event(ShareActivated(Dadv, e1, pkChord, SUpdate)).
+
+(* The ideal resharing functionality is entered only after committee approval. *)
+query E0: epoch, E1: epoch, D: device, PK: pkey,
+      SAdmission: serial, SUpdate: serial;
+  event(ReshareStarted(E0, E1, D, PK, SAdmission, SUpdate))
+  ==>
+  event(CommitteeApproved(E0, E1, D, PK, SAdmission, SUpdate)).
+
+(*
+   The newly added C3 may activate a share only after its own eligibility,
+   regular admission, and approval of the matching committee transition.
+*)
+query E: epoch, SUpdate: serial, PK: pkey,
+      TAdmission: serial, SAdmission: serial, NCompletion: nonce;
+  event(ShareActivated(C3, E, pkChord, SUpdate))
+  ==>
+  event(CertificationEligible(C3, PK)) &&
+  event(RegularMembershipAuthorized(
+    C1, C3, PK, TAdmission, SAdmission, NCompletion)) &&
+  event(CommitteeApproved(e0, E, C3, PK, SAdmission, SUpdate)).
+
+query E: epoch, SUpdate: serial, D: device, PK: pkey,
+      SAdmission: serial;
+  event(ShareActivated(C1, E, pkChord, SUpdate))
+  ==>
+  event(CommitteeApproved(e0, E, D, PK, SAdmission, SUpdate)).
+
+query E: epoch, SUpdate: serial, D: device, PK: pkey,
+      SAdmission: serial;
+  event(ShareActivated(C2, E, pkChord, SUpdate))
+  ==>
+  event(CommitteeApproved(e0, E, D, PK, SAdmission, SUpdate)).
+
+(*
+   The new committee becomes active only after the same approved update and
+   successful share activation by all three target members.
+*)
+query E: epoch, PKRoot: rootPublicKey, SUpdate: serial,
+      D: device, PK: pkey, SAdmission: serial;
+  event(CommitteeActivated(E, PKRoot, SUpdate))
+  ==>
+  event(CommitteeApproved(e0, E, D, PK, SAdmission, SUpdate)) &&
+  event(ShareActivated(C1, E, PKRoot, SUpdate)) &&
+  event(ShareActivated(C2, E, PKRoot, SUpdate)) &&
+  event(ShareActivated(C3, E, PKRoot, SUpdate)).
+
+(* The active root public key must remain the original Chord root anchor. *)
+query E: epoch, PKRoot: rootPublicKey, SUpdate: serial;
+  event(CommitteeActivated(E, PKRoot, SUpdate)) ==> PKRoot = pkChord.
+
+(*
+   A post-activation threshold signature made with the new share generation
+   must still verify under that unchanged root. This checks continuity inside
+   the ideal threshold/resharing abstraction, not a concrete resharing algorithm.
+*)
+query E: epoch, PKRoot: rootPublicKey, P: signerPair, SUpdate: serial;
+  event(RootContinuityAccepted(E, PKRoot, P, SUpdate))
+  ==>
+  event(CommitteeActivated(E, PKRoot, SUpdate)) && PKRoot = pkChord.
+
+(* Structural nonreachability: no ShareRecipient is instantiated for O1 or
+   Dreg. This does not test a general recipient-eligibility implementation. *)
+query E: epoch, S: serial; event(ShareActivated(O1, E, pkChord, S)).
+query E: epoch, S: serial; event(ShareActivated(Dreg, E, pkChord, S)).
+
+(* Sanity reachability: all nine secrecy queries below must be false. *)
+query attacker(reachSetup).
+query attacker(reachRegularMembershipAuthorized).
+query attacker(reachCommitteeApproved).
+query attacker(reachShareC1).
+query attacker(reachShareC2).
+query attacker(reachShareC3).
+query attacker(reachCommitteeActivated).
+query attacker(reachRootContinuity).
+query attacker(reachShare1Leak).
+
+(* ----------------------------------------------------------------------- *)
+(* Stage 1: regular admission of the future committee member C3              *)
+(* ----------------------------------------------------------------------- *)
+
+(*
+   This is the same token + fresh PoP idea as the regular-admission baseline,
+   specialized to the current C1/C2 committee. Routing is omitted here and all
+   messages use the public net directly because overlay routing is not an
+   authorization boundary for the resharing property being tested.
+*)
+let SmartcardAuthorizeC3() =
+  new tokenSerial: serial;
+  let body: protocolMessage =
+    cardTokenBody(tagCardToken, pgbA, C3, pk(skC3Device), tokenSerial) in
+  event CardAuthorized(pgbA, C3, pk(skC3Device), tokenSerial);
+  out(cardProvision,
+    makeCardToken(body, sign(body, skCard))).
+
+let CandidateStart() =
+  in(cardProvision, token: admissionToken);
+  out(net, admissionInit(C3, pk(skC3Device), token)).
+
+let CandidateAdmissionPoP() =
+  !in(net, challenge: wireMessage);
+  let signerChallenge(=pgbA, =C3, =pk(skC3Device), admissionSerial: serial,
+                      signer: device, verifierNonce: nonce) = challenge in
+  let context: protocolMessage =
+    regularPoPContext(tagRegPoP, pgbA, C3, pk(skC3Device),
+                      admissionSerial, signer, verifierNonce) in
+  event RegularPoPProduced(
+    C3, pk(skC3Device), signer, admissionSerial, verifierNonce);
+  out(net,
+    regularPoPResponse(signer, C3, pk(skC3Device), admissionSerial,
+                       verifierNonce, sign(context, skC3Device))).
+
+let AdmissionCoordinator() =
+  in(net, initialization: wireMessage);
+  let admissionInit(=C3, =pk(skC3Device), token: admissionToken) =
+    initialization in
+  new admissionSerial: serial;
+  event RegularAdmissionStarted(C3, pk(skC3Device), admissionSerial);
+  out(net, signerRequest(C1, C3, pk(skC3Device), token, admissionSerial));
+  out(net, signerRequest(C2, C3, pk(skC3Device), token, admissionSerial)).
+
+let AdmissionSigner(signer: device, signerShare: thresholdShare,
+                    cardAnchor: pkey) =
+  !in(net, request: wireMessage);
+  let signerRequest(=signer, subject: device, subjectKey: pkey,
+                    token: admissionToken, admissionSerial: serial) = request in
+  let tokenSerial: serial =
+    validateCardToken(token, cardAnchor, pgbA, subject, subjectKey) in
+  new verifierNonce: nonce;
+  out(net,
+    signerChallenge(pgbA, subject, subjectKey, admissionSerial,
+                    signer, verifierNonce));
+  in(net, response: wireMessage);
+  let regularPoPResponse(=signer, =subject, =subjectKey, =admissionSerial,
+                         =verifierNonce, popSignature: signature) = response in
+  let checked: protocolMessage = checkSign(popSignature, subjectKey) in
+  let expected: protocolMessage =
+    regularPoPContext(tagRegPoP, pgbA, subject, subjectKey,
+                      admissionSerial, signer, verifierNonce) in
+  if checked = expected then
+    event RegularSignerPoPVerified(
+      signer, subject, subjectKey, admissionSerial, e0, verifierNonce);
+    event SignerValidated(
+      signer, subject, subjectKey, tokenSerial,
+      admissionSerial, e0, verifierNonce);
+    let certBody: thresholdMessage =
+      regularLDevIDBody(tagRegularLDevID, pgbA, subject, subjectKey,
+                        regularMember, tokenSerial, admissionSerial) in
+    event PartialIssued(signer, subject, subjectKey, admissionSerial, e0);
+    out(net,
+      partialResponse(signer, subject, subjectKey, tokenSerial, admissionSerial,
+                      partialSign(certBody, signerShare))).
+
+(*
+   Regular admission itself is unchanged by the committee-voter compromise:
+   honest C1 and C2 are still instantiated as admission signers, so C3 obtains
+   its pair12 root credential exactly as in the resharing baseline. Successful
+   admission is recorded for the later committee-update stage.
+*)
+let AdmissionCombiner() =
+  in(net, response1: wireMessage);
+  let partialResponse(=C1, =C3, =pk(skC3Device), tokenSerial: serial,
+                      admissionSerial: serial,
+                      partial1: partialSignature) = response1 in
+  in(net, response2: wireMessage);
+  let partialResponse(=C2, =C3, =pk(skC3Device), =tokenSerial,
+                      =admissionSerial,
+                      partial2: partialSignature) = response2 in
+  let certBody: thresholdMessage =
+    regularLDevIDBody(tagRegularLDevID, pgbA, C3, pk(skC3Device),
+                      regularMember, tokenSerial, admissionSerial) in
+  let rootSignature: thresholdSignature = combine(partial1, partial2) in
+  let (=pair12) = verifyThreshold(rootSignature, certBody, pkChord) in
+  let credential: certificate =
+    makeRegularCertificate(certBody, rootSignature) in
+  new completionNonce: nonce;
+  event RegularCredentialAccepted12(
+    C1, C3, pk(skC3Device), tokenSerial, admissionSerial, completionNonce);
+  event RegularMembershipAuthorized(
+    C1, C3, pk(skC3Device), tokenSerial, admissionSerial, completionNonce);
+  insert authorizedForCommittee(C3, pk(skC3Device), admissionSerial, credential);
+  out(net, reachRegularMembershipAuthorized);
+  out(admittedCandidate, (credential, admissionSerial)).
+
+(*
+   Certification eligibility is a separate trusted policy input. It is not
+   granted by the smartcard token or by ordinary admission itself.
+*)
+let MarkC3Eligible() =
+  event CertificationEligible(C3, pk(skC3Device));
+  insert eligibleForCommittee(C3, pk(skC3Device));
+  out(eligibility, pk(skC3Device)).
+
+(* ----------------------------------------------------------------------- *)
+(* Stage 2: authorize the exact e0 -> e1 committee update                    *)
+(* ----------------------------------------------------------------------- *)
+
+(*
+   Committee processing starts only after both regular admission and trusted
+   eligibility are available. A fresh updateSerial identifies this transition.
+   The exact proposal names current epoch e0, target epoch e1, target committee
+   {C1,C2,C3}, candidate C3 and key, unchanged pkChord, and the admission/update
+   serials.
+
+   The PGB-PKI design requires agreement on the current and target committees but
+   leaves the concrete agreement mechanism open. This formal model realizes that
+   requirement by having the old committee threshold-sign this exact proposal.
+*)
+let CommitteeStart() =
+  in(admittedCandidate, (credential: certificate, admissionSerial: serial));
+  in(eligibility, =pk(skC3Device));
+  new updateSerial: serial;
+  let proposal: thresholdMessage =
+    committeeProposal(tagCommittee, pgbA, e0, e1,
+                      C1, C2, C3, C3, pk(skC3Device), pkChord,
+                      admissionSerial, updateSerial) in
+  out(net,
+    committeeRequest(C1, e0, e1, C3, pk(skC3Device),
+                     admissionSerial, updateSerial, credential, proposal));
+  out(net,
+    committeeRequest(C2, e0, e1, C3, pk(skC3Device),
+                     admissionSerial, updateSerial, credential, proposal)).
+
+(* C3 answers a fresh committee-specific PoP challenge from each old voter. *)
+let CommitteeCandidatePoP() =
+  !in(net, challenge: wireMessage);
+  let committeeChallenge(=pgbA, =e0, =e1, =C3, =pk(skC3Device),
+                         admissionSerial: serial, updateSerial: serial,
+                         voter: device, verifierNonce: nonce) = challenge in
+  let context: protocolMessage =
+    committeePoPContext(tagCommitteePoP, pgbA, e0, e1,
+                        C3, pk(skC3Device), admissionSerial, updateSerial,
+                        voter, verifierNonce) in
+  event CommitteePoPProduced(
+    C3, pk(skC3Device), voter,
+    admissionSerial, updateSerial, verifierNonce);
+  out(net,
+    committeePoPResponse(voter, C3, pk(skC3Device),
+                         admissionSerial, updateSerial, verifierNonce,
+                         sign(context, skC3Device))).
+
+(*
+   Each old committee member validates the same transition independently.
+   The two "get" operations require matching local records for completed regular
+   admission and certification eligibility. The voter then checks the exact
+   proposal, validates C3's regular root credential, confirms the fixed target
+   identity/key, and verifies a fresh committee-specific PoP before emitting its
+   vote and partial-signing the proposal with its e0 share.
+*)
+let CommitteeVoter(voter: device, voterShare: thresholdShare) =
+  in(net, request: wireMessage);
+  let committeeRequest(=voter, =e0, =e1,
+                       candidate: device, candidateKey: pkey,
+                       admissionSerial: serial, updateSerial: serial,
+                       credential: certificate, proposal: thresholdMessage) =
+    request in
+  get authorizedForCommittee(=candidate, =candidateKey,
+                         =admissionSerial, =credential) in
+  get eligibleForCommittee(=candidate, =candidateKey) in
+  let committeeProposal(=tagCommittee, =pgbA, =e0, =e1,
+                        =C1, =C2, =C3, =candidate, =candidateKey,
+                        =pkChord, =admissionSerial, =updateSerial) = proposal in
+  let makeRegularCertificate(certBody: thresholdMessage,
+                             rootSignature: thresholdSignature) = credential in
+  let regularLDevIDBody(=tagRegularLDevID, =pgbA, =candidate, =candidateKey,
+                       =regularMember, credentialTokenSerial: serial, =admissionSerial) = certBody in
+  let (=pair12) = verifyThreshold(rootSignature, certBody, pkChord) in
+  if candidate = C3 then
+    if candidateKey = pk(skC3Device) then
+      new verifierNonce: nonce;
+      out(net,
+        committeeChallenge(pgbA, e0, e1, candidate, candidateKey,
+                           admissionSerial, updateSerial,
+                           voter, verifierNonce));
+      in(net, response: wireMessage);
+      let committeePoPResponse(=voter, =candidate, =candidateKey,
+                               =admissionSerial, =updateSerial,
+                               =verifierNonce, popSignature: signature) =
+        response in
+      let checked: protocolMessage = checkSign(popSignature, candidateKey) in
+      let expected: protocolMessage =
+        committeePoPContext(tagCommitteePoP, pgbA, e0, e1,
+                            candidate, candidateKey,
+                            admissionSerial, updateSerial,
+                            voter, verifierNonce) in
+      if checked = expected then
+        event CommitteePoPVerified(
+          voter, candidate, candidateKey,
+          admissionSerial, updateSerial, verifierNonce);
+        event CommitteeCandidateAuthenticated(
+          voter, candidate, candidateKey, admissionSerial, updateSerial);
+        event CommitteeVote(
+          voter, e0, e1, candidate, candidateKey,
+          admissionSerial, updateSerial);
+        out(net,
+          committeeVoteResponse(
+            voter, e0, e1, candidate, candidateKey,
+            admissionSerial, updateSerial,
+            partialSign(proposal, voterShare))).
+
+(*
+   The two current-committee partials must refer to the same candidate and
+   serials. Their combination must verify as pair12 over the exact proposal
+   before an approval request is released on the public network.
+*)
+let CommitteeCombiner() =
+  in(net, vote1: wireMessage);
+  let committeeVoteResponse(=C1, =e0, =e1, candidate: device,
+                            candidateKey: pkey, admissionSerial: serial,
+                            updateSerial: serial,
+                            partial1: partialSignature) = vote1 in
+  in(net, vote2: wireMessage);
+  let committeeVoteResponse(=C2, =e0, =e1, =candidate,
+                            =candidateKey, =admissionSerial, =updateSerial,
+                            partial2: partialSignature) = vote2 in
+  let proposal: thresholdMessage =
+    committeeProposal(tagCommittee, pgbA, e0, e1,
+                      C1, C2, C3, candidate, candidateKey, pkChord,
+                      admissionSerial, updateSerial) in
+  let approval: thresholdSignature = combine(partial1, partial2) in
+  let (=pair12) = verifyThreshold(approval, proposal, pkChord) in
+  out(net, committeeApprovalRequest(proposal, approval)).
+
+(*
+   Explicit compromised-share driver for the intended transition trace. Unlike
+   an honest CommitteeVoter, it performs no local admission/eligibility lookup,
+   credential validation, or committee PoP and emits no C1 authentication/vote
+   event. It only checks the exact proposal shape and returns a partial made with
+   the disclosed share1(e0).
+
+   Because partialSign is public and share1(e0) is leaked, the Dolev-Yao attacker
+   could construct such a partial directly as well. This helper simply makes the
+   compromised C1 contribution explicit in the authorized liveness path.
+*)
+let CompromisedC1Contribution() =
+  in(net, request: wireMessage);
+  let committeeRequest(=C1, =e0, =e1,
+                       candidate: device, candidateKey: pkey,
+                       admissionSerial: serial, updateSerial: serial,
+                       credential: certificate, proposal: thresholdMessage) =
+    request in
+  let committeeProposal(=tagCommittee, =pgbA, =e0, =e1,
+                        =C1, =C2, =C3, =candidate, =candidateKey,
+                        =pkChord, =admissionSerial, =updateSerial) = proposal in
+  out(net,
+    committeeVoteResponse(
+      C1, e0, e1, candidate, candidateKey,
+      admissionSerial, updateSerial,
+      partialSign(proposal, share1(e0)))).
+
+(* ----------------------------------------------------------------------- *)
+(* Stage 3: ideal resharing, recipient activation, and root continuity       *)
+(* ----------------------------------------------------------------------- *)
+
+(*
+   ReshareService is the authorization boundary around an ideal resharing
+   primitive. It first verifies the threshold approval over the exact proposal.
+   Only then are fresh e1 shares made available in recipient-bound encrypted
+   packages for C1, C2, and C3.
+
+   These ciphertexts are symbolic delivery plumbing: the model checks secrecy,
+   recipient/epoch/root binding, and authorization around delivery, but does not
+   claim that a concrete DKG/resharing implementation sends finished shares in
+   this form or prove the mathematics of that implementation.
+*)
+let ReshareService() =
+  !in(net, request: wireMessage);
+  let committeeApprovalRequest(proposal: thresholdMessage,
+                               approval: thresholdSignature) = request in
+  let committeeProposal(=tagCommittee, =pgbA, =e0, =e1,
+                        =C1, =C2, =C3, candidate: device,
+                        candidateKey: pkey, =pkChord,
+                        admissionSerial: serial, updateSerial: serial) =
+    proposal in
+  let (=pair12) = verifyThreshold(approval, proposal, pkChord) in
+  event CommitteeApproved(
+    e0, e1, candidate, candidateKey, admissionSerial, updateSerial);
+  event ReshareStarted(
+    e0, e1, candidate, candidateKey, admissionSerial, updateSerial);
+  out(net, reachCommitteeApproved);
+  event SharePackageSent(C1, e1, pkChord, updateSerial);
+  out(net,
+    aenc(sharePackage(pgbA, e1, C1, pkChord, share1(e1), updateSerial),
+         pk(skC1Device)));
+  event SharePackageSent(C2, e1, pkChord, updateSerial);
+  out(net,
+    aenc(sharePackage(pgbA, e1, C2, pkChord, share2(e1), updateSerial),
+         pk(skC2Device)));
+  event SharePackageSent(C3, e1, pkChord, updateSerial);
+  out(net,
+    aenc(sharePackage(pgbA, e1, C3, pkChord, share3(e1), updateSerial),
+         pk(skC3Device)));
+  out(reshareState, (admissionSerial, updateSerial, proposal)).
+
+(*
+   Each target member decrypts only with its own device key and accepts only a
+   package bound to this PGB, e1, itself, pkChord, and its expected fresh share.
+   The private ack channel records successful local activation for the final
+   synchronization step.
+*)
+let ShareRecipient(member: device, deviceKey: skey,
+                   expectedShare: thresholdShare, ack: channel,
+                   canary: bitstring) =
+  in(net, encryptedPackage: ciphertext);
+  let package: protocolMessage = adec(encryptedPackage, deviceKey) in
+  let sharePackage(=pgbA, =e1, =member, =pkChord,
+                   receivedShare: thresholdShare,
+                   updateSerial: serial) = package in
+  if receivedShare = expectedShare then
+    event ShareActivated(member, e1, pkChord, updateSerial);
+    out(net, canary);
+    out(ack, updateSerial).
+
+(*
+   Activation waits for the approved resharing state and acknowledgments from
+   all three target members. The final pair13 signature uses fresh e1 shares and
+   verifies under pkChord, providing a simple root-continuity witness after the
+   transition.
+*)
+let ActivateCommittee() =
+  in(reshareState,
+     (admissionSerial: serial, updateSerial: serial,
+      proposal: thresholdMessage));
+  in(activatedC1, =updateSerial);
+  in(activatedC2, =updateSerial);
+  in(activatedC3, =updateSerial);
+  event CommitteeActivated(e1, pkChord, updateSerial);
+  out(net, reachCommitteeActivated);
+  let continuitySignature: thresholdSignature =
+    combine(partialSign(proposal, share1(e1)),
+            partialSign(proposal, share3(e1))) in
+  let continuityPair: signerPair =
+    verifyThreshold(continuitySignature, proposal, pkChord) in
+  event RootContinuityAccepted(
+    e1, pkChord, continuityPair, updateSerial);
+  out(net, reachRootContinuity).
+
+(* ----------------------------------------------------------------------- *)
+(* Trusted locked starting state and concurrent protocol roles               *)
+(* ----------------------------------------------------------------------- *)
+
+(*
+   The starting committee contains C1 and C2 at e0. C1 still participates
+   honestly in C3's regular admission, but share1(e0) is then published to the
+   attacker and no honest CommitteeVoter(C1, ...) is started. C2 remains the
+   honest committee voter. The remaining lifecycle roles are unchanged from the
+   baseline.
+*)
+process
+  let cardAnchor: pkey = pk(skCard) in
+  event SetupComplete(pgbA, pkChord, cardAnchor);
+  event InitialRegularMember(C1, pk(skC1Device));
+  event InitialRegularMember(C2, pk(skC2Device));
+  event InitialRegularMember(O1, pk(skO1Device));
+  event InitialCommitteeMember(C1, e0);
+  event InitialCommitteeMember(C2, e0);
+  event PGBLocked(pgbA);
+  out(net, reachSetup);
+  out(net, share1(e0));
+  out(net, reachShare1Leak);
+  (
+    SmartcardAuthorizeC3()
+    | CandidateStart()
+    | CandidateAdmissionPoP()
+    | AdmissionCoordinator()
+    | AdmissionSigner(C1, share1(e0), cardAnchor)
+    | AdmissionSigner(C2, share2(e0), cardAnchor)
+    | AdmissionCombiner()
+    | MarkC3Eligible()
+    | CommitteeStart()
+    | CommitteeCandidatePoP()
+    | CommitteeVoter(C2, share2(e0))
+    | CompromisedC1Contribution()
+    | CommitteeCombiner()
+    | ReshareService()
+    | ShareRecipient(C1, skC1Device, share1(e1),
+                     activatedC1, reachShareC1)
+    | ShareRecipient(C2, skC2Device, share2(e1),
+                     activatedC2, reachShareC2)
+    | ShareRecipient(C3, skC3Device, share3(e1),
+                     activatedC3, reachShareC3)
+    | ActivateCommittee()
+  )

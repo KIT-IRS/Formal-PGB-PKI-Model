@@ -1,0 +1,324 @@
+(*
+   PGB-PKI resharing negative control after crossing the current threshold
+
+   Purpose:
+   Demonstrates the security boundary of the 2-of-2 current resharing committee.
+   Once both share1(e0) and share2(e0) are disclosed, the attacker can create a
+   cryptographically valid approval for a malicious target committee containing
+   Dadv, without regular admission, certification eligibility, or honest votes.
+
+   High-level flow:
+   1. Both current e0 threshold shares are disclosed.
+   2. The attacker constructs an exact e0 -> e1 C1/C2/Dadv proposal and signs it
+      with the two leaked shares.
+   3. The resharing service accepts the valid threshold approval and releases
+      fresh e1 packages for C1, C2, and Dadv.
+   4. Dadv, whose private key is attacker-controlled, obtains and activates the
+      third e1 share.
+   5. After all three target acknowledgments, the malicious committee activates
+      under the unchanged pkChord root and can demonstrate e1 root continuity.
+
+   This is an intentional negative control. It demonstrates the limit of the
+   threshold assumption, not a failure of recipient-bound share delivery.
+
+   Expected result:
+   - the two leaked e0 shares are attacker-known;
+   - malicious committee approval and activation are reachable;
+   - approval does not trace to honest C1/C2 votes, Dadv eligibility, or regular
+     Dadv admission, so those three authorization correspondences are false;
+   - downstream resharing/activation ordering and pkChord continuity still hold.
+*)
+
+(* ----------------------------------------------------------------------- *)
+(* Fixed negative-control state                                             *)
+(* ----------------------------------------------------------------------- *)
+
+free net: channel.
+free reshareState: channel [private].
+free activatedC1, activatedC2, activatedDadv: channel [private].
+
+const pgbA: pgb.
+const C1, C2, C3, O1, Dadv: device.
+const e0, e1: epoch.
+const maliciousAdmissionSerial, maliciousUpdateSerial: serial.
+
+(*
+   Honest device/card keys remain private. skAdv is intentionally public, so
+   Dadv represents an attacker-controlled target rather than an honest device.
+*)
+free skCard: skey [private].
+free skC1Device: skey [private].
+free skC2Device: skey [private].
+free skO1Device: skey [private].
+free skAdv: skey.
+
+free reachSetup: bitstring [private].
+free reachShare1Leak: bitstring [private].
+free reachShare2Leak: bitstring [private].
+free reachMaliciousApproval: bitstring [private].
+free reachShareC1: bitstring [private].
+free reachShareC2: bitstring [private].
+free reachShareDadv: bitstring [private].
+free reachMaliciousCommittee: bitstring [private].
+free reachRootContinuity: bitstring [private].
+
+(* ----------------------------------------------------------------------- *)
+(* Security and expected-failure queries                                    *)
+(* ----------------------------------------------------------------------- *)
+
+(*
+   share1(e0) and share2(e0) are deliberately leaked at setup. share3(e1)
+   also becomes attacker-known after the malicious target receives its e1
+   package. The remaining shares and honest long-term keys stay secret.
+*)
+query attacker(skCard).
+query attacker(skC1Device).
+query attacker(skC2Device).
+query attacker(skO1Device).
+
+query attacker(share1(e0)).
+query attacker(share2(e0)).
+query attacker(share3(e0)).
+query attacker(share1(e1)).
+query attacker(share2(e1)).
+query attacker(share3(e1)).
+
+(*
+   The malicious approval is intentionally reachable after the e0 threshold is
+   crossed. The following three correspondences are expected to be false because
+   that approval has no honest C1/C2 vote provenance, no trusted Dadv eligibility
+   decision, and no prior regular admission for Dadv.
+*)
+query event(CommitteeApproved(
+  e0, e1, Dadv, pk(skAdv),
+  maliciousAdmissionSerial, maliciousUpdateSerial))
+  ==>
+  event(CommitteeVote(
+    C1, e0, e1, Dadv, pk(skAdv),
+    maliciousAdmissionSerial, maliciousUpdateSerial)) &&
+  event(CommitteeVote(
+    C2, e0, e1, Dadv, pk(skAdv),
+    maliciousAdmissionSerial, maliciousUpdateSerial)).
+
+query event(CommitteeApproved(
+  e0, e1, Dadv, pk(skAdv),
+  maliciousAdmissionSerial, maliciousUpdateSerial))
+  ==>
+  event(CertificationEligible(Dadv, pk(skAdv))).
+
+query G: device, T: serial, NCompletion: nonce;
+  event(CommitteeApproved(
+  e0, e1, Dadv, pk(skAdv),
+  maliciousAdmissionSerial, maliciousUpdateSerial))
+  ==>
+  event(RegularMembershipAuthorized(
+    G, Dadv, pk(skAdv), T, maliciousAdmissionSerial, NCompletion)).
+
+(*
+   Crossing the authorization threshold does not bypass the later ordering
+   checks: resharing still starts only after a cryptographically accepted
+   approval, and target share/committee activation remains tied to that update.
+*)
+query E0: epoch, E1: epoch, D: device, PK: pkey,
+      SAdmission: serial, SUpdate: serial;
+  event(ReshareStarted(E0, E1, D, PK, SAdmission, SUpdate))
+  ==>
+  event(CommitteeApproved(E0, E1, D, PK, SAdmission, SUpdate)).
+
+query SUpdate: serial;
+  event(ShareActivated(Dadv, e1, pkChord, SUpdate))
+  ==>
+  event(CommitteeApproved(
+    e0, e1, Dadv, pk(skAdv),
+    maliciousAdmissionSerial, SUpdate)).
+
+query SUpdate: serial;
+  event(ShareActivated(C1, e1, pkChord, SUpdate))
+  ==>
+  event(CommitteeApproved(
+    e0, e1, Dadv, pk(skAdv),
+    maliciousAdmissionSerial, SUpdate)).
+
+query SUpdate: serial;
+  event(ShareActivated(C2, e1, pkChord, SUpdate))
+  ==>
+  event(CommitteeApproved(
+    e0, e1, Dadv, pk(skAdv),
+    maliciousAdmissionSerial, SUpdate)).
+
+query E: epoch, PKRoot: rootPublicKey, SUpdate: serial;
+  event(CommitteeActivated(E, PKRoot, SUpdate))
+  ==>
+  event(CommitteeApproved(
+    e0, E, Dadv, pk(skAdv), maliciousAdmissionSerial, SUpdate)) &&
+  event(ShareActivated(C1, E, PKRoot, SUpdate)) &&
+  event(ShareActivated(C2, E, PKRoot, SUpdate)) &&
+  event(ShareActivated(Dadv, E, PKRoot, SUpdate)).
+
+(* Even the maliciously authorized committee transition preserves pkChord. *)
+query E: epoch, PKRoot: rootPublicKey, SUpdate: serial;
+  event(CommitteeActivated(E, PKRoot, SUpdate)) ==> PKRoot = pkChord.
+
+(*
+   Once Dadv has its e1 share, the new C1/C2/Dadv generation can still produce
+   a threshold signature that verifies under the unchanged root.
+*)
+query E: epoch, PKRoot: rootPublicKey, P: signerPair, SUpdate: serial;
+  event(RootContinuityAccepted(E, PKRoot, P, SUpdate))
+  ==>
+  event(CommitteeActivated(E, PKRoot, SUpdate)) && PKRoot = pkChord.
+
+(* Structural nonreachability: the fixed target has no C3 or O1 recipient. *)
+query S: serial; event(ShareActivated(C3, e1, pkChord, S)).
+query E: epoch, S: serial; event(ShareActivated(O1, E, pkChord, S)).
+
+(* Sanity reachability: all nine secrecy queries below must be false. *)
+query attacker(reachSetup).
+query attacker(reachShare1Leak).
+query attacker(reachShare2Leak).
+query attacker(reachMaliciousApproval).
+query attacker(reachShareC1).
+query attacker(reachShareC2).
+query attacker(reachShareDadv).
+query attacker(reachMaliciousCommittee).
+query attacker(reachRootContinuity).
+
+(*
+   The attacker uses the two disclosed same-epoch shares to build a valid pair12
+   approval for the exact malicious C1/C2/Dadv target proposal. No honest voter
+   process or admission/eligibility check participates in this construction.
+*)
+let MaliciousProposalDriver() =
+  let proposal: thresholdMessage =
+    committeeProposal(tagCommittee, pgbA, e0, e1,
+                      C1, C2, Dadv, Dadv, pk(skAdv), pkChord,
+                      maliciousAdmissionSerial, maliciousUpdateSerial) in
+  let approval: thresholdSignature =
+    combine(partialSign(proposal, share1(e0)),
+            partialSign(proposal, share2(e0))) in
+  let (=pair12) = verifyThreshold(approval, proposal, pkChord) in
+  out(net, committeeApprovalRequest(proposal, approval)).
+
+(*
+   The service accepts because the supplied proposal carries a threshold
+   signature that genuinely verifies under pkChord. Despite the process name,
+   no additional compromise of the service itself is modeled here: the crossed
+   threshold is already sufficient to satisfy its authorization
+   gate. It then performs the same ideal recipient-bound e1 delivery pattern as
+   the baseline, but for target members C1, C2, and Dadv.
+*)
+let CompromisedReshareService() =
+  in(net, request: wireMessage);
+  let committeeApprovalRequest(proposal: thresholdMessage,
+                               approval: thresholdSignature) = request in
+  let committeeProposal(=tagCommittee, =pgbA, =e0, =e1,
+                        =C1, =C2, =Dadv, =Dadv, =pk(skAdv), =pkChord,
+                        =maliciousAdmissionSerial,
+                        =maliciousUpdateSerial) = proposal in
+  let (=pair12) = verifyThreshold(approval, proposal, pkChord) in
+  event CommitteeApproved(
+    e0, e1, Dadv, pk(skAdv),
+    maliciousAdmissionSerial, maliciousUpdateSerial);
+  event ReshareStarted(
+    e0, e1, Dadv, pk(skAdv),
+    maliciousAdmissionSerial, maliciousUpdateSerial);
+  out(net, reachMaliciousApproval);
+  event SharePackageSent(C1, e1, pkChord, maliciousUpdateSerial);
+  out(net,
+    aenc(sharePackage(pgbA, e1, C1, pkChord,
+                      share1(e1), maliciousUpdateSerial),
+         pk(skC1Device)));
+  event SharePackageSent(C2, e1, pkChord, maliciousUpdateSerial);
+  out(net,
+    aenc(sharePackage(pgbA, e1, C2, pkChord,
+                      share2(e1), maliciousUpdateSerial),
+         pk(skC2Device)));
+  event SharePackageSent(Dadv, e1, pkChord, maliciousUpdateSerial);
+  out(net,
+    aenc(sharePackage(pgbA, e1, Dadv, pkChord,
+                      share3(e1), maliciousUpdateSerial),
+         pk(skAdv)));
+  out(reshareState, proposal).
+
+(*
+   Honest C1/C2 recipients accept only their own correctly bound e1 package and
+   acknowledge activation over their private synchronization channel.
+*)
+let ShareRecipient(member: device, deviceKey: skey,
+                   expectedShare: thresholdShare,
+                   ack: channel, canary: bitstring) =
+  in(net, encryptedPackage: ciphertext);
+  let package: protocolMessage = adec(encryptedPackage, deviceKey) in
+  let sharePackage(=pgbA, =e1, =member, =pkChord,
+                   receivedShare: thresholdShare,
+                   =maliciousUpdateSerial) = package in
+  if receivedShare = expectedShare then
+    event ShareActivated(member, e1, pkChord, maliciousUpdateSerial);
+    out(net, canary);
+    out(ack, maliciousUpdateSerial).
+
+(*
+   Dadv is attacker-controlled: skAdv is public, so its recipient-bound package
+   can be decrypted by the attacker. This helper records Dadv's e1 activation,
+   deliberately exposes share3(e1), and acknowledges the malicious target slot.
+*)
+let AttackerShareRecipient() =
+  in(net, encryptedPackage: ciphertext);
+  let package: protocolMessage = adec(encryptedPackage, skAdv) in
+  let sharePackage(=pgbA, =e1, =Dadv, =pkChord,
+                   receivedShare: thresholdShare,
+                   =maliciousUpdateSerial) = package in
+  if receivedShare = share3(e1) then
+    event ShareActivated(Dadv, e1, pkChord, maliciousUpdateSerial);
+    out(net, share3(e1));
+    out(net, reachShareDadv);
+    out(activatedDadv, maliciousUpdateSerial).
+
+(*
+   Activation still waits for C1, C2, and Dadv acknowledgments for the same
+   update. The subsequent e1 pair13 continuity signature uses C1 and Dadv,
+   demonstrating that the maliciously authorized target committee operates under
+   the same pkChord root once the threshold boundary has already been crossed.
+*)
+let ActivateMaliciousCommittee() =
+  in(reshareState, proposal: thresholdMessage);
+  in(activatedC1, =maliciousUpdateSerial);
+  in(activatedC2, =maliciousUpdateSerial);
+  in(activatedDadv, =maliciousUpdateSerial);
+  event CommitteeActivated(e1, pkChord, maliciousUpdateSerial);
+  out(net, reachMaliciousCommittee);
+  let continuitySignature: thresholdSignature =
+    combine(partialSign(proposal, share1(e1)),
+            partialSign(proposal, share3(e1))) in
+  let continuityPair: signerPair =
+    verifyThreshold(continuitySignature, proposal, pkChord) in
+  event RootContinuityAccepted(
+    e1, pkChord, continuityPair, maliciousUpdateSerial);
+  out(net, reachRootContinuity).
+
+(*
+   Setup declares C1/C2 as the current committee and then immediately releases
+   both e0 shares, intentionally crossing its 2-of-2 threshold before the
+   malicious proposal, resharing service, recipients, and activation process run
+   concurrently.
+*)
+process
+  event SetupComplete(pgbA, pkChord, pk(skCard));
+  event InitialCommitteeMember(C1, e0);
+  event InitialCommitteeMember(C2, e0);
+  event PGBLocked(pgbA);
+  out(net, reachSetup);
+  out(net, share1(e0));
+  out(net, reachShare1Leak);
+  out(net, share2(e0));
+  out(net, reachShare2Leak);
+  (
+    MaliciousProposalDriver()
+    | CompromisedReshareService()
+    | ShareRecipient(C1, skC1Device, share1(e1),
+                     activatedC1, reachShareC1)
+    | ShareRecipient(C2, skC2Device, share2(e1),
+                     activatedC2, reachShareC2)
+    | AttackerShareRecipient()
+    | ActivateMaliciousCommittee()
+  )

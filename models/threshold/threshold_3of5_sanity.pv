@@ -1,0 +1,240 @@
+(*
+   Focused bounded 3-of-5 threshold sanity test
+
+   Purpose:
+   Exercises the separate 3-of-5 abstraction in threshold_3of5_primitives.pvl.
+   All ten distinct triples of five shares must successfully combine and verify,
+   while representative insufficient or malformed combinations must not.
+
+   This is a bounded threshold-algebra sanity test only. It is not a full
+   five-member PGB-PKI lifecycle model and is not a proof for arbitrary t-of-n.
+
+   Expected result:
+   - all five threshold shares remain secret;
+   - all ten valid triples are reachable;
+   - pair-only/duplicate, mixed-epoch, mixed-message, and wrong-root attempts
+     remain unreachable.
+
+   Run with:
+
+     proverif -lib common_primitives.pvl -lib threshold_3of5_primitives.pvl \
+       threshold_3of5_sanity.pv
+*)
+
+(* ----------------------------------------------------------------------- *)
+(* Fixed test values and reachability markers                              *)
+(* ----------------------------------------------------------------------- *)
+
+free net: channel.
+
+const e35, e35Other: epoch.
+const message35, message35Other: thresholdMessage.
+
+(*
+   reachXYZ markers are released only after the corresponding valid triple has
+   combined and verified. The canary* markers are placed after deliberately
+   invalid verification gates and therefore must never be released.
+*)
+free reach123, reach124, reach125, reach134, reach135: bitstring [private].
+free reach145, reach234, reach235, reach245, reach345: bitstring [private].
+free canaryPairOnly, canaryDuplicate, canaryMixedEpoch: bitstring [private].
+free canaryMixedMessage, canaryWrongRoot: bitstring [private].
+
+(* ----------------------------------------------------------------------- *)
+(* Secrecy, liveness, and rejection queries                                *)
+(* ----------------------------------------------------------------------- *)
+
+(* None of the five threshold shares is deliberately leaked in this model. *)
+query attacker(share1(e35)).
+query attacker(share2(e35)).
+query attacker(share3(e35)).
+query attacker(share4(e35)).
+query attacker(share5(e35)).
+
+(*
+   Liveness checks: every distinct 3-of-5 signer triple must be reachable.
+   These ten attacker queries are therefore intentionally reported as false
+   secrecy results, because each private marker is output after successful
+   combination and verification.
+*)
+query attacker(reach123).
+query attacker(reach124).
+query attacker(reach125).
+query attacker(reach134).
+query attacker(reach135).
+query attacker(reach145).
+query attacker(reach234).
+query attacker(reach235).
+query attacker(reach245).
+query attacker(reach345).
+
+(*
+   Safety checks: these canaries sit behind combinations that should not form a
+   valid 3-of-5 signature. They must remain unreachable/secret.
+*)
+query attacker(canaryPairOnly).
+query attacker(canaryDuplicate).
+query attacker(canaryMixedEpoch).
+query attacker(canaryMixedMessage).
+query attacker(canaryWrongRoot).
+
+(* ----------------------------------------------------------------------- *)
+(* Valid triples                                                           *)
+(* ----------------------------------------------------------------------- *)
+
+(*
+   Each ValidXYZ process constructs one of the ten allowed distinct triples,
+   verifies that exact signature under pkChord35, and releases its reachability
+   marker only if the verification gate succeeds.
+*)
+let Valid123() =
+  let signature35: thresholdSignature =
+    combineThree(partialSign(message35, share1(e35)),
+             partialSign(message35, share2(e35)),
+             partialSign(message35, share3(e35))) in
+  let (=triple123) = verifyThreshold35(signature35, message35, pkChord35) in
+  out(net, reach123).
+
+let Valid124() =
+  let signature35: thresholdSignature =
+    combineThree(partialSign(message35, share1(e35)),
+             partialSign(message35, share2(e35)),
+             partialSign(message35, share4(e35))) in
+  let (=triple124) = verifyThreshold35(signature35, message35, pkChord35) in
+  out(net, reach124).
+
+let Valid125() =
+  let signature35: thresholdSignature =
+    combineThree(partialSign(message35, share1(e35)),
+             partialSign(message35, share2(e35)),
+             partialSign(message35, share5(e35))) in
+  let (=triple125) = verifyThreshold35(signature35, message35, pkChord35) in
+  out(net, reach125).
+
+let Valid134() =
+  let signature35: thresholdSignature =
+    combineThree(partialSign(message35, share1(e35)),
+             partialSign(message35, share3(e35)),
+             partialSign(message35, share4(e35))) in
+  let (=triple134) = verifyThreshold35(signature35, message35, pkChord35) in
+  out(net, reach134).
+
+let Valid135() =
+  let signature35: thresholdSignature =
+    combineThree(partialSign(message35, share1(e35)),
+             partialSign(message35, share3(e35)),
+             partialSign(message35, share5(e35))) in
+  let (=triple135) = verifyThreshold35(signature35, message35, pkChord35) in
+  out(net, reach135).
+
+let Valid145() =
+  let signature35: thresholdSignature =
+    combineThree(partialSign(message35, share1(e35)),
+             partialSign(message35, share4(e35)),
+             partialSign(message35, share5(e35))) in
+  let (=triple145) = verifyThreshold35(signature35, message35, pkChord35) in
+  out(net, reach145).
+
+let Valid234() =
+  let signature35: thresholdSignature =
+    combineThree(partialSign(message35, share2(e35)),
+             partialSign(message35, share3(e35)),
+             partialSign(message35, share4(e35))) in
+  let (=triple234) = verifyThreshold35(signature35, message35, pkChord35) in
+  out(net, reach234).
+
+let Valid235() =
+  let signature35: thresholdSignature =
+    combineThree(partialSign(message35, share2(e35)),
+             partialSign(message35, share3(e35)),
+             partialSign(message35, share5(e35))) in
+  let (=triple235) = verifyThreshold35(signature35, message35, pkChord35) in
+  out(net, reach235).
+
+let Valid245() =
+  let signature35: thresholdSignature =
+    combineThree(partialSign(message35, share2(e35)),
+             partialSign(message35, share4(e35)),
+             partialSign(message35, share5(e35))) in
+  let (=triple245) = verifyThreshold35(signature35, message35, pkChord35) in
+  out(net, reach245).
+
+let Valid345() =
+  let signature35: thresholdSignature =
+    combineThree(partialSign(message35, share3(e35)),
+             partialSign(message35, share4(e35)),
+             partialSign(message35, share5(e35))) in
+  let (=triple345) = verifyThreshold35(signature35, message35, pkChord35) in
+  out(net, reach345).
+
+(* ----------------------------------------------------------------------- *)
+(* Invalid combinations                                                    *)
+(* ----------------------------------------------------------------------- *)
+
+(*
+   Each process below places its canary after a verification step that should
+   be impossible. If the abstraction accidentally accepted the malformed
+   combination, the corresponding canary would become attacker-reachable and
+   its safety query above would fail.
+*)
+
+(* Only two distinct shareholders are present: share2 is repeated. *)
+let PairOnlyRejected() =
+  let candidate: thresholdSignature =
+    combineThree(partialSign(message35, share1(e35)),
+             partialSign(message35, share2(e35)),
+             partialSign(message35, share2(e35))) in
+  let anyTriple: signerTriple =
+    verifyThreshold35(candidate, message35, pkChord35) in
+  out(net, canaryPairOnly).
+
+(* A second representative duplicate-share case, this time repeating share4. *)
+let DuplicateRejected() =
+  let candidate: thresholdSignature =
+    combineThree(partialSign(message35, share4(e35)),
+             partialSign(message35, share4(e35)),
+             partialSign(message35, share5(e35))) in
+  let anyTriple: signerTriple =
+    verifyThreshold35(candidate, message35, pkChord35) in
+  out(net, canaryDuplicate).
+
+(* Three distinct shareholders are used, but share3 belongs to another epoch. *)
+let MixedEpochRejected() =
+  let candidate: thresholdSignature =
+    combineThree(partialSign(message35, share1(e35)),
+             partialSign(message35, share2(e35)),
+             partialSign(message35, share3(e35Other))) in
+  let anyTriple: signerTriple =
+    verifyThreshold35(candidate, message35, pkChord35) in
+  out(net, canaryMixedEpoch).
+
+(* The third partial signs another message and must not combine with the first two. *)
+let MixedMessageRejected() =
+  let candidate: thresholdSignature =
+    combineThree(partialSign(message35, share1(e35)),
+             partialSign(message35, share2(e35)),
+             partialSign(message35Other, share3(e35))) in
+  let anyTriple: signerTriple =
+    verifyThreshold35(candidate, message35, pkChord35) in
+  out(net, canaryMixedMessage).
+
+(* A valid triple for pkChord35 must not verify under the unrelated pkWrong35. *)
+let WrongRootRejected() =
+  let signature35: thresholdSignature =
+    combineThree(partialSign(message35, share1(e35)),
+             partialSign(message35, share2(e35)),
+             partialSign(message35, share3(e35))) in
+  let anyTriple: signerTriple =
+    verifyThreshold35(signature35, message35, pkWrong35) in
+  out(net, canaryWrongRoot).
+
+(*
+   All positive and negative micro-tests run in parallel. They are independent
+   sanity cases over the same fixed symbolic threshold instance; there is no
+   lifecycle ordering between them.
+*)
+process
+  (Valid123() | Valid124() | Valid125() | Valid134() | Valid135()
+   | Valid145() | Valid234() | Valid235() | Valid245() | Valid345()
+   | PairOnlyRejected() | DuplicateRejected() | MixedEpochRejected()
+   | MixedMessageRejected() | WrongRootRejected())

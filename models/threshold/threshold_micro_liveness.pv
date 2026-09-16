@@ -1,0 +1,113 @@
+(*
+   PGB-PKI threshold micro-test: deliberate threshold crossing
+
+   Purpose:
+   Positive companion to threshold_micro_safety.pv. The attacker is
+   deliberately given each valid pair of shares in turn to confirm that all
+   three concrete 2-of-3 combinations can actually construct a root signature.
+   This is a threshold-algebra sanity test, not a full lifecycle model.
+
+   High-level flow:
+   1. For each pair (C1+C2, C1+C3, C2+C3), the two same-epoch raw shares are
+      released on the public network.
+   2. A pair-specific validation gate accepts only a threshold signature for
+      that scenario's message and exact signer-pair label.
+   3. Successful validation releases a private canary.
+   4. A separate gate checks that the same abstraction does not validate under
+      an unrelated root public key.
+
+   Expected results:
+   - pair12, pair13, and pair23 canaries are intentionally reachable. ProVerif
+     reports these successful liveness witnesses as
+       RESULT not attacker(<canary>[]) is false.
+   - the wrong-root-key canary remains secret.
+   - crossing the threshold does not reveal the absent third raw share.
+
+   The pair scenarios use distinct epochs so one liveness case cannot satisfy
+   another accidentally.
+
+   Run with:
+
+     proverif -lib common_primitives.pvl threshold_micro_liveness.pv
+*)
+
+free net: channel.
+
+const e_pair12, e_pair13, e_pair23: epoch.
+const m_pair12, m_pair13, m_pair23: thresholdMessage.
+const m_wrong_root_key: thresholdMessage.
+
+(* No verification reduction is defined for this unrelated public key. *)
+const pkWrong: rootPublicKey.
+
+free canary_pair12: bitstring [private].
+free canary_pair13: bitstring [private].
+free canary_pair23: bitstring [private].
+free canary_wrong_root_key: bitstring [private].
+
+(*
+   verifyThreshold returns the public ghost labels pair12/pair13/pair23 from
+   common_primitives.pvl. The equality pattern requires the exact label for
+   this scenario, so a valid signature produced by another pair does not count
+   as this pair's liveness witness.
+*)
+let PairValidationGate(
+    expectedMessage: thresholdMessage,
+    expectedPair: signerPair,
+    canary: bitstring) =
+  in(net, candidate: thresholdSignature);
+  let (=expectedPair) = verifyThreshold(candidate, expectedMessage, pkChord) in
+  out(net, canary).
+
+let WrongRootKeyGate() =
+  in(net, candidate: thresholdSignature);
+  let verifiedPair: signerPair =
+    verifyThreshold(candidate, m_wrong_root_key, pkWrong) in
+  out(net, canary_wrong_root_key).
+
+(* Give the attacker exactly the two raw shares for each valid pair. *)
+let LeakPair12() =
+  out(net, share1(e_pair12));
+  out(net, share2(e_pair12)).
+
+let LeakPair13() =
+  out(net, share1(e_pair13));
+  out(net, share3(e_pair13)).
+
+let LeakPair23() =
+  out(net, share2(e_pair23));
+  out(net, share3(e_pair23)).
+
+(*
+   Intentional reachability witnesses: the attacker should learn all three
+   canaries, so their printed secrecy results are expected to be false.
+*)
+query attacker(canary_pair12).
+query attacker(canary_pair13).
+query attacker(canary_pair23).
+
+(* A valid threshold signature must not validate under another public key. *)
+query attacker(canary_wrong_root_key).
+
+(* Crossing the threshold does not disclose the absent third raw share. *)
+query attacker(share3(e_pair12)).
+query attacker(share2(e_pair13)).
+query attacker(share1(e_pair23)).
+
+(*
+   All pair experiments run in parallel. Distinct epochs and pair-specific
+   gates keep their evidence separate even though they share the public net.
+*)
+process
+  (
+    LeakPair12()
+  | PairValidationGate(m_pair12, pair12, canary_pair12)
+
+  | LeakPair13()
+  | PairValidationGate(m_pair13, pair13, canary_pair13)
+
+  | LeakPair23()
+  | PairValidationGate(m_pair23, pair23, canary_pair23)
+
+  | WrongRootKeyGate()
+  )

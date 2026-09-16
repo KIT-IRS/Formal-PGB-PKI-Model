@@ -1,0 +1,714 @@
+(*
+   PGB-PKI abstract post-lock mutual authentication
+
+   Purpose:
+   Verifies credential-based peer authentication after the PGB has been locked.
+   The model consumes already-issued credentials; it does not repeat the regular
+   admission or emergency issuance processes that created them.
+
+   High-level flow of each session:
+   1. The initiator sends its identity, public key, fresh nonce, session serial,
+      and credential.
+   2. The responder validates the initiator credential, creates a second fresh
+      nonce, and signs a transcript binding the PGB, both endpoint identities
+      and keys, both nonces, and the session serial.
+   3. The initiator validates the responder credential and signed transcript,
+      then returns its own signature over the same transcript.
+   4. The responder verifies that final signature before accepting the peer.
+
+   Covered credential combinations:
+   - regular Dreg <-> regular O1;
+   - emergency Demg <-> regular/CA-capable PGB-I C1;
+
+   A separate compromise experiment releases only Dleak's device private key
+   and tests Dleak as both responder and initiator. The attacker should then be
+   able to impersonate Dleak, while authentication of the uncompromised peer
+   and secrecy of CA keys and threshold shares remain intact.
+
+   This is an abstract authentication exchange. It does not model a concrete
+   TLS/gRPC/industrial-protocol handshake, an application-key schedule, or
+   application-data confidentiality.
+
+   Run with:
+
+     proverif -lib common_primitives.pvl peer_authentication.pv
+*)
+
+free net: channel.
+
+const pgbA: pgb.
+const C1, O1, Dreg, Demg, Dleak: device.
+const e0: epoch.
+
+const regularSerialO1, regularSerialDreg: serial.
+const regularSerialDleak, emergencySerialDemg: serial.
+const pgbiIssuerSerial: serial.
+
+free skCard: skey [private].
+free skC1Device: skey [private].
+free skO1Device: skey [private].
+free skDregDevice: skey [private].
+free skDemgDevice: skey [private].
+free skDleakDevice: skey [private].
+
+event DeviceKeyCompromised(device).
+
+free reachSetup: bitstring [private].
+free reachDleakKeyLeak: bitstring [private].
+free reachRRInitiatorAccepted: bitstring [private].
+free reachRRResponderAccepted: bitstring [private].
+free reachERInitiatorAccepted: bitstring [private].
+free reachERResponderAccepted: bitstring [private].
+free reachREInitiatorAccepted: bitstring [private].
+free reachREResponderAccepted: bitstring [private].
+free reachC1AcceptsDleak: bitstring [private].
+free reachDleakAcceptsC1: bitstring [private].
+free reachDleakAcceptsO1: bitstring [private].
+free reachO1AcceptsDleak: bitstring [private].
+
+(* ----------------------------------------------------------------------- *)
+(* Secrecy, containment, and authentication queries                         *)
+(* ----------------------------------------------------------------------- *)
+
+query attacker(skCard).
+query attacker(skC1Device).
+query attacker(skO1Device).
+query attacker(skDregDevice).
+query attacker(skDemgDevice).
+
+(* Expected false: the selected device key is deliberately released. *)
+query attacker(skDleakDevice).
+
+query attacker(share1(e0)).
+query attacker(share2(e0)).
+query attacker(share3(e0)).
+
+(*
+   Emergency peers are accepted only through the PGB-I issuer key that is
+   itself authorized by C1's threshold-signed, CA-capable LDevID. S, NA, and NB
+   below are query-local variables for the session serial and the two nonces.
+*)
+query S: serial, NA: nonce, NB: nonce;
+  event(PeerAcceptedByInitiator(
+    C1, pk(skC1Device), Demg, pk(skDemgDevice), S, NA, NB))
+  ==>
+  event(PGBILDevIDWithCAIssued(
+    C1, pk(skC1Device), pgbiIssuerSerial)) &&
+  event(PGBILDevIDCAValidated(
+    C1, C1, pk(skC1Device), pgbiIssuerSerial)).
+
+query S: serial, NA: nonce, NB: nonce;
+  event(PeerAcceptedByResponder(
+    C1, pk(skC1Device), Demg, pk(skDemgDevice), S, NA, NB))
+  ==>
+  event(PGBILDevIDWithCAIssued(
+    C1, pk(skC1Device), pgbiIssuerSerial)) &&
+  event(PGBILDevIDCAValidated(
+    C1, C1, pk(skC1Device), pgbiIssuerSerial)).
+
+(* Structural nonreachability: this peer-only model instantiates no share
+   activation or partial-signing service. These checks do not establish
+   containment against live committee/admission services. *)
+query E: epoch, S: serial;
+  event(ShareActivated(Dleak, E, pkChord, S)).
+
+query PK: pkey, S: serial, E: epoch;
+  event(PartialIssued(Dleak, Dleak, PK, S, E)).
+
+(* Regular Dreg -> regular O1: injective mutual authentication. *)
+query S: serial, NA: nonce, NB: nonce;
+  inj-event(PeerAcceptedByInitiator(
+    Dreg, pk(skDregDevice), O1, pk(skO1Device), S, NA, NB))
+  ==>
+  inj-event(PeerAuthResponded(
+    O1, pk(skO1Device), Dreg, pk(skDregDevice), S, NA, NB)).
+
+query S: serial, NA: nonce, NB: nonce;
+  inj-event(PeerAcceptedByResponder(
+    O1, pk(skO1Device), Dreg, pk(skDregDevice), S, NA, NB))
+  ==>
+  inj-event(PeerAuthFinalized(
+    Dreg, pk(skDregDevice), O1, pk(skO1Device), S, NA, NB)).
+
+query S: serial, NA: nonce, NB: nonce;
+  inj-event(PeerAuthFinalized(
+    Dreg, pk(skDregDevice), O1, pk(skO1Device), S, NA, NB))
+  ==>
+  inj-event(PeerAuthStarted(
+    Dreg, pk(skDregDevice), O1, S, NA)).
+
+(* Emergency Demg -> regular C1. *)
+query S: serial, NA: nonce, NB: nonce;
+  inj-event(PeerAcceptedByInitiator(
+    Demg, pk(skDemgDevice), C1, pk(skC1Device), S, NA, NB))
+  ==>
+  inj-event(PeerAuthResponded(
+    C1, pk(skC1Device), Demg, pk(skDemgDevice), S, NA, NB)).
+
+query S: serial, NA: nonce, NB: nonce;
+  inj-event(PeerAcceptedByResponder(
+    C1, pk(skC1Device), Demg, pk(skDemgDevice), S, NA, NB))
+  ==>
+  inj-event(PeerAuthFinalized(
+    Demg, pk(skDemgDevice), C1, pk(skC1Device), S, NA, NB)).
+
+query S: serial, NA: nonce, NB: nonce;
+  inj-event(PeerAuthFinalized(
+    Demg, pk(skDemgDevice), C1, pk(skC1Device), S, NA, NB))
+  ==>
+  inj-event(PeerAuthStarted(
+    Demg, pk(skDemgDevice), C1, S, NA)).
+
+(* Regular C1 -> emergency Demg. *)
+query S: serial, NA: nonce, NB: nonce;
+  inj-event(PeerAcceptedByInitiator(
+    C1, pk(skC1Device), Demg, pk(skDemgDevice), S, NA, NB))
+  ==>
+  inj-event(PeerAuthResponded(
+    Demg, pk(skDemgDevice), C1, pk(skC1Device), S, NA, NB)).
+
+query S: serial, NA: nonce, NB: nonce;
+  inj-event(PeerAcceptedByResponder(
+    Demg, pk(skDemgDevice), C1, pk(skC1Device), S, NA, NB))
+  ==>
+  inj-event(PeerAuthFinalized(
+    C1, pk(skC1Device), Demg, pk(skDemgDevice), S, NA, NB)).
+
+query S: serial, NA: nonce, NB: nonce;
+  inj-event(PeerAuthFinalized(
+    C1, pk(skC1Device), Demg, pk(skDemgDevice), S, NA, NB))
+  ==>
+  inj-event(PeerAuthStarted(
+    C1, pk(skC1Device), Demg, S, NA)).
+
+(*
+   The following queries separate the two authentication directions when
+   Dleak's private key is known to the attacker.
+
+   In PeerAcceptedByInitiator/PeerAcceptedByResponder, the first device is
+   the party that accepted the session and the second device is the peer it
+   believes it authenticated.
+
+   The first two queries remain true: an honest Dleak process can still
+   authenticate the uncompromised C1 or O1. Knowing Dleak's private key does
+   not allow the attacker to forge messages from those uncompromised peers.
+
+   The last two queries are expected to be false. They reverse the direction:
+   C1 or O1 tries to authenticate Dleak. Since the attacker knows
+   skDleakDevice, it can impersonate Dleak without executing Dleak's honest
+   protocol process. The corresponding honest PeerAuthResponded or
+   PeerAuthFinalized event therefore need not have occurred.
+*)
+query S: serial, NA: nonce, NB: nonce;
+  inj-event(PeerAcceptedByResponder(
+    Dleak, pk(skDleakDevice), C1, pk(skC1Device), S, NA, NB))
+  ==>
+  inj-event(PeerAuthFinalized(
+    C1, pk(skC1Device), Dleak, pk(skDleakDevice), S, NA, NB)).
+
+query S: serial, NA: nonce, NB: nonce;
+  inj-event(PeerAcceptedByInitiator(
+    Dleak, pk(skDleakDevice), O1, pk(skO1Device), S, NA, NB))
+  ==>
+  inj-event(PeerAuthResponded(
+    O1, pk(skO1Device), Dleak, pk(skDleakDevice), S, NA, NB)).
+
+
+query S: serial, NA: nonce, NB: nonce;
+  event(PeerAcceptedByInitiator(
+    C1, pk(skC1Device), Dleak, pk(skDleakDevice), S, NA, NB))
+  ==>
+  event(PeerAuthResponded(
+    Dleak, pk(skDleakDevice), C1, pk(skC1Device), S, NA, NB)).
+
+query S: serial, NA: nonce, NB: nonce;
+  event(PeerAcceptedByResponder(
+    O1, pk(skO1Device), Dleak, pk(skDleakDevice), S, NA, NB))
+  ==>
+  event(PeerAuthFinalized(
+    Dleak, pk(skDleakDevice), O1, pk(skO1Device), S, NA, NB)).
+
+(* Sanity reachability: all twelve secrecy queries below must be false.
+   Each compromised-key session has a distinct canary per accepting endpoint;
+   this separately witnesses the antecedents of the retained authentication
+   claims. These are existence witnesses, not guaranteed completion. *)
+query attacker(reachSetup).
+query attacker(reachDleakKeyLeak).
+query attacker(reachRRInitiatorAccepted).
+query attacker(reachRRResponderAccepted).
+query attacker(reachERInitiatorAccepted).
+query attacker(reachERResponderAccepted).
+query attacker(reachREInitiatorAccepted).
+query attacker(reachREResponderAccepted).
+query attacker(reachC1AcceptsDleak).
+query attacker(reachDleakAcceptsC1).
+query attacker(reachDleakAcceptsO1).
+query attacker(reachO1AcceptsDleak).
+
+(* ----------------------------------------------------------------------- *)
+(* Initiators expecting a regular or emergency responder                    *)
+(* ----------------------------------------------------------------------- *)
+
+(*
+   The three initiator processes below use the same challenge/response/final
+   transcript. They differ only in how the responder's credential is validated:
+   an ordinary regular LDevID, C1's CA-capable PGB-I LDevID, or a restricted
+   emergency credential chained through that PGB-I LDevID.
+*)
+let PeerInitiatorExpectRegular(initiator: device, initiatorKey: skey,
+                               ownCredential: peerCredential,
+                               responder: device, responderKey: pkey,
+                               acceptedCanary: bitstring) =
+  new sessionSerial: serial;
+  new nonceA: nonce;
+  event PeerAuthStarted(initiator, pk(initiatorKey), responder,
+                        sessionSerial, nonceA);
+  out(net,
+    peerAuthInit(initiator, pk(initiatorKey), responder,
+                 sessionSerial, nonceA, ownCredential));
+
+  in(net, response: wireMessage);
+  let peerAuthResponse(=responder, =responderKey,
+                       =initiator, =pk(initiatorKey),
+                       =sessionSerial, =nonceA, nonceB: nonce,
+                       responderCredential: peerCredential,
+                       responderSignature: signature) = response in
+
+  (*
+     For a regular peer, unpack the presented credential as a regular LDevID
+     and require its threshold signature to verify under pkChord.
+  *)
+  let peerRegularCredential(regularCredential: certificate) =
+    responderCredential in
+  let makeRegularCertificate(body: thresholdMessage,
+                             rootSignature: thresholdSignature) =
+    regularCredential in
+  let regularLDevIDBody(=tagRegularLDevID, =pgbA, =responder,
+                        =responderKey, =regularMember,
+                        responderTokenSerial: serial,
+                        responderCredentialSerial: serial) = body in
+  let verifiedPair: signerPair =
+    verifyThreshold(rootSignature, body, pkChord) in
+  let checkedContext: protocolMessage =
+    checkSign(responderSignature, responderKey) in
+  let expectedContext: protocolMessage =
+    peerAuthContext(tagPeerAuth, pgbA,
+                    initiator, pk(initiatorKey), responder, responderKey,
+                    nonceA, nonceB, sessionSerial) in
+  if checkedContext = expectedContext then
+    event PeerAcceptedByInitiator(
+      initiator, pk(initiatorKey), responder, responderKey,
+      sessionSerial, nonceA, nonceB);
+    out(net, acceptedCanary);
+    event PeerAuthFinalized(
+      initiator, pk(initiatorKey), responder, responderKey,
+      sessionSerial, nonceA, nonceB);
+    out(net,
+      peerAuthFinal(initiator, pk(initiatorKey), responder, responderKey,
+                    sessionSerial, nonceA, nonceB,
+                    sign(expectedContext, initiatorKey))).
+
+let PeerInitiatorExpectPGBI(initiator: device, initiatorKey: skey,
+                            ownCredential: peerCredential,
+                            responder: device, responderKey: pkey,
+                            acceptedCanary: bitstring) =
+  new sessionSerial: serial;
+  new nonceA: nonce;
+  event PeerAuthStarted(initiator, pk(initiatorKey), responder,
+                        sessionSerial, nonceA);
+  out(net,
+    peerAuthInit(initiator, pk(initiatorKey), responder,
+                 sessionSerial, nonceA, ownCredential));
+
+  in(net, response: wireMessage);
+  let peerAuthResponse(=responder, =responderKey,
+                       =initiator, =pk(initiatorKey),
+                       =sessionSerial, =nonceA, nonceB: nonce,
+                       responderCredential: peerCredential,
+                       responderSignature: signature) = response in
+  (* C1 must present the root-signed PGB-I profile carrying emergency CA capability. *)
+  let peerRegularCredential(pgbiCredential: certificate) =
+    responderCredential in
+  let makeRegularCertificate(body: thresholdMessage,
+                             rootSignature: thresholdSignature) =
+    pgbiCredential in
+  let pgbiLDevIDBody(=tagPGBILDevID, =pgbA, =responder,
+                     =responderKey, =regularMember,
+                     =emergencyIssuerCACap,
+                     responderCredentialSerial: serial) = body in
+  let verifiedPair: signerPair =
+    verifyThreshold(rootSignature, body, pkChord) in
+  let checkedContext: protocolMessage =
+    checkSign(responderSignature, responderKey) in
+  let expectedContext: protocolMessage =
+    peerAuthContext(tagPeerAuth, pgbA,
+                    initiator, pk(initiatorKey), responder, responderKey,
+                    nonceA, nonceB, sessionSerial) in
+  if checkedContext = expectedContext then
+    event PeerAcceptedByInitiator(
+      initiator, pk(initiatorKey), responder, responderKey,
+      sessionSerial, nonceA, nonceB);
+    out(net, acceptedCanary);
+    event PeerAuthFinalized(
+      initiator, pk(initiatorKey), responder, responderKey,
+      sessionSerial, nonceA, nonceB);
+    out(net,
+      peerAuthFinal(initiator, pk(initiatorKey), responder, responderKey,
+                    sessionSerial, nonceA, nonceB,
+                    sign(expectedContext, initiatorKey))).
+
+let PeerInitiatorExpectEmergency(initiator: device, initiatorKey: skey,
+                                 ownCredential: peerCredential,
+                                 responder: device, responderKey: pkey,
+                                 issuerCredential: certificate,
+                                 acceptedCanary: bitstring) =
+  new sessionSerial: serial;
+  new nonceA: nonce;
+  event PeerAuthStarted(initiator, pk(initiatorKey), responder,
+                        sessionSerial, nonceA);
+  out(net,
+    peerAuthInit(initiator, pk(initiatorKey), responder,
+                 sessionSerial, nonceA, ownCredential));
+
+  in(net, response: wireMessage);
+  let peerAuthResponse(=responder, =responderKey,
+                       =initiator, =pk(initiatorKey),
+                       =sessionSerial, =nonceA, nonceB: nonce,
+                       responderCredential: peerCredential,
+                       responderSignature: signature) = response in
+  (*
+     For an emergency peer, first validate C1's CA-capable issuer LDevID under
+     pkChord, then validate the emergency credential under the issuer key bound
+     by that LDevID.
+  *)
+  let peerEmergencyCredential(emgCredential: emergencyCredential) =
+    responderCredential in
+  let makeRegularCertificate(authorityBody: thresholdMessage,
+                             authoritySignature: thresholdSignature) =
+    issuerCredential in
+  let pgbiLDevIDBody(=tagPGBILDevID, =pgbA, =C1,
+                     issuerKey: pkey, =regularMember,
+                     =emergencyIssuerCACap,
+                     issuerSerial: serial) = authorityBody in
+  let authorityPair: signerPair =
+    verifyThreshold(authoritySignature, authorityBody, pkChord) in
+  let responderCredentialSerial: serial =
+    validateEmergencyCredential(
+      emgCredential, issuerKey, pgbA, responder, responderKey) in
+  event PGBILDevIDCAValidated(
+    initiator, C1, issuerKey, issuerSerial);
+  let checkedContext: protocolMessage =
+    checkSign(responderSignature, responderKey) in
+  let expectedContext: protocolMessage =
+    peerAuthContext(tagPeerAuth, pgbA,
+                    initiator, pk(initiatorKey), responder, responderKey,
+                    nonceA, nonceB, sessionSerial) in
+  if checkedContext = expectedContext then
+    event PeerAcceptedByInitiator(
+      initiator, pk(initiatorKey), responder, responderKey,
+      sessionSerial, nonceA, nonceB);
+    out(net, acceptedCanary);
+    event PeerAuthFinalized(
+      initiator, pk(initiatorKey), responder, responderKey,
+      sessionSerial, nonceA, nonceB);
+    out(net,
+      peerAuthFinal(initiator, pk(initiatorKey), responder, responderKey,
+                    sessionSerial, nonceA, nonceB,
+                    sign(expectedContext, initiatorKey))).
+
+(* ----------------------------------------------------------------------- *)
+(* Responders accepting a regular or emergency initiator                    *)
+(* ----------------------------------------------------------------------- *)
+
+(*
+   These responder variants mirror the initiator-side credential checks. After
+   validating the initiator credential, the responder signs the common
+   transcript and accepts only after receiving the initiator's matching final
+   signature.
+*)
+let PeerResponderAcceptRegular(responder: device, responderKey: skey,
+                               ownCredential: peerCredential,
+                               initiator: device, initiatorPublicKey: pkey,
+                               acceptedCanary: bitstring) =
+  !in(net, initialization: wireMessage);
+  let peerAuthInit(=initiator, =initiatorPublicKey, =responder,
+                   sessionSerial: serial, nonceA: nonce,
+                   initiatorCredential: peerCredential) = initialization in
+  let peerRegularCredential(regularCredential: certificate) =
+    initiatorCredential in
+  let makeRegularCertificate(body: thresholdMessage,
+                             rootSignature: thresholdSignature) =
+    regularCredential in
+  let regularLDevIDBody(=tagRegularLDevID, =pgbA, =initiator,
+                        =initiatorPublicKey, =regularMember,
+                        initiatorTokenSerial: serial,
+                        initiatorCredentialSerial: serial) = body in
+  let verifiedPair: signerPair =
+    verifyThreshold(rootSignature, body, pkChord) in
+  new nonceB: nonce;
+  let context: protocolMessage =
+    peerAuthContext(tagPeerAuth, pgbA,
+                    initiator, initiatorPublicKey,
+                    responder, pk(responderKey),
+                    nonceA, nonceB, sessionSerial) in
+  event PeerAuthResponded(
+    responder, pk(responderKey), initiator, initiatorPublicKey,
+    sessionSerial, nonceA, nonceB);
+  out(net,
+    peerAuthResponse(responder, pk(responderKey),
+                     initiator, initiatorPublicKey,
+                     sessionSerial, nonceA, nonceB, ownCredential,
+                     sign(context, responderKey)));
+
+  in(net, finalMessage: wireMessage);
+  let peerAuthFinal(=initiator, =initiatorPublicKey,
+                    =responder, =pk(responderKey),
+                    =sessionSerial, =nonceA, =nonceB,
+                    initiatorSignature: signature) = finalMessage in
+  let checkedContext: protocolMessage =
+    checkSign(initiatorSignature, initiatorPublicKey) in
+  if checkedContext = context then
+    event PeerAcceptedByResponder(
+      responder, pk(responderKey), initiator, initiatorPublicKey,
+      sessionSerial, nonceA, nonceB);
+    out(net, acceptedCanary).
+
+let PeerResponderAcceptPGBI(responder: device, responderKey: skey,
+                            ownCredential: peerCredential,
+                            initiator: device, initiatorPublicKey: pkey,
+                            acceptedCanary: bitstring) =
+  !in(net, initialization: wireMessage);
+  let peerAuthInit(=initiator, =initiatorPublicKey, =responder,
+                   sessionSerial: serial, nonceA: nonce,
+                   initiatorCredential: peerCredential) = initialization in
+  (* The initiator must be the root-authorized, CA-capable PGB-I identity. *)
+  let peerRegularCredential(pgbiCredential: certificate) =
+    initiatorCredential in
+  let makeRegularCertificate(body: thresholdMessage,
+                             rootSignature: thresholdSignature) =
+    pgbiCredential in
+  let pgbiLDevIDBody(=tagPGBILDevID, =pgbA, =initiator,
+                     =initiatorPublicKey, =regularMember,
+                     =emergencyIssuerCACap,
+                     initiatorCredentialSerial: serial) = body in
+  let verifiedPair: signerPair =
+    verifyThreshold(rootSignature, body, pkChord) in
+  new nonceB: nonce;
+  let context: protocolMessage =
+    peerAuthContext(tagPeerAuth, pgbA,
+                    initiator, initiatorPublicKey,
+                    responder, pk(responderKey),
+                    nonceA, nonceB, sessionSerial) in
+  event PeerAuthResponded(
+    responder, pk(responderKey), initiator, initiatorPublicKey,
+    sessionSerial, nonceA, nonceB);
+  out(net,
+    peerAuthResponse(responder, pk(responderKey),
+                     initiator, initiatorPublicKey,
+                     sessionSerial, nonceA, nonceB, ownCredential,
+                     sign(context, responderKey)));
+
+  in(net, finalMessage: wireMessage);
+  let peerAuthFinal(=initiator, =initiatorPublicKey,
+                    =responder, =pk(responderKey),
+                    =sessionSerial, =nonceA, =nonceB,
+                    initiatorSignature: signature) = finalMessage in
+  let checkedContext: protocolMessage =
+    checkSign(initiatorSignature, initiatorPublicKey) in
+  if checkedContext = context then
+    event PeerAcceptedByResponder(
+      responder, pk(responderKey), initiator, initiatorPublicKey,
+      sessionSerial, nonceA, nonceB);
+    out(net, acceptedCanary).
+
+let PeerResponderAcceptEmergency(responder: device, responderKey: skey,
+                                 ownCredential: peerCredential,
+                                 initiator: device, initiatorPublicKey: pkey,
+                                 issuerCredential: certificate,
+                                 acceptedCanary: bitstring) =
+  !in(net, initialization: wireMessage);
+  let peerAuthInit(=initiator, =initiatorPublicKey, =responder,
+                   sessionSerial: serial, nonceA: nonce,
+                   initiatorCredential: peerCredential) = initialization in
+  (*
+     Emergency-initiator validation follows the same two-step chain: validate
+     C1's CA-capable issuer LDevID under pkChord, then validate the emergency
+     credential with the issuer key obtained from that LDevID.
+  *)
+  let peerEmergencyCredential(emgCredential: emergencyCredential) =
+    initiatorCredential in
+  let makeRegularCertificate(authorityBody: thresholdMessage,
+                             authoritySignature: thresholdSignature) =
+    issuerCredential in
+  let pgbiLDevIDBody(=tagPGBILDevID, =pgbA, =C1,
+                     issuerKey: pkey, =regularMember,
+                     =emergencyIssuerCACap,
+                     issuerSerial: serial) = authorityBody in
+  let authorityPair: signerPair =
+    verifyThreshold(authoritySignature, authorityBody, pkChord) in
+  let initiatorCredentialSerial: serial =
+    validateEmergencyCredential(
+      emgCredential, issuerKey, pgbA,
+      initiator, initiatorPublicKey) in
+  event PGBILDevIDCAValidated(
+    responder, C1, issuerKey, issuerSerial);
+  new nonceB: nonce;
+  let context: protocolMessage =
+    peerAuthContext(tagPeerAuth, pgbA,
+                    initiator, initiatorPublicKey,
+                    responder, pk(responderKey),
+                    nonceA, nonceB, sessionSerial) in
+  event PeerAuthResponded(
+    responder, pk(responderKey), initiator, initiatorPublicKey,
+    sessionSerial, nonceA, nonceB);
+  out(net,
+    peerAuthResponse(responder, pk(responderKey),
+                     initiator, initiatorPublicKey,
+                     sessionSerial, nonceA, nonceB, ownCredential,
+                     sign(context, responderKey)));
+
+  in(net, finalMessage: wireMessage);
+  let peerAuthFinal(=initiator, =initiatorPublicKey,
+                    =responder, =pk(responderKey),
+                    =sessionSerial, =nonceA, =nonceB,
+                    initiatorSignature: signature) = finalMessage in
+  let checkedContext: protocolMessage =
+    checkSign(initiatorSignature, initiatorPublicKey) in
+  if checkedContext = context then
+    event PeerAcceptedByResponder(
+      responder, pk(responderKey), initiator, initiatorPublicKey,
+      sessionSerial, nonceA, nonceB);
+    out(net, acceptedCanary).
+
+(* ----------------------------------------------------------------------- *)
+(* Locked setup and focused sessions                                        *)
+(* ----------------------------------------------------------------------- *)
+
+(*
+   This focused model starts after credential issuance, so valid credentials
+   are constructed directly in the trusted setup rather than by replaying the
+   admission protocols. The regular credentials deliberately use pair12,
+   pair13, and pair23 across different subjects to exercise all valid concrete
+   2-of-3 encodings. The particular pair assigned to a subject has no
+   architectural meaning.
+*)
+let LockedSetup() =
+  let issuerBody: thresholdMessage =
+    pgbiLDevIDBody(tagPGBILDevID, pgbA, C1,
+                   pk(skC1Device), regularMember,
+                   emergencyIssuerCACap, pgbiIssuerSerial) in
+  let issuerCredential: certificate =
+    makeRegularCertificate(
+      issuerBody, thresholdSig12(e0, issuerBody)) in
+  let bodyO1: thresholdMessage =
+    regularLDevIDBody(tagRegularLDevID, pgbA, O1, pk(skO1Device),
+                      regularMember, regularSerialO1, regularSerialO1) in
+  let bodyDreg: thresholdMessage =
+    regularLDevIDBody(tagRegularLDevID, pgbA, Dreg, pk(skDregDevice),
+                      regularMember, regularSerialDreg, regularSerialDreg) in
+  let bodyDleak: thresholdMessage =
+    regularLDevIDBody(tagRegularLDevID, pgbA, Dleak, pk(skDleakDevice),
+                      regularMember, regularSerialDleak, regularSerialDleak) in
+
+  let credentialO1: certificate =
+    makeRegularCertificate(bodyO1, thresholdSig13(e0, bodyO1)) in
+  let credentialDreg: certificate =
+    makeRegularCertificate(bodyDreg, thresholdSig23(e0, bodyDreg)) in
+  let credentialDleak: certificate =
+    makeRegularCertificate(bodyDleak, thresholdSig13(e0, bodyDleak)) in
+
+  (*
+     Demg's restricted emergency credential is signed with C1's device/issuer
+     key. issuerCredential above is the threshold-signed PGB-I LDevID proving
+     that this same key is authorized for emergency issuance.
+  *)
+  let emergencyBodyDemg: protocolMessage =
+    emergencyLDevIDBody(tagEmergencyLDevID, pgbA,
+                        Demg, pk(skDemgDevice), emergencyMember,
+                        emergencySerialDemg) in
+  let emergencyCredentialDemg: emergencyCredential =
+    makeEmergencyCredential(
+      emergencyBodyDemg, sign(emergencyBodyDemg, skC1Device)) in
+
+  (* The wrapper gives both regular and emergency credentials one handshake input type. *)
+  let peerC1: peerCredential = peerRegularCredential(issuerCredential) in
+  let peerO1: peerCredential = peerRegularCredential(credentialO1) in
+  let peerDreg: peerCredential = peerRegularCredential(credentialDreg) in
+  let peerDleak: peerCredential = peerRegularCredential(credentialDleak) in
+  let peerDemg: peerCredential =
+    peerEmergencyCredential(emergencyCredentialDemg) in
+
+  event InitialRegularMember(C1, pk(skC1Device));
+  event InitialRegularMember(O1, pk(skO1Device));
+  event InitialRegularMember(Dreg, pk(skDregDevice));
+  event InitialRegularMember(Dleak, pk(skDleakDevice));
+  event PGBILDevIDWithCAIssued(
+    C1, pk(skC1Device), pgbiIssuerSerial);
+  event EmergencyCredentialIssued(
+    C1, Demg, pk(skDemgDevice), emergencySerialDemg);
+  event SetupComplete(pgbA, pkChord, pk(skCard));
+  event PGBLocked(pgbA);
+
+  (*
+     COMP-DEVICE-D: disclose only Dleak's endpoint private key. Dleak keeps its
+     otherwise valid credential, letting the attacker test pure endpoint
+     impersonation without receiving any threshold share or CA capability.
+  *)
+  event DeviceKeyCompromised(Dleak);
+  out(net, skDleakDevice);
+  out(net, reachDleakKeyLeak);
+
+  out(net, pkChord);
+  out(net, issuerCredential);
+  out(net, peerC1);
+  out(net, peerO1);
+  out(net, peerDreg);
+  out(net, peerDleak);
+  out(net, peerDemg);
+  out(net, reachSetup);
+
+  (
+    (* Regular -> regular baseline. *)
+    PeerInitiatorExpectRegular(
+      Dreg, skDregDevice, peerDreg,
+      O1, pk(skO1Device), reachRRInitiatorAccepted)
+  | PeerResponderAcceptRegular(
+      O1, skO1Device, peerO1,
+      Dreg, pk(skDregDevice), reachRRResponderAccepted)
+
+    (* Emergency -> regular. *)
+  | PeerInitiatorExpectPGBI(
+      Demg, skDemgDevice, peerDemg,
+      C1, pk(skC1Device), reachERInitiatorAccepted)
+  | PeerResponderAcceptEmergency(
+      C1, skC1Device, peerC1,
+      Demg, pk(skDemgDevice), issuerCredential,
+      reachERResponderAccepted)
+
+    (* Regular -> emergency. *)
+  | PeerInitiatorExpectEmergency(
+      C1, skC1Device, peerC1,
+      Demg, pk(skDemgDevice), issuerCredential,
+      reachREInitiatorAccepted)
+  | PeerResponderAcceptPGBI(
+      Demg, skDemgDevice, peerDemg,
+      C1, pk(skC1Device), reachREResponderAccepted)
+
+    (* Dleak as responder: C1 remains authenticated, Dleak origin fails. *)
+  | PeerInitiatorExpectRegular(
+      C1, skC1Device, peerC1,
+      Dleak, pk(skDleakDevice), reachC1AcceptsDleak)
+  | PeerResponderAcceptPGBI(
+      Dleak, skDleakDevice, peerDleak,
+      C1, pk(skC1Device), reachDleakAcceptsC1)
+
+    (* Dleak as initiator: O1 remains authenticated, Dleak origin fails. *)
+  | PeerInitiatorExpectRegular(
+      Dleak, skDleakDevice, peerDleak,
+      O1, pk(skO1Device), reachDleakAcceptsO1)
+  | PeerResponderAcceptRegular(
+      O1, skO1Device, peerO1,
+      Dleak, pk(skDleakDevice), reachO1AcceptsDleak)
+  ).
+
+process LockedSetup()

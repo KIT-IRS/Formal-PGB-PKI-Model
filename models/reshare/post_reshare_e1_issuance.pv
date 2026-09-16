@@ -1,0 +1,217 @@
+(*
+   PGB-PKI post-reshare e1 issuance consistency check
+
+   Purpose:
+   Checks that the explicitly modeled regular-issuance path after a legitimate
+   e0 -> e1 committee transition uses the new e1 share generation rather than
+   issuing fresh credentials with e0 shares.
+
+   High-level flow:
+   1. share1(e0) is copied to the attacker before the transition, and an old-e0
+      partial for the later Dpost credential body is exposed as a witness that
+      leaked historical material remains usable.
+   2. A compact legitimate C3 transition activates the e1 committee and signals
+      the private e1Ready synchronization channel.
+   3. Only after that signal does the modeled Dpost regular issuance execute.
+   4. C1 and C3 validate Dpost at e1 and combine share1(e1) + share3(e1).
+   5. No honest PartialIssued event for Dpost is generated at e0.
+
+   This is a post-transition wiring / epoch-use consistency check. It does not
+   prove that a distributed implementation cannot accidentally leave a stale e0
+   signing service running, and it does not make already leaked e0 material
+   cryptographically invalid.
+
+   Expected result:
+   - share1(e0) and the explicit old-e0 partial are attacker-known;
+   - all other threshold shares and honest private keys remain secret;
+   - post-reshare Dpost acceptance traces to card authorization and C1/C3 e1
+     signer validation;
+   - honest e0 partial issuance for Dpost remains unreachable;
+   - committee activation keeps pkChord unchanged.
+*)
+
+free net: channel.
+(*
+   e1Ready is a private synchronization channel. It prevents the post-reshare
+   issuance process from starting until the compact transition has activated e1;
+   it is internal control flow, not a network authorization message.
+*)
+free e1Ready: channel [private].
+
+const pgbA: pgb.
+const C1, C2, C3, O1, Dpost: device.
+const e0, e1: epoch.
+const committeeAdmissionSerial, updateSerial: serial.
+const postTokenSerial, postAdmissionSerial: serial.
+
+free skCard: skey [private].
+free skC3Device: skey [private].
+free skDpost: skey [private].
+free reachE1Activated: bitstring [private].
+free reachPostReshareIssuance: bitstring [private].
+free reachOldShareStillUsable: bitstring [private].
+
+(* ----------------------------------------------------------------------- *)
+(* Security and sanity queries                                              *)
+(* ----------------------------------------------------------------------- *)
+
+(*
+   share1(e0) is the one intentional share disclosure. All other e0/e1 shares
+   and the honest card/C3/Dpost private keys must remain secret.
+*)
+query attacker(skCard).
+query attacker(skC3Device).
+query attacker(skDpost).
+query attacker(share1(e0)).
+query attacker(share2(e0)).
+query attacker(share3(e0)).
+query attacker(share1(e1)).
+query attacker(share2(e1)).
+query attacker(share3(e1)).
+
+(*
+   Expected reachable: possession of share1(e0) lets the attacker construct an
+   old-epoch partial for this Dpost body. This deliberately shows that resharing
+   does not erase or invalidate already compromised historical share material.
+*)
+query attacker(
+  partialSign(
+    regularLDevIDBody(tagRegularLDevID, pgbA, Dpost, pk(skDpost),
+                      regularMember, postTokenSerial, postAdmissionSerial),
+    share1(e0))).
+
+(*
+   Any successful post-reshare Dpost acceptance in this focused path must trace
+   to its card authorization and to independent C1/C3 signer validation at e1.
+*)
+query S: serial, N1: nonce, N3: nonce;
+  event(PostReshareRegularAccepted(Dpost, pk(skDpost), e1, S))
+  ==>
+  event(CardAuthorized(pgbA, Dpost, pk(skDpost), postTokenSerial)) &&
+  event(SignerValidated(C1, Dpost, pk(skDpost), postTokenSerial, S, e1, N1)) &&
+  event(SignerValidated(C3, Dpost, pk(skDpost), postTokenSerial, S, e1, N3)).
+
+(*
+   These two events must remain unreachable: the modeled honest post-transition
+   signer path never issues a Dpost partial with an e0 share. This is a statement
+   about this explicit wiring, not a global stale-service elimination theorem.
+*)
+query S: serial; event(PartialIssued(C1, Dpost, pk(skDpost), S, e0)).
+query S: serial; event(PartialIssued(C3, Dpost, pk(skDpost), S, e0)).
+
+(* The compact committee transition must preserve the existing root anchor. *)
+query E: epoch, PKRoot: rootPublicKey, S: serial;
+  event(CommitteeActivated(E, PKRoot, S)) ==> PKRoot = pkChord.
+
+(* Sanity reachability: all three secrecy queries below must be false. *)
+query attacker(reachE1Activated).
+query attacker(reachPostReshareIssuance).
+query attacker(reachOldShareStillUsable).
+
+(*
+   Compact e0 -> e1 transition witness. Admission, eligibility, encrypted share
+   delivery, and recipient acknowledgments are omitted here because the full
+   resharing baseline verifies those stages. This process only establishes the
+   ordering point needed by this model: e1 becomes active under pkChord, then
+   e1Ready is signaled.
+*)
+let LegitimateReshare() =
+  let proposal: thresholdMessage =
+    committeeProposal(tagCommittee, pgbA, e0, e1,
+                      C1, C2, C3, C3, pk(skC3Device), pkChord,
+                      committeeAdmissionSerial, updateSerial) in
+  event CommitteeVote(
+    C1, e0, e1, C3, pk(skC3Device),
+    committeeAdmissionSerial, updateSerial);
+  event CommitteeVote(
+    C2, e0, e1, C3, pk(skC3Device),
+    committeeAdmissionSerial, updateSerial);
+  let approval: thresholdSignature =
+    combine(partialSign(proposal, share1(e0)),
+            partialSign(proposal, share2(e0))) in
+  let (=pair12) = verifyThreshold(approval, proposal, pkChord) in
+  event CommitteeApproved(
+    e0, e1, C3, pk(skC3Device), committeeAdmissionSerial, updateSerial);
+  event ReshareStarted(
+    e0, e1, C3, pk(skC3Device), committeeAdmissionSerial, updateSerial);
+  event ShareActivated(C1, e1, pkChord, updateSerial);
+  event ShareActivated(C2, e1, pkChord, updateSerial);
+  event ShareActivated(C3, e1, pkChord, updateSerial);
+  event CommitteeActivated(e1, pkChord, updateSerial);
+  out(net, reachE1Activated);
+  out(e1Ready, updateSerial).
+
+(*
+   Focused regular-issuance witness after e1 activation. Rather than replaying
+   the full network admission protocol, it constructs and validates Dpost's
+   correctly bound card token and fresh PoPs locally, records C1/C3 validation
+   at epoch e1, and combines the corresponding e1 pair13 shares.
+*)
+let PostReshareIssuance() =
+  in(e1Ready, =updateSerial);
+  let tokenBody: protocolMessage =
+    cardTokenBody(tagCardToken, pgbA, Dpost, pk(skDpost), postTokenSerial) in
+  event CardAuthorized(pgbA, Dpost, pk(skDpost), postTokenSerial);
+  let token: admissionToken =
+    makeCardToken(tokenBody, sign(tokenBody, skCard)) in
+  let (=postTokenSerial) =
+    validateCardToken(token, pk(skCard), pgbA, Dpost, pk(skDpost)) in
+  new nonce1: nonce;
+  let pop1: protocolMessage =
+    regularPoPContext(tagRegPoP, pgbA, Dpost, pk(skDpost),
+                      postAdmissionSerial, C1, nonce1) in
+  event RegularPoPProduced(
+    Dpost, pk(skDpost), C1, postAdmissionSerial, nonce1);
+  let (=pop1) = checkSign(sign(pop1, skDpost), pk(skDpost)) in
+  event RegularSignerPoPVerified(
+    C1, Dpost, pk(skDpost), postAdmissionSerial, e1, nonce1);
+  event SignerValidated(
+    C1, Dpost, pk(skDpost), postTokenSerial,
+    postAdmissionSerial, e1, nonce1);
+  event PartialIssued(
+    C1, Dpost, pk(skDpost), postAdmissionSerial, e1);
+  new nonce3: nonce;
+  let pop3: protocolMessage =
+    regularPoPContext(tagRegPoP, pgbA, Dpost, pk(skDpost),
+                      postAdmissionSerial, C3, nonce3) in
+  event RegularPoPProduced(
+    Dpost, pk(skDpost), C3, postAdmissionSerial, nonce3);
+  let (=pop3) = checkSign(sign(pop3, skDpost), pk(skDpost)) in
+  event RegularSignerPoPVerified(
+    C3, Dpost, pk(skDpost), postAdmissionSerial, e1, nonce3);
+  event SignerValidated(
+    C3, Dpost, pk(skDpost), postTokenSerial,
+    postAdmissionSerial, e1, nonce3);
+  event PartialIssued(
+    C3, Dpost, pk(skDpost), postAdmissionSerial, e1);
+  let certBody: thresholdMessage =
+    regularLDevIDBody(tagRegularLDevID, pgbA, Dpost, pk(skDpost),
+                      regularMember, postTokenSerial, postAdmissionSerial) in
+  let rootSignature: thresholdSignature =
+    combine(partialSign(certBody, share1(e1)),
+            partialSign(certBody, share3(e1))) in
+  let (=pair13) = verifyThreshold(rootSignature, certBody, pkChord) in
+  new completionNonce: nonce;
+  event RegularCredentialAccepted13(
+    C1, Dpost, pk(skDpost), postTokenSerial, postAdmissionSerial, completionNonce);
+  event RegularMembershipAuthorized(
+    C1, Dpost, pk(skDpost), postTokenSerial, postAdmissionSerial, completionNonce);
+  event PostReshareRegularAccepted(
+    Dpost, pk(skDpost), e1, postAdmissionSerial);
+  out(net, reachPostReshareIssuance).
+
+(*
+   The old C1 share and one concrete old-e0 partial are published before the
+   transition. Their continued attacker visibility is intentional. The compact
+   resharing process and e1-only post-transition issuance then run in parallel,
+   with e1Ready enforcing the required order between them.
+*)
+process
+  out(net, share1(e0));
+  out(net,
+    partialSign(
+      regularLDevIDBody(tagRegularLDevID, pgbA, Dpost, pk(skDpost),
+                        regularMember, postTokenSerial, postAdmissionSerial),
+      share1(e0)));
+  out(net, reachOldShareStillUsable);
+  (LegitimateReshare() | PostReshareIssuance())

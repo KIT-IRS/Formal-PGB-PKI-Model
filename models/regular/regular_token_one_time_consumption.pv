@@ -1,0 +1,262 @@
+(*
+   PGB-PKI regular admission - one-time token-consumption diagnostic
+
+   Purpose:
+   Auxiliary hardening model for single-use regular-admission tokens. It
+   isolates token-consumption state from the full 2-of-3 admission model and
+   checks that reusing the same valid token cannot authorize a second
+   admission, even when the legitimate device produces a fresh valid PoP.
+
+   High-level flow:
+   1. The smartcard creates one valid PGB-A token for Dreg and makes that exact
+      same token available to two admission attempts.
+   2. The first attempt validates the token and a fresh PoP, records the token
+      serial as consumed, and is accepted.
+   3. Only after that state transition does the second attempt begin. It uses
+      the same token but completes a new challenge/response PoP successfully.
+   4. The second attempt is rejected because the token serial was already
+      consumed, not because its token or PoP is cryptographically invalid.
+
+   The consumed-token registry is represented by one serialized, logically
+   consistent consumer process. Distributed synchronization, concurrent token
+   use, crash recovery, and atomic persistence are outside this model.
+
+   Expected result:
+   - the card and device private keys remain secret;
+   - the first acceptance requires card authorization and successful PoP;
+   - no second TokenAdmissionAccepted event is reachable;
+   - reuse rejection follows prior token consumption;
+   - the three reachability canaries are intentionally reachable, so their
+     attacker-secrecy queries are expected to be false.
+
+   Run with:
+
+     proverif -lib common_primitives.pvl regular_token_one_time_consumption.pv
+*)
+
+(* ----------------------------------------------------------------------- *)
+(* Fixed diagnostic instance and messages                                   *)
+(* ----------------------------------------------------------------------- *)
+
+(* The attempt identifier lets the same token and device be tracked across
+   two distinct admission runs. *)
+type attempt.
+
+const firstAttempt, secondAttempt: attempt.
+const pgbA: pgb.
+
+(* This focused model does not instantiate the complete threshold committee.
+   C1 is the representative certification-node/verifier identity carried in
+   the PoP context, while Dreg is the legitimate candidate. *)
+const C1, Dreg: device.
+const tokenSerial, firstAdmissionSerial, secondAdmissionSerial: serial.
+
+
+(* net is the public Dolev-Yao network. The two private channels are used only
+   to provision the token locally and to start the second attempt after the
+   first one has been recorded as consumed. *)
+free net: channel.
+free tokenProvision: channel [private].
+free beginSecondAttempt: channel [private].
+
+free skCard: skey [private].
+free skDreg: skey [private].
+
+free reachFirstAccepted: bitstring [private].
+free reachSecondPoPVerified: bitstring [private].
+free reachReuseRejected: bitstring [private].
+
+
+(* These data constructors carry the attempt identifier through the request,
+   fresh challenge, PoP context, and response so the two runs cannot be
+   confused in the trace. *)
+fun tokenAdmissionAttempt(attempt, device, pkey, admissionToken, serial):
+  wireMessage [data].
+fun tokenConsumptionChallenge(attempt, pgb, device, pkey, serial, serial,
+                              device, nonce): wireMessage [data].
+fun tokenConsumptionContext(domainTag, attempt, pgb, device, pkey,
+                            serial, serial, device, nonce):
+  protocolMessage [data].
+fun tokenConsumptionResponse(attempt, device, pkey, serial, serial,
+                             device, nonce, signature): wireMessage [data].
+
+
+(* The events distinguish production/verification of a fresh PoP from the
+   stateful decision to consume, accept, or reject a token serial. *)
+event TokenPoPProduced(attempt, device, pkey, serial, serial, nonce).
+event TokenPoPVerified(attempt, device, pkey, serial, serial, nonce).
+event RegularTokenConsumed(serial, device, pkey).
+event TokenAdmissionAccepted(attempt, serial, device, pkey, serial).
+event TokenReuseRejected(serial, device, pkey, serial).
+
+
+(* ----------------------------------------------------------------------- *)
+(* Security and sanity queries                                              *)
+(* ----------------------------------------------------------------------- *)
+
+(* The authorization artifact and the PoP must not reveal either private key. *)
+query attacker(skCard).
+query attacker(skDreg).
+
+
+(* Every accepted attempt must trace to the genuine card authorization and to
+   successful verification of a fresh PoP for that same attempt. *)
+query A: attempt, S: serial, N: nonce;
+  event(TokenAdmissionAccepted(A, tokenSerial, Dreg, pk(skDreg), S))
+  ==>
+  event(CardAuthorized(pgbA, Dreg, pk(skDreg), tokenSerial)) &&
+  event(TokenPoPVerified(A, Dreg, pk(skDreg), tokenSerial, S, N)).
+
+
+(* The second attempt must never reach the acceptance event. *)
+query S: serial;
+  event(TokenAdmissionAccepted(secondAttempt, tokenSerial,
+                               Dreg, pk(skDreg), S)).
+
+
+(* A reuse rejection is justified only after this token serial was consumed. *)
+query S: serial;
+  event(TokenReuseRejected(tokenSerial, Dreg, pk(skDreg), S))
+  ==>
+  event(RegularTokenConsumed(tokenSerial, Dreg, pk(skDreg))).
+
+
+(* Sanity reachability: all three secrecy queries below must be false. *)
+query attacker(reachFirstAccepted).
+query attacker(reachSecondPoPVerified).
+query attacker(reachReuseRejected).
+
+
+(* ----------------------------------------------------------------------- *)
+(* Token provisioning and two candidate attempts                           *)
+(* ----------------------------------------------------------------------- *)
+
+(* Only one token is created and authorized. The exact same token value is
+   sent twice on the private provisioning channel so that each candidate
+   attempt receives one copy; no second smartcard authorization is issued. *)
+let SmartcardProvision() =
+  let body: protocolMessage =
+    cardTokenBody(tagCardToken, pgbA, Dreg, pk(skDreg), tokenSerial) in
+  let token: admissionToken =
+    makeCardToken(body, sign(body, skCard)) in
+  event CardAuthorized(pgbA, Dreg, pk(skDreg), tokenSerial);
+  out(tokenProvision, token);
+  out(tokenProvision, token).
+
+
+(* The first candidate run immediately presents its provisioned token. *)
+let CandidateFirstAttempt() =
+  in(tokenProvision, token: admissionToken);
+  out(net,
+    tokenAdmissionAttempt(firstAttempt, Dreg, pk(skDreg), token,
+                          firstAdmissionSerial)).
+
+
+(* The second run waits on the private synchronization channel. The consumer
+   opens this channel only after the first token use has been accepted and
+   recorded as consumed. *)
+let CandidateSecondAttempt() =
+  in(beginSecondAttempt, =tokenSerial);
+  in(tokenProvision, token: admissionToken);
+  out(net,
+    tokenAdmissionAttempt(secondAttempt, Dreg, pk(skDreg), token,
+                          secondAdmissionSerial)).
+
+
+(* Dreg answers fresh challenges for either attempt with its legitimate
+   private key. Thus a later rejection of attempt two cannot be attributed to
+   a stale/replayed PoP or lack of key possession. *)
+let CandidatePoP() =
+  !in(net, challenge: wireMessage);
+  let tokenConsumptionChallenge(attemptId: attempt, =pgbA, =Dreg,
+                                =pk(skDreg), =tokenSerial,
+                                admissionSerial: serial, =C1,
+                                verifierNonce: nonce) = challenge in
+  let context: protocolMessage =
+    tokenConsumptionContext(tagRegPoP, attemptId, pgbA, Dreg, pk(skDreg),
+                            tokenSerial, admissionSerial, C1,
+                            verifierNonce) in
+  event TokenPoPProduced(
+    attemptId, Dreg, pk(skDreg), tokenSerial,
+    admissionSerial, verifierNonce);
+  out(net,
+    tokenConsumptionResponse(attemptId, Dreg, pk(skDreg), tokenSerial,
+                             admissionSerial, C1, verifierNonce,
+                             sign(context, skDreg))).
+
+
+(* ----------------------------------------------------------------------- *)
+(* Serialized token-consumer state                                          *)
+(* ----------------------------------------------------------------------- *)
+
+(* State is represented directly by process control flow: the consumer first
+   validates and consumes the token, and only then continues into the branch
+   that handles the second use of that already-consumed serial. *)
+let TokenConsumer() =
+  in(net, request1: wireMessage);
+  let tokenAdmissionAttempt(=firstAttempt, =Dreg, =pk(skDreg),
+                            token1: admissionToken,
+                            =firstAdmissionSerial) = request1 in
+  let (=tokenSerial) =
+    validateCardToken(token1, pk(skCard), pgbA, Dreg, pk(skDreg)) in
+  new nonce1: nonce;
+  out(net,
+    tokenConsumptionChallenge(firstAttempt, pgbA, Dreg, pk(skDreg),
+                              tokenSerial, firstAdmissionSerial, C1,
+                              nonce1));
+  in(net, response1: wireMessage);
+  let tokenConsumptionResponse(=firstAttempt, =Dreg, =pk(skDreg),
+                               =tokenSerial, =firstAdmissionSerial, =C1,
+                               =nonce1, signature1: signature) = response1 in
+  let checked1: protocolMessage = checkSign(signature1, pk(skDreg)) in
+  let expected1: protocolMessage =
+    tokenConsumptionContext(tagRegPoP, firstAttempt, pgbA, Dreg, pk(skDreg),
+                            tokenSerial, firstAdmissionSerial, C1, nonce1) in
+  if checked1 = expected1 then
+    event TokenPoPVerified(
+      firstAttempt, Dreg, pk(skDreg), tokenSerial,
+      firstAdmissionSerial, nonce1);
+    event RegularTokenConsumed(tokenSerial, Dreg, pk(skDreg));
+    event TokenAdmissionAccepted(
+      firstAttempt, tokenSerial, Dreg, pk(skDreg), firstAdmissionSerial);
+    out(net, reachFirstAccepted);
+    (* Consumption is now established; release the second candidate run. *)
+    out(beginSecondAttempt, tokenSerial);
+    in(net, request2: wireMessage);
+    let tokenAdmissionAttempt(=secondAttempt, =Dreg, =pk(skDreg),
+                              token2: admissionToken,
+                              =secondAdmissionSerial) = request2 in
+    let (=tokenSerial) =
+      validateCardToken(token2, pk(skCard), pgbA, Dreg, pk(skDreg)) in
+    new nonce2: nonce;
+    out(net,
+      tokenConsumptionChallenge(secondAttempt, pgbA, Dreg, pk(skDreg),
+                                tokenSerial, secondAdmissionSerial, C1,
+                                nonce2));
+    in(net, response2: wireMessage);
+    let tokenConsumptionResponse(=secondAttempt, =Dreg, =pk(skDreg),
+                                 =tokenSerial, =secondAdmissionSerial, =C1,
+                                 =nonce2, signature2: signature) = response2 in
+    let checked2: protocolMessage = checkSign(signature2, pk(skDreg)) in
+    let expected2: protocolMessage =
+      tokenConsumptionContext(tagRegPoP, secondAttempt, pgbA,
+                              Dreg, pk(skDreg), tokenSerial,
+                              secondAdmissionSerial, C1, nonce2) in
+    if checked2 = expected2 then
+      event TokenPoPVerified(
+        secondAttempt, Dreg, pk(skDreg), tokenSerial,
+        secondAdmissionSerial, nonce2);
+      out(net, reachSecondPoPVerified);
+      (* The second token and fresh PoP have both validated. No second
+         acceptance event is emitted; the already-consumed serial determines
+         the outcome. *)
+      event TokenReuseRejected(
+        tokenSerial, Dreg, pk(skDreg), secondAdmissionSerial);
+      out(net, reachReuseRejected).
+
+process
+  (SmartcardProvision()
+   | CandidateFirstAttempt()
+   | CandidateSecondAttempt()
+   | CandidatePoP()
+   | TokenConsumer())

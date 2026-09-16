@@ -1,0 +1,209 @@
+(*
+   PGB-PKI regular admission - candidate-side wrong-PGB diagnostic
+
+   Purpose:
+   Focused two-PGB negative diagnostic for candidate-side target selection.
+   Dreg owns a valid admission token bound to PGB A, but it accepts an
+   unauthenticated entry advertisement before presenting that material. The
+   model asks whether this can make the candidate present PGB-A material to a
+   PGB-B entry, and separately whether PGB B can actually validate that token.
+
+   High-level flow:
+   1. The PGB-A smartcard provisions Dreg with a token bound to pgbA.
+   2. EntryA advertises pgbA/root A and EntryB advertises pgbB/root B on the
+      public network; the candidate does not authenticate the advertisement.
+   3. Dreg can therefore select the wrong advertised target and submit its
+      PGB-A token to EntryB.
+   4. The wrong-domain presentation is reachable, but EntryB validates tokens
+      using PGB B and its independent admission root, so the PGB-A token cannot
+      be accepted as a PGB-B token.
+
+   This exposes a candidate-side target-PGB misbinding/presentation weakness;
+   it is not a cross-PGB token forgery, and this diagnostic intentionally adds
+   no target-authentication repair.
+
+   Expected result:
+   - the three private keys remain secret;
+   - candidate target binding (Expected = Actual) intentionally fails;
+   - WrongPGBTokenAccepted remains unreachable;
+   - correct-PGB acceptance traces to genuine PGB-A card authorization;
+   - correct-PGB acceptance and wrong-PGB presentation are both reachable, so
+     the two reachability attacker-secrecy queries are expected to be false.
+
+   Run with:
+
+     proverif -lib common_primitives.pvl candidate_wrong_pgb_misbinding.pv
+*)
+
+(* ----------------------------------------------------------------------- *)
+(* Two independent PGB trust domains                                        *)
+(* ----------------------------------------------------------------------- *)
+
+(* PGB A is the token's intended domain; PGB B represents a different target.
+   Each has its own advertised Chord-root identity and independent admission
+   key. The rootPublicKey constants here are public symbolic anchor values. *)
+const pgbA, pgbB: pgb.
+const EntryA, EntryB, Dreg: device.
+const pkChordA, pkChordB: rootPublicKey.
+const tokenSerial: serial.
+
+
+(* net is attacker-controlled. tokenProvision is private and models the local
+   handover of the PGB-A admission token to Dreg. *)
+free net: channel.
+free tokenProvision: channel [private].
+
+free skCardA: skey [private].
+free skCardB: skey [private].
+free skDreg: skey [private].
+
+free reachCorrectPGBAcceptance: bitstring [private].
+free reachCandidateWrongPGBPresentation: bitstring [private].
+
+
+(* entryAdvertisement is deliberately unauthenticated public data. The
+   submission records both the candidate's expected PGB (pgbA) and the PGB,
+   entry node, and root selected from the received advertisement. *)
+fun entryAdvertisement(pgb, device, rootPublicKey): wireMessage [data].
+fun candidateAdmissionSubmission(device, pgb, pgb, device,
+                                 rootPublicKey, admissionToken):
+  wireMessage [data].
+
+
+(* CandidateSelectedTarget/PresentedAdmissionMaterial record candidate-side
+   behavior only; neither event means that the selected PGB accepted Dreg. *)
+event CandidateSelectedTarget(device, pgb, pgb, device, rootPublicKey).
+event CandidatePresentedAdmissionMaterial(device, pgb, pgb, device, serial).
+event CorrectPGBTokenAccepted(device, serial).
+event WrongPGBTokenAccepted(device, serial).
+
+
+(* ----------------------------------------------------------------------- *)
+(* Security, containment, and diagnostic queries                            *)
+(* ----------------------------------------------------------------------- *)
+
+(* Neither admission authority nor the legitimate candidate key is leaked. *)
+query attacker(skCardA).
+query attacker(skCardB).
+query attacker(skDreg).
+
+
+(* Diagnostic property: a correctly bound target would require Expected and
+   Actual to agree. This query is intentionally false because the candidate
+   accepts unauthenticated advertisements. *)
+query Expected: pgb, Actual: pgb, Entry: device, Root: rootPublicKey;
+  event(CandidateSelectedTarget(Dreg, Expected, Actual, Entry, Root))
+  ==>
+  Expected = Actual.
+
+
+(* Server-side containment still holds: PGB B must never accept the PGB-A
+   token as one of its own. *)
+query S: serial; event(WrongPGBTokenAccepted(Dreg, S)).
+
+
+(* Correct-domain acceptance must trace to the genuine PGB-A smartcard. *)
+query S: serial;
+  event(CorrectPGBTokenAccepted(Dreg, S))
+  ==>
+  event(CardAuthorized(pgbA, Dreg, pk(skDreg), S)).
+
+
+(* Sanity reachability: both secrecy queries below must be false. *)
+query attacker(reachCorrectPGBAcceptance).
+query attacker(reachCandidateWrongPGBPresentation).
+
+
+(* ----------------------------------------------------------------------- *)
+(* PGB-A token provisioning and candidate target selection                  *)
+(* ----------------------------------------------------------------------- *)
+
+(* Only the PGB-A authority provisions Dreg in this diagnostic. *)
+let SmartcardProvision() =
+  let body: protocolMessage =
+    cardTokenBody(tagCardToken, pgbA, Dreg, pk(skDreg), tokenSerial) in
+  event CardAuthorized(pgbA, Dreg, pk(skDreg), tokenSerial);
+  out(tokenProvision,
+    makeCardToken(body, sign(body, skCardA))).
+
+
+(* Dreg receives its valid PGB-A token locally, then accepts one entry
+   advertisement from the public network without first checking that the
+   advertised PGB/root is the intended trust domain. *)
+let Candidate() =
+  in(tokenProvision, token: admissionToken);
+  in(net, advertisement: wireMessage);
+  let entryAdvertisement(actualPGB: pgb, entry: device,
+                         advertisedRoot: rootPublicKey) = advertisement in
+  event CandidateSelectedTarget(
+    Dreg, pgbA, actualPGB, entry, advertisedRoot);
+  event CandidatePresentedAdmissionMaterial(
+    Dreg, pgbA, actualPGB, entry, tokenSerial);
+  out(net,
+    candidateAdmissionSubmission(Dreg, pgbA, actualPGB, entry,
+                                 advertisedRoot, token));
+  if actualPGB = pgbB then
+  if entry = EntryB then
+  if advertisedRoot = pkChordB then
+    out(net, reachCandidateWrongPGBPresentation).
+
+
+(* Representative advertisements make both the intended and wrong target
+   choices reachable on the public network. *)
+let HonestEntryAdvertises() =
+  out(net, entryAdvertisement(pgbA, EntryA, pkChordA)).
+
+let WrongEntryAdvertises() =
+  out(net, entryAdvertisement(pgbB, EntryB, pkChordB)).
+
+
+(* ----------------------------------------------------------------------- *)
+(* Domain-specific server-side validation                                   *)
+(* ----------------------------------------------------------------------- *)
+
+(* EntryA accepts only a submission whose expected and actual domains are both
+   pgbA and whose entry/root match EntryA. It then validates the token with
+   the PGB-A admission key and PGB-A binding. *)
+let HonestEntryA() =
+  !in(net, submission: wireMessage);
+  let candidateAdmissionSubmission(=Dreg, =pgbA, =pgbA, =EntryA,
+                                   =pkChordA, token: admissionToken) =
+    submission in
+  let acceptedSerial: serial =
+    validateCardToken(token, pk(skCardA), pgbA, Dreg, pk(skDreg)) in
+  event CorrectPGBTokenAccepted(Dreg, acceptedSerial);
+  out(net, reachCorrectPGBAcceptance).
+
+
+(* EntryB accepts the candidate's submission shape with expected pgbA but
+   actual pgbB. The candidate-side canary above records the wrong-target presentation.
+   Receipt here can also be caused by an attacker-crafted wrapper and is not
+   used as evidence of candidate behavior.
+   Token validation is then attempted under PGB B and skCardB; because the
+   supplied token is signed/bound for PGB A, this validation cannot succeed
+   and WrongPGBTokenAccepted is not emitted. *)
+let WrongEntryB() =
+  !in(net, submission: wireMessage);
+  let candidateAdmissionSubmission(=Dreg, =pgbA, =pgbB, =EntryB,
+                                   =pkChordB, token: admissionToken) =
+    submission in
+  let acceptedSerial: serial =
+    validateCardToken(token, pk(skCardB), pgbB, Dreg, pk(skDreg)) in
+  event WrongPGBTokenAccepted(Dreg, acceptedSerial).
+
+(*
+   The top-level process starts all protocol roles below in parallel.
+   The "|" operator means that these processes execute concurrently and may
+   communicate through the channels defined above.
+
+   Unlike the main regular-admission model, this focused diagnostic does not
+   use a separate LockedSetup() wrapper. Instead, the provisioning, candidate,
+   advertisements, and the two entry-point behaviors are instantiated directly.
+*)
+process
+  (SmartcardProvision()
+   | Candidate()
+   | HonestEntryAdvertises()
+   | WrongEntryAdvertises()
+   | HonestEntryA()
+   | WrongEntryB())

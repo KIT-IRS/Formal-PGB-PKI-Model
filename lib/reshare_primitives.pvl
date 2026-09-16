@@ -1,0 +1,82 @@
+(*
+   PGB-PKI resharing primitives
+
+   Purpose:
+   Shared declarations for the focused committee-update and resharing models.
+   Load this library after common_primitives.pvl. It reuses the common 2-of-3
+   threshold-signature abstraction unchanged and adds only the messages and
+   events needed to model an e0 -> e1 committee transition.
+
+   Modeling boundary:
+   This library does not implement DKG or a concrete resharing protocol. The
+   executable models treat resharing as an ideal cryptographic functionality
+   whose authorization and recipient/epoch binding are analyzed separately.
+
+   Load together with the common library, for example:
+
+     proverif -lib common_primitives.pvl -lib reshare_primitives.pvl \
+       reshare_2to3_baseline.pv
+*)
+
+const tagCommitteePoP, tagRootContinuity: domainTag.
+
+(*
+   Exact committee-update proposal. The three consecutive device fields encode
+   the target committee in this focused 2-to-3 model; the following device/key
+   pair separately binds the candidate being added. The proposal also binds the
+   PGB, current and target epochs, unchanged root key, admission serial, and
+   update serial so votes from unrelated transitions cannot be combined.
+*)
+fun committeeProposal(domainTag, pgb, epoch, epoch,
+                      device, device, device, device, pkey,
+                      rootPublicKey, serial, serial): thresholdMessage [data].
+
+(*
+   Committee-specific proof-of-possession context. It is separate from the
+   earlier regular-admission PoP and additionally binds both epochs, the update
+   serial, the particular voter, and that voter's fresh nonce.
+*)
+fun committeePoPContext(domainTag, pgb, epoch, epoch,
+                        device, pkey, serial, serial,
+                        device, nonce): protocolMessage [data].
+
+(*
+   Recipient-bound symbolic share package. In the main resharing models this is
+   encrypted to the intended device only after committee approval. The package
+   represents delivery from the ideal resharing functionality; it is not a claim
+   that a concrete PGB-PKI implementation literally transports finished shares
+   in this format.
+*)
+fun sharePackage(pgb, epoch, device, rootPublicKey,
+                 thresholdShare, serial): protocolMessage [data].
+
+(* Public wire wrappers for proposal voting and approval. They carry structured
+   data but no authority by themselves; validation happens in the processes. *)
+fun committeeRequest(device, epoch, epoch, device, pkey, serial, serial,
+                     certificate, thresholdMessage): wireMessage [data].
+fun committeeChallenge(pgb, epoch, epoch, device, pkey, serial, serial,
+                       device, nonce): wireMessage [data].
+fun committeePoPResponse(device, device, pkey, serial, serial,
+                         nonce, signature): wireMessage [data].
+fun committeeVoteResponse(device, epoch, epoch, device, pkey,
+                          serial, serial, partialSignature): wireMessage [data].
+fun committeeApprovalRequest(thresholdMessage, thresholdSignature):
+  wireMessage [data].
+
+(* Candidate qualification and independent current-committee voting. *)
+event CertificationEligible(device, pkey).
+event CommitteePoPProduced(device, pkey, device, serial, serial, nonce).
+event CommitteePoPVerified(device, device, pkey, serial, serial, nonce).
+event CommitteeCandidateAuthenticated(device, device, pkey, serial, serial).
+event CommitteeVote(device, epoch, epoch, device, pkey, serial, serial).
+
+(* Authorized resharing, recipient delivery, and activation milestones. *)
+event ReshareStarted(epoch, epoch, device, pkey, serial, serial).
+event SharePackageSent(device, epoch, rootPublicKey, serial).
+event CommitteeActivated(epoch, rootPublicKey, serial).
+event RootContinuityAccepted(epoch, rootPublicKey, signerPair, serial).
+
+(* Diagnostic events used by later epoch/compromise variants. *)
+event MixedEpochProposalAccepted(device, pkey, serial, serial).
+event HistoricalRootForgeryAccepted(device, pkey, epoch, serial).
+event PostReshareRegularAccepted(device, pkey, epoch, serial).

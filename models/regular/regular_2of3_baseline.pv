@@ -1,0 +1,557 @@
+(*
+   PGB-PKI regular admission - 2-of-3 baseline
+
+   Purpose:
+   Main baseline model for regular post-lock admission with certification nodes
+   C1, C2, and C3 and a 2-of-3 threshold root. The network, including the
+   representative Chord routing path, is controlled by the Dolev-Yao attacker.
+
+   High-level flow:
+   1. A trusted smartcard authorizes the honest candidate Dreg for this PGB and
+      public key.
+   2. The candidate starts admission through the untrusted overlay.
+   3. C1, C2, and C3 independently validate the token and a fresh, signer-bound
+      proof of possession before issuing their partial signatures.
+   4. Any valid pair of partial signatures is combined into the root-authorized
+      regular LDevID, which represents successful admission.
+   5. Correspondence queries check that acceptance is preceded by the required
+      authorization, PoP verification, and pair-specific signer validation.
+
+   Dadv owns its private key and can therefore produce PoP signatures, but it has
+   no genuine smartcard authorization. O1 is an ordinary overlay node and has no
+   certification share.
+
+   Expected result:
+   - the stated secrecy and correspondence properties hold;
+   - Dadv is not admitted;
+   - the five reachability canaries are intentionally reachable, so their
+     attacker-secrecy queries are expected to be false.
+
+   Run with:
+
+     proverif -lib common_primitives.pvl regular_2of3_baseline.pv
+*)
+
+(* ----------------------------------------------------------------------- *)
+(* Fixed architecture instance                                              *)
+(* ----------------------------------------------------------------------- *)
+
+(*
+   "free" declares globally existing names. The public channel net is under
+   attacker control: messages sent on it may be read, replayed, modified,
+   blocked, or replaced. The [private] provisioning channel is initially known
+   only to the honest processes and models the offline smartcard handover.
+*)
+free net: channel.
+free cardProvision: channel [private].
+
+(* "const" introduces fixed public symbolic values for this concrete instance. *)
+const pgbA: pgb.
+const C1, C2, C3, O1, Dreg, Dadv: device.
+const e0: epoch.
+
+const initialSerialC1, initialSerialC2: serial.
+const initialSerialC3, initialSerialO1: serial.
+
+(*
+   Private free names represent long-term keys that exist before protocol
+   execution but are initially unknown to the attacker.
+*)
+free skCard: skey [private].
+free skC1Device: skey [private].
+free skC2Device: skey [private].
+free skC3Device: skey [private].
+free skO1Device: skey [private].
+free skDregDevice: skey [private].
+
+(* Explicit attacker-owned key material; this is intentionally public. *)
+free skAdv: skey.
+
+(*
+   Reachability witnesses. Their secrecy is intentionally expected to fail.
+   They are emitted only after the corresponding honest milestone.
+*)
+free reachSetup: bitstring [private].
+free reachRepresentativeOverlayForwarding: bitstring [private].
+free reachPair12MembershipAuthorized: bitstring [private].
+free reachPair13MembershipAuthorized: bitstring [private].
+free reachPair23MembershipAuthorized: bitstring [private].
+
+(* ----------------------------------------------------------------------- *)
+(* Security and sanity queries                                              *)
+(* ----------------------------------------------------------------------- *)
+
+(*
+   "query attacker(x)." checks secrecy: ProVerif prints
+   "RESULT not attacker_<type>(x) is true." when x is not derivable.
+   The secret-material queries below therefore expect a printed true result.
+*)
+(* P1: no uncompromised private key or root share is attacker-derivable. *)
+query attacker(skCard).
+query attacker(skC1Device).
+query attacker(skC2Device).
+query attacker(skC3Device).
+query attacker(skO1Device).
+query attacker(skDregDevice).
+
+query attacker(share1(e0)).
+query attacker(share2(e0)).
+query attacker(share3(e0)).
+
+(*
+   Event correspondence syntax: A ==> B means that whenever event A occurs in a
+   trace, an event B with the corresponding parameters must have occurred before
+   it. This is used to express authorization/authentication properties.
+*)
+(*
+   Variables declared after "query" are local quantified variables, not fixed
+   model entities. Here G ranges over the first-signer field recorded by
+   membership/credential events, whereas Ci ranges over the certification node
+   recorded by signer-local events.
+*)
+(* T1: every accepted regular member has genuine smartcard authorization. *)
+query G: device, D: device, PK: pkey, T: serial, S: serial, NJ: nonce;
+  event(RegularMembershipAuthorized(G, D, PK, T, S, NJ))
+  ==>
+  event(CardAuthorized(pgbA, D, PK, T)).
+
+(* Dadv can prove possession of skAdv but lacks PGB-A card authorization. *)
+query G: device, T: serial, S: serial, NJ: nonce;
+  event(RegularMembershipAuthorized(
+    G, Dadv, pk(skAdv), T, S, NJ)).
+
+(* No post-lock acceptance can precede the trusted lock boundary. *)
+query G: device, D: device, PK: pkey, T: serial, S: serial, NJ: nonce;
+  event(RegularMembershipAuthorized(G, D, PK, T, S, NJ))
+  ==>
+  event(PGBLocked(pgbA)).
+
+(*
+   "inj-event" strengthens a correspondence to injectivity: separate occurrences
+   on the left must correspond to separate occurrences on the right. Here it
+   prevents several validations from being justified by one PoP-verification run.
+*)
+(* Every validation follows cryptographic PoP verification by that signer. *)
+query Ci: device, D: device, PK: pkey, T: serial,
+      S: serial, E: epoch, N: nonce;
+  inj-event(SignerValidated(Ci, D, PK, T, S, E, N))
+  ==>
+  inj-event(RegularSignerPoPVerified(Ci, D, PK, S, E, N)).
+
+(* In the baseline, verification also traces to the honest candidate process. *)
+query Ci: device, D: device, PK: pkey, T: serial,
+      S: serial, E: epoch, N: nonce;
+  inj-event(SignerValidated(Ci, D, PK, T, S, E, N))
+  ==>
+  inj-event(RegularPoPProduced(D, PK, Ci, S, N)).
+
+(* Cryptographic token validity must trace to genuine card authorization. *)
+query Ci: device, D: device, PK: pkey, T: serial,
+      S: serial, E: epoch, N: nonce;
+  event(SignerValidated(Ci, D, PK, T, S, E, N))
+  ==>
+  event(CardAuthorized(pgbA, D, PK, T)).
+
+(* No partial-signing branch may bypass its own local validation event. *)
+query Ci: device, D: device, PK: pkey, S: serial, E: epoch,
+      T: serial, N: nonce;
+  event(PartialIssued(Ci, D, PK, S, E))
+  ==>
+  event(SignerValidated(Ci, D, PK, T, S, E, N)).
+
+(* T3: exact pair-specific independent validation in the baseline. *)
+query G: device, D: device, PK: pkey, T: serial, S: serial, NJ: nonce,
+      N1: nonce, N2: nonce;
+  event(RegularCredentialAccepted12(G, D, PK, T, S, NJ))
+  ==>
+  event(SignerValidated(C1, D, PK, T, S, e0, N1)) &&
+  event(SignerValidated(C2, D, PK, T, S, e0, N2)).
+
+query G: device, D: device, PK: pkey, T: serial, S: serial, NJ: nonce,
+      N1: nonce, N3: nonce;
+  event(RegularCredentialAccepted13(G, D, PK, T, S, NJ))
+  ==>
+  event(SignerValidated(C1, D, PK, T, S, e0, N1)) &&
+  event(SignerValidated(C3, D, PK, T, S, e0, N3)).
+
+query G: device, D: device, PK: pkey, T: serial, S: serial, NJ: nonce,
+      N2: nonce, N3: nonce;
+  event(RegularCredentialAccepted23(G, D, PK, T, S, NJ))
+  ==>
+  event(SignerValidated(C2, D, PK, T, S, e0, N2)) &&
+  event(SignerValidated(C3, D, PK, T, S, e0, N3)).
+
+(* Structural nonreachability: this admission-only model has no share-
+   activation service. These queries record the modeled role boundary; they
+   do not test escalation against a live resharing service. *)
+query E: epoch, S: serial;
+  event(ShareActivated(O1, E, pkChord, S)).
+
+query E: epoch, S: serial;
+  event(ShareActivated(Dreg, E, pkChord, S)).
+
+(* 
+Reachability sanity checks.
+The values queried below are private dummy markers used only to confirm
+that important protocol paths can actually execute. Each marker is released
+on the public network only after the corresponding protocol milestone has
+been reached.
+
+Therefore, the attacker SHOULD be able to obtain every marker below. This
+helps rule out vacuous verification, where a security property appears to
+hold only because the relevant protocol branch can never be reached.
+
+ProVerif reports a reachable marker as:
+
+    RESULT not attacker(<marker>) is false.
+
+The word "false" does NOT indicate a failed test here. It means that the
+statement "the attacker cannot obtain the marker" is false, so the marker
+is reachable as intended.In the following files, this will be stated as:
+"Sanity reachability: all five secrecy queries below must be false."
+*)
+query attacker(reachSetup).
+query attacker(reachRepresentativeOverlayForwarding).
+query attacker(reachPair12MembershipAuthorized).
+query attacker(reachPair13MembershipAuthorized).
+query attacker(reachPair23MembershipAuthorized).
+
+(* ----------------------------------------------------------------------- *)
+(* Honest offline card provisioning                                         *)
+(* ----------------------------------------------------------------------- *)
+
+(*
+   Process definitions begin with "let Name(...) =". "new" generates a fresh
+   symbolic value for this protocol run. In "let x = value in P", x is bound
+   to value and P is the continuation that executes with this binding. This
+   keyword "in" belongs to the let-expression and is unrelated to the separate
+   input operation in(channel, pattern) used below.
+*)
+let SmartcardAuthorize() =
+  new tokenSerial: serial;
+  let tokenBody: protocolMessage =
+    cardTokenBody(tagCardToken, pgbA, Dreg, pk(skDregDevice), tokenSerial) in
+  event CardAuthorized(pgbA, Dreg, pk(skDregDevice), tokenSerial);
+  let token: admissionToken =
+    makeCardToken(tokenBody, sign(tokenBody, skCard)) in
+  (*
+     "out(channel, value)" sends the value on the specified channel. Because
+     cardProvision is private, this models local/offline handover of the token
+     to Dreg rather than publication to the network attacker.
+  *)
+  out(cardProvision, token).
+
+(* Candidate reveals the non-secret token only after local provisioning. *)
+let CandidateStart() =
+  (*
+     Here "in(channel, pattern)" is the input operation: the process waits for
+     a matching value on cardProvision and binds it to token. This is distinct
+     from the "in" that terminates a let-binding above.
+  *)
+  in(cardProvision, token: admissionToken);
+  new lookupId: routeid;
+  event OverlayLookupRequested(Dreg, admissionService, lookupId);
+  out(net,
+    route(lookupId, Dreg, admissionService, O1,
+      admissionInit(Dreg, pk(skDregDevice), token))).
+
+(* ----------------------------------------------------------------------- *)
+(* Untrusted logical Chord routing                                           *)
+(* ----------------------------------------------------------------------- *)
+
+(* Representative overlay forwarding through arbitrary ordinary peer O1. In this fixed
+   model instance the initial lookup is forwarded from O1 to C1, which acts as
+   the contacted admission coordinator. Choosing C1 is only a representative
+   routing instance; the security argument does not rely on O1 or this route as
+   an authorization boundary. *)
+let O1ForwardInitialLookup() =
+  (* "!" replicates the following input process, allowing unbounded sessions. *)
+  !in(net, envelope: routeEnvelope);
+  (*
+     Constructor pattern matching extracts the envelope fields. Prefixing a
+     pattern field with "=" requires equality with that already-known value;
+     therefore only admission-service traffic addressed to O1 matches here.
+  *)
+  let route(routeId: routeid, source: device, =admissionService, =O1,
+            payload: wireMessage) = envelope in
+  let admissionInit(subject: device, subjectKey: pkey,
+                    token: admissionToken) = payload in
+  (*
+     This concrete routing instance fixes C1 as the node reached by the initial
+     admission lookup after O1. C1 therefore acts as the admission coordinator
+     for this run. The particular choice of C1 is representative routing state,
+     not a security assumption: the overlay itself remains attacker-controlled.
+  *)
+  event OverlayForwarded(O1, source, C1, admissionService, routeId);
+  out(net, reachRepresentativeOverlayForwarding);
+  out(net, route(routeId, source, admissionService, C1, payload)).
+
+(* Representative signer dispatch through the same untrusted ordinary peer. *)
+let O1ForwardSignerRequest() =
+  !in(net, envelope: routeEnvelope);
+  let route(routeId: routeid, source: device, =admissionService, =O1,
+            payload: wireMessage) = envelope in
+  let signerRequest(target: device, subject: device, subjectKey: pkey,
+                    token: admissionToken, admissionSerial: serial) =
+    payload in
+  event OverlayForwarded(O1, source, target, admissionService, routeId);
+  out(net, route(routeId, source, admissionService, target, payload)).
+
+(* Destination delivery is diagnostic only; the attacker may also bypass it. *)
+let DeliverAt(destination: device) =
+  !in(net, envelope: routeEnvelope);
+  let route(routeId: routeid, source: device, serviceTag: service,
+            =destination, payload: wireMessage) = envelope in
+  event OverlayDelivered(destination, serviceTag, routeId);
+  out(net, payload).
+
+(* ----------------------------------------------------------------------- *)
+(* Admission coordinator and independent signers                            *)
+(* ----------------------------------------------------------------------- *)
+
+let AdmissionCoordinator() =
+  !in(net, initialization: wireMessage);
+  let admissionInit(subject: device, subjectKey: pkey,
+                    token: admissionToken) = initialization in
+  new admissionSerial: serial;
+  event RegularAdmissionStarted(subject, subjectKey, admissionSerial);
+
+  (* C1 is the contacted coordinator and receives its local request directly. *)
+  out(net, signerRequest(C1, subject, subjectKey, token, admissionSerial));
+
+  (* C2 and C3 are addressed through the representative ordinary relay O1. *)
+  new routeToC2: routeid;
+  event OverlayLookupRequested(C1, admissionService, routeToC2);
+  out(net,
+    route(routeToC2, C1, admissionService, O1,
+      signerRequest(C2, subject, subjectKey, token, admissionSerial)));
+
+  new routeToC3: routeid;
+  event OverlayLookupRequested(C1, admissionService, routeToC3);
+  out(net,
+    route(routeToC3, C1, admissionService, O1,
+      signerRequest(C3, subject, subjectKey, token, admissionSerial))).
+
+(*
+   This macro is instantiated only for C1, C2, and C3. O1 and Dreg never
+   receive a thresholdShare parameter or a partial-signing continuation.
+*)
+let CertificationSigner(signerId: device, signerShare: thresholdShare,
+                        cardAnchor: pkey) =
+  !in(net, request: wireMessage);
+  let signerRequest(=signerId, subject: device, subjectKey: pkey,
+                    token: admissionToken, admissionSerial: serial) =
+    request in
+
+  new verifierNonce: nonce;
+  out(net,
+    signerChallenge(pgbA, subject, subjectKey, admissionSerial,
+                    signerId, verifierNonce));
+
+  in(net, response: wireMessage);
+  let regularPoPResponse(=signerId, =subject, =subjectKey,
+                         =admissionSerial, =verifierNonce,
+                         popSignature: signature) = response in
+
+  let tokenSerial: serial =
+    validateCardToken(token, cardAnchor, pgbA, subject, subjectKey) in
+  let checkedContext: protocolMessage =
+    checkSign(popSignature, subjectKey) in
+  let expectedContext: protocolMessage =
+    regularPoPContext(tagRegPoP, pgbA, subject, subjectKey,
+                      admissionSerial, signerId, verifierNonce) in
+
+  (*
+     The process reaches the signing branch only when token validation succeeds,
+     signature verification succeeds, and the recovered PoP context is exactly
+     the fresh context expected by this signer.
+  *)
+  if checkedContext = expectedContext then
+    event RegularSignerPoPVerified(signerId, subject, subjectKey,
+                                   admissionSerial, e0, verifierNonce);
+    event SignerValidated(signerId, subject, subjectKey, tokenSerial,
+                          admissionSerial, e0, verifierNonce);
+    let certificateBody: thresholdMessage =
+      regularLDevIDBody(tagRegularLDevID, pgbA, subject, subjectKey,
+                        regularMember, tokenSerial, admissionSerial) in
+    event PartialIssued(signerId, subject, subjectKey, admissionSerial, e0);
+    out(net,
+      partialResponse(signerId, subject, subjectKey, tokenSerial, admissionSerial,
+                      partialSign(certificateBody, signerShare))).
+
+(*
+   The honest candidate answers each signer-specific fresh challenge. There is
+   no analogous honest responder for Dadv: skAdv is public to the attacker, so
+   the attacker can already construct signatures with it directly. What Dadv
+   lacks in the baseline is a genuine smartcard authorization, not PoP ability.
+*)
+let RegularPoPResponder() =
+  !in(net, challenge: wireMessage);
+  let signerChallenge(challengePgb: pgb, subject: device, subjectKey: pkey,
+                      admissionSerial: serial, verifier: device,
+                      verifierNonce: nonce) = challenge in
+  if challengePgb = pgbA then
+  if subject = Dreg then
+  if subjectKey = pk(skDregDevice) then
+    let proofContext: protocolMessage =
+      regularPoPContext(tagRegPoP, pgbA, Dreg, pk(skDregDevice),
+                        admissionSerial, verifier, verifierNonce) in
+    event RegularPoPProduced(Dreg, pk(skDregDevice), verifier,
+                             admissionSerial, verifierNonce);
+    out(net,
+      regularPoPResponse(verifier, Dreg, pk(skDregDevice),
+                         admissionSerial, verifierNonce,
+                         sign(proofContext, skDregDevice))).
+
+(* ----------------------------------------------------------------------- *)
+(* Public threshold combination                                             *)
+(* ----------------------------------------------------------------------- *)
+
+(*
+   The combiner is not trusted. It receives two public partial responses and
+   calls the public combine/verification functions. The library reductions are
+   what enforce same-message, same-epoch, distinct-share 2-of-3 semantics.
+*)
+let CombinePair(firstSigner: device, secondSigner: device) =
+  !in(net, firstMessage: wireMessage);
+  let partialResponse(=firstSigner, subject: device, subjectKey: pkey,
+                      tokenSerial: serial, admissionSerial: serial,
+                      firstPartial: partialSignature) = firstMessage in
+
+  in(net, secondMessage: wireMessage);
+  let partialResponse(=secondSigner, =subject, =subjectKey,
+                      =tokenSerial, =admissionSerial,
+                      secondPartial: partialSignature) = secondMessage in
+
+  let certificateBody: thresholdMessage =
+    regularLDevIDBody(tagRegularLDevID, pgbA, subject, subjectKey,
+                      regularMember, tokenSerial, admissionSerial) in
+  let rootSignature: thresholdSignature =
+    combine(firstPartial, secondPartial) in
+  let credential: certificate =
+    makeRegularCertificate(certificateBody, rootSignature) in
+  let verifiedPair: signerPair =
+    verifyThreshold(rootSignature, certificateBody, pkChord) in
+  new completionNonce: nonce;
+  out(net, credential);
+  if verifiedPair = pair12 then
+    (
+      event RegularCredentialAccepted12(firstSigner, subject, subjectKey,
+                                        tokenSerial, admissionSerial, completionNonce);
+      event RegularMembershipAuthorized(firstSigner, subject, subjectKey,
+                                 tokenSerial, admissionSerial, completionNonce);
+      out(net, reachPair12MembershipAuthorized)
+    )
+  else if verifiedPair = pair13 then
+    (
+      event RegularCredentialAccepted13(firstSigner, subject, subjectKey,
+                                        tokenSerial, admissionSerial, completionNonce);
+      event RegularMembershipAuthorized(firstSigner, subject, subjectKey,
+                                 tokenSerial, admissionSerial, completionNonce);
+      out(net, reachPair13MembershipAuthorized)
+    )
+  else if verifiedPair = pair23 then
+    (
+      event RegularCredentialAccepted23(firstSigner, subject, subjectKey,
+                                        tokenSerial, admissionSerial, completionNonce);
+      event RegularMembershipAuthorized(firstSigner, subject, subjectKey,
+                                 tokenSerial, admissionSerial, completionNonce);
+      out(net, reachPair23MembershipAuthorized)
+    ).
+
+(* ----------------------------------------------------------------------- *)
+(* Trusted locked setup                                                     *)
+(* ----------------------------------------------------------------------- *)
+
+let LockedSetup() =
+  (* Public admission trust anchor passed to validators; skCard stays local. *)
+  let cardAnchor: pkey = pk(skCard) in
+
+  (*
+     Initial members already possess regular root credentials at lock time. O1
+     is a regular member like C1-C3, but only C1-C3 belong to the certification
+     committee and hold threshold shares.
+  *)
+  let bodyC1: thresholdMessage =
+    regularLDevIDBody(tagRegularLDevID, pgbA, C1, pk(skC1Device),
+                      regularMember, initialSerialC1, initialSerialC1) in
+  let bodyC2: thresholdMessage =
+    regularLDevIDBody(tagRegularLDevID, pgbA, C2, pk(skC2Device),
+                      regularMember, initialSerialC2, initialSerialC2) in
+  let bodyC3: thresholdMessage =
+    regularLDevIDBody(tagRegularLDevID, pgbA, C3, pk(skC3Device),
+                      regularMember, initialSerialC3, initialSerialC3) in
+  let bodyO1: thresholdMessage =
+    regularLDevIDBody(tagRegularLDevID, pgbA, O1, pk(skO1Device),
+                      regularMember, initialSerialO1, initialSerialO1) in
+
+  (*
+     The pre-existing credentials are instantiated with the valid C1+C2 signing
+     pair. This is only a concrete witness for already-completed root issuance:
+     the certificate subject need not be one of the signers, and choosing pair12
+     here gives C3 and O1 no additional certification authority.
+  *)
+  let credentialC1: certificate =
+    makeRegularCertificate(bodyC1, thresholdSig12(e0, bodyC1)) in
+  let credentialC2: certificate =
+    makeRegularCertificate(bodyC2, thresholdSig12(e0, bodyC2)) in
+  let credentialC3: certificate =
+    makeRegularCertificate(bodyC3, thresholdSig12(e0, bodyC3)) in
+  let credentialO1: certificate =
+    makeRegularCertificate(bodyO1, thresholdSig12(e0, bodyO1)) in
+
+  event InitialRegularMember(C1, pk(skC1Device));
+  event InitialRegularMember(C2, pk(skC2Device));
+  event InitialRegularMember(C3, pk(skC3Device));
+  event InitialRegularMember(O1, pk(skO1Device));
+  event InitialCommitteeMember(C1, e0);
+  event InitialCommitteeMember(C2, e0);
+  event InitialCommitteeMember(C3, e0);
+  event SetupComplete(pgbA, pkChord, cardAnchor);
+  event PGBLocked(pgbA);
+
+  (*
+     Trust anchors, existing-member public keys, and their credentials are
+     public. Dreg is not an existing member at lock time, so its public key is
+     not separately published here; it becomes public when its token/admission
+     request carrying pk(skDregDevice) is sent on net. Dadv is attacker-owned,
+     so publishing pk(skAdv) is explicit but does not reveal anything new.
+  *)
+  out(net, cardAnchor);
+  out(net, pkChord);
+  out(net, pk(skC1Device));
+  out(net, pk(skC2Device));
+  out(net, pk(skC3Device));
+  out(net, pk(skO1Device));
+  out(net, pk(skAdv));
+  out(net, credentialC1);
+  out(net, credentialC2);
+  out(net, credentialC3);
+  out(net, credentialO1);
+  out(net, reachSetup);
+
+  (*
+     "|" runs processes in parallel. The replicated network-facing processes may
+     execute arbitrarily often, while the one-shot setup/provisioning processes
+     execute according to their definitions above.
+  *)
+  (
+    SmartcardAuthorize()
+  | CandidateStart()
+  | O1ForwardInitialLookup()
+  | O1ForwardSignerRequest()
+  | DeliverAt(C1)
+  | DeliverAt(C2)
+  | DeliverAt(C3)
+  | AdmissionCoordinator()
+  | CertificationSigner(C1, share1(e0), cardAnchor)
+  | CertificationSigner(C2, share2(e0), cardAnchor)
+  | CertificationSigner(C3, share3(e0), cardAnchor)
+  | RegularPoPResponder()
+  | CombinePair(C1, C2)
+  | CombinePair(C1, C3)
+  | CombinePair(C2, C3)
+  ).
+
+(* ProVerif starts execution from the process declared after the "process" keyword. *)
+process LockedSetup()

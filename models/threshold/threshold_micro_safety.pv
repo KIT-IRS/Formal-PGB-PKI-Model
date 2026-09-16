@@ -1,0 +1,143 @@
+(*
+   PGB-PKI threshold micro-test: safety side
+
+   Purpose:
+   Focused sanity tests for the concrete 2-of-3 threshold abstraction from
+   common_primitives.pvl. This file does not model the complete PGB-PKI
+   admission lifecycle; it checks the threshold algebra in isolation.
+
+   High-level flow:
+   1. Each scenario exposes only the material relevant to one invalid case,
+      such as one share, a duplicate share, mixed-epoch shares, or partial
+      signatures over different messages.
+   2. A validation gate waits for a threshold signature on the public network.
+   3. The gate releases its private canary only if verifyThreshold accepts the
+      candidate for the expected message under pkChord.
+
+   Expected result:
+   None of the safety canaries should become reachable, and observing partial
+   signatures must not reveal the underlying raw shares. ProVerif therefore
+   proves every query in this file, for example:
+
+     RESULT not attacker(<target>[]) is true.
+
+   The scenarios run in parallel but use separate epoch constants so material
+   from one test cannot accidentally complete another test.
+
+   Run with:
+
+     proverif -lib common_primitives.pvl threshold_micro_safety.pv
+*)
+
+free net: channel.
+
+(* Independent epochs used to isolate the negative cases. *)
+const e_one_share: epoch.
+const e_duplicate_share: epoch.
+const e_mixed_old, e_mixed_new: epoch.
+const e_message_binding: epoch.
+const e_noncert_unit: epoch.
+
+(* Distinct messages make each validation gate scenario-specific. *)
+const m_one_share: thresholdMessage.
+const m_duplicate_share: thresholdMessage.
+const m_mixed_epoch: thresholdMessage.
+const m_message_left, m_message_right: thresholdMessage.
+const m_noncert_unit: thresholdMessage.
+
+(*
+   Focused representation of an ordinary, non-certification unit. These local
+   types deliberately have no constructor or conversion that yields a
+   thresholdShare, so ordinary membership alone gives no signing capability.
+*)
+type ordinaryUnit.
+type ordinaryNodeCredential.
+const o1: ordinaryUnit.
+fun makeOrdinaryCredential(ordinaryUnit): ordinaryNodeCredential.
+
+(*
+   A canary is released only after a candidate validates as a root threshold
+   signature for the expected message under pkChord. Binding the verifier
+   result is sufficient: if verification fails, this process blocks.
+*)
+let RootValidationGate(expectedMessage: thresholdMessage, canary: bitstring) =
+  in(net, candidate: thresholdSignature);
+  let verifiedPair: signerPair =
+    verifyThreshold(candidate, expectedMessage, pkChord) in
+  out(net, canary).
+
+(* One compromised shareholder can sign arbitrarily, but cannot combine. *)
+let LeakOneShare() =
+  out(net, share1(e_one_share)).
+
+(* Releasing the same share twice must not create a distinct shareholder. *)
+let LeakDuplicateShare() =
+  out(net, share1(e_duplicate_share));
+  out(net, share1(e_duplicate_share)).
+
+(* Distinct shareholders from different epochs must not combine. *)
+let LeakMixedEpochShares() =
+  out(net, share1(e_mixed_old));
+  out(net, share2(e_mixed_new)).
+
+(*
+   Same-epoch partials over different messages must not combine. Raw shares
+   are intentionally not leaked, so the attacker cannot re-sign one message
+   with both shareholders.
+*)
+let PublishMismatchedPartials() =
+  out(net, partialSign(m_message_left, share1(e_message_binding)));
+  out(net, partialSign(m_message_right, share2(e_message_binding))).
+
+(* O1 has a credential and network presence, but structurally has no share. *)
+let PublishNonCertificationUnit() =
+  out(net, makeOrdinaryCredential(o1)).
+
+(*
+   Safety canaries. Each value is initially private and is released only after
+   a successful RootValidationGate. Here, unlike the reachability canaries in
+   the lifecycle models, the attacker is NOT expected to learn these values.
+   A proved secrecy result therefore means the invalid threshold case stayed
+   below the acceptance boundary.
+*)
+free canary_one_share: bitstring [private].
+free canary_duplicate_share: bitstring [private].
+free canary_mixed_epoch: bitstring [private].
+free canary_message_left: bitstring [private].
+free canary_message_right: bitstring [private].
+free canary_noncert_unit: bitstring [private].
+
+query attacker(canary_one_share).
+query attacker(canary_duplicate_share).
+query attacker(canary_mixed_epoch).
+query attacker(canary_message_left).
+query attacker(canary_message_right).
+query attacker(canary_noncert_unit).
+
+(* Observed partial signatures must not reveal the underlying shares. *)
+query attacker(share1(e_message_binding)).
+query attacker(share2(e_message_binding)).
+
+(*
+   The top-level process runs every isolated test scenario in parallel. Each
+   material-producing process is paired with the gate whose canary represents
+   successful threshold validation for that scenario.
+*)
+process
+  (
+    LeakOneShare()
+  | RootValidationGate(m_one_share, canary_one_share)
+
+  | LeakDuplicateShare()
+  | RootValidationGate(m_duplicate_share, canary_duplicate_share)
+
+  | LeakMixedEpochShares()
+  | RootValidationGate(m_mixed_epoch, canary_mixed_epoch)
+
+  | PublishMismatchedPartials()
+  | RootValidationGate(m_message_left, canary_message_left)
+  | RootValidationGate(m_message_right, canary_message_right)
+
+  | PublishNonCertificationUnit()
+  | RootValidationGate(m_noncert_unit, canary_noncert_unit)
+  )

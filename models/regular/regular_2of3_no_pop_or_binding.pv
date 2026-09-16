@@ -1,0 +1,521 @@
+(*
+   PGB-PKI regular admission - no request binding or signer PoP (diagnostic)
+
+   Purpose:
+   Deliberately defective diagnostic derived from regular_2of3_baseline.pv.
+   All long-term keys and threshold shares remain secret, but two signer-side
+   controls are removed together: the signed token's subject/public-key binding
+   is not enforced against the current request, and no signer challenge/PoP is
+   performed. The model shows the consequence of this combined weakening; it
+   does not determine which of the two controls would be sufficient on its own.
+
+   High-level flow:
+   1. The honest smartcard creates a valid token for Dreg and pk(skDregDevice),
+      and CandidateStart makes that token observable on the public network.
+   2. A defective signer verifies the card signature and PGB tag, but extracts
+      the token's subject/key without requiring them to equal the requested
+      subject/key. It also omits the fresh PoP challenge entirely.
+   3. The attacker can therefore replay Dreg's valid token in a request for Dadv
+      and pk(skAdv). Honest C1/C2/C3 then sign that substituted request.
+   4. Any valid signer pair can produce a root-valid Dadv LDevID, while skCard,
+      skDregDevice, and all threshold shares remain uncompromised.
+
+   Expected result:
+   - secrecy queries for the real keys/shares still hold;
+   - smartcard-authorization, signer-PoP, and honest-PoP-producer
+     correspondences intentionally fail for the substituted Dadv request;
+   - pair-specific signer-validation correspondences still hold because the
+     honest signers do execute their deliberately weakened validation branch;
+   - the Dadv substitution attack is reachable through all three signer pairs.
+
+   The fully commented baseline explains the common syntax and normal checks.
+   Comments here focus on the intentionally removed checks and attack trace.
+
+   Run with:
+
+     proverif -lib common_primitives.pvl regular_2of3_no_pop_or_binding.pv
+*)
+
+(* ----------------------------------------------------------------------- *)
+(* Fixed architecture instance                                              *)
+(* ----------------------------------------------------------------------- *)
+
+free net: channel.
+free cardProvision: channel [private].
+
+const pgbA: pgb.
+const C1, C2, C3, O1, Dreg, Dadv: device.
+const e0: epoch.
+
+const initialSerialC1, initialSerialC2: serial.
+const initialSerialC3, initialSerialO1: serial.
+
+(* Admission authority and device private keys. *)
+free skCard: skey [private].
+free skC1Device: skey [private].
+free skC2Device: skey [private].
+free skC3Device: skey [private].
+free skO1Device: skey [private].
+free skDregDevice: skey [private].
+
+(* Dadv is attacker-owned, so its private key is intentionally public. *)
+free skAdv: skey.
+
+(*
+   Scenario-local trace markers for the deliberately weakened path. They help
+   distinguish acceptance of an unbound token, acceptance without a real PoP
+   challenge, and final Dadv substitution at the combiner.
+*)
+event UnboundTokenAccepted(device, device, pkey, serial, serial, epoch).
+event AdmissionAcceptedWithoutPoP(device, device, pkey, serial, nonce).
+event ReplaySubstitutionAuthorized(device, device, pkey, serial, nonce).
+
+(*
+   Reachability witnesses. Their secrecy is intentionally expected to fail.
+   Honest pair markers require Dreg and its key; attack markers require
+   Dadv and pk(skAdv). Setup, forwarding, and leak markers are diagnostics.
+*)
+free reachSetup: bitstring [private].
+free reachAuthenticTokenReplayable: bitstring [private].
+free reachRepresentativeOverlayForwarding: bitstring [private].
+free reachHonestDregPair12MembershipAuthorized: bitstring [private].
+free reachHonestDregPair13MembershipAuthorized: bitstring [private].
+free reachHonestDregPair23MembershipAuthorized: bitstring [private].
+free reachReplayDadvPair12MembershipAuthorized: bitstring [private].
+free reachReplayDadvPair13MembershipAuthorized: bitstring [private].
+free reachReplayDadvPair23MembershipAuthorized: bitstring [private].
+
+(* ----------------------------------------------------------------------- *)
+(* Security and sanity queries                                              *)
+(* ----------------------------------------------------------------------- *)
+
+(* P1: no uncompromised private key or root share is attacker-derivable. *)
+query attacker(skCard).
+query attacker(skC1Device).
+query attacker(skC2Device).
+query attacker(skC3Device).
+query attacker(skO1Device).
+query attacker(skDregDevice).
+
+query attacker(share1(e0)).
+query attacker(share2(e0)).
+query attacker(share3(e0)).
+
+(* Expected false: Dreg's genuine token is replayed for Dadv/pk(skAdv). *)
+query G: device, D: device, PK: pkey, T: serial, S: serial, NJ: nonce;
+  event(RegularMembershipAuthorized(G, D, PK, T, S, NJ))
+  ==>
+  event(CardAuthorized(pgbA, D, PK, T)).
+
+(*
+   The defect is independent of the chosen threshold pair: all three pairs are
+   still composed of honest signers, but every signer runs the same deliberately
+   weakened validation logic below.
+*)
+query G: device, D: device, PK: pkey, T: serial, S: serial, NJ: nonce;
+  event(RegularCredentialAccepted12(G, D, PK, T, S, NJ))
+  ==>
+  event(CardAuthorized(pgbA, D, PK, T)).
+
+query G: device, D: device, PK: pkey, T: serial, S: serial, NJ: nonce;
+  event(RegularCredentialAccepted13(G, D, PK, T, S, NJ))
+  ==>
+  event(CardAuthorized(pgbA, D, PK, T)).
+
+query G: device, D: device, PK: pkey, T: serial, S: serial, NJ: nonce;
+  event(RegularCredentialAccepted23(G, D, PK, T, S, NJ))
+  ==>
+  event(CardAuthorized(pgbA, D, PK, T)).
+
+(* No post-lock acceptance can precede the trusted lock boundary. *)
+query G: device, D: device, PK: pkey, T: serial, S: serial, NJ: nonce;
+  event(RegularMembershipAuthorized(G, D, PK, T, S, NJ))
+  ==>
+  event(PGBLocked(pgbA)).
+
+(*
+   Expected false: the defective signer branch never performs the baseline
+   challenge/response check and therefore never emits RegularSignerPoPVerified.
+*)
+query Ci: device, D: device, PK: pkey, T: serial,
+      S: serial, E: epoch, N: nonce;
+  event(SignerValidated(Ci, D, PK, T, S, E, N))
+  ==>
+  event(RegularSignerPoPVerified(Ci, D, PK, S, E, N)).
+
+(*
+   Expected false for the same reason: the PoP challenge and RegularPoPResponder process are both omitted
+   from this deliberately defective model.
+*)
+query Ci: device, D: device, PK: pkey, T: serial,
+      S: serial, E: epoch, N: nonce;
+  event(SignerValidated(Ci, D, PK, T, S, E, N))
+  ==>
+  event(RegularPoPProduced(D, PK, Ci, S, N)).
+
+(*
+   Expected false: a valid signed token is checked for the correct PGB, but its
+   embedded subject/key are not required to equal the subject/key being signed.
+   Hence Dreg's honest CardAuthorized event cannot justify substituted Dadv data.
+*)
+query Ci: device, D: device, PK: pkey, T: serial,
+      S: serial, E: epoch, N: nonce;
+  event(SignerValidated(Ci, D, PK, T, S, E, N))
+  ==>
+  event(CardAuthorized(pgbA, D, PK, T)).
+
+(* No partial-signing branch may bypass its own local validation event. *)
+query Ci: device, D: device, PK: pkey, S: serial, E: epoch,
+      T: serial, N: nonce;
+  event(PartialIssued(Ci, D, PK, S, E))
+  ==>
+  event(SignerValidated(Ci, D, PK, T, S, E, N)).
+
+(* T3: exact pair-specific independent validation in the baseline. *)
+query G: device, D: device, PK: pkey, T: serial, S: serial, NJ: nonce,
+      N1: nonce, N2: nonce;
+  event(RegularCredentialAccepted12(G, D, PK, T, S, NJ))
+  ==>
+  event(SignerValidated(C1, D, PK, T, S, e0, N1)) &&
+  event(SignerValidated(C2, D, PK, T, S, e0, N2)).
+
+query G: device, D: device, PK: pkey, T: serial, S: serial, NJ: nonce,
+      N1: nonce, N3: nonce;
+  event(RegularCredentialAccepted13(G, D, PK, T, S, NJ))
+  ==>
+  event(SignerValidated(C1, D, PK, T, S, e0, N1)) &&
+  event(SignerValidated(C3, D, PK, T, S, e0, N3)).
+
+query G: device, D: device, PK: pkey, T: serial, S: serial, NJ: nonce,
+      N2: nonce, N3: nonce;
+  event(RegularCredentialAccepted23(G, D, PK, T, S, NJ))
+  ==>
+  event(SignerValidated(C2, D, PK, T, S, e0, N2)) &&
+  event(SignerValidated(C3, D, PK, T, S, e0, N3)).
+
+(* Structural nonreachability: this admission-only model has no share-
+   activation service. These queries record the modeled role boundary; they
+   do not test escalation against a live resharing service. *)
+query E: epoch, S: serial;
+  event(ShareActivated(O1, E, pkChord, S)).
+
+query E: epoch, S: serial;
+  event(ShareActivated(Dreg, E, pkChord, S)).
+
+(* Sanity/attack reachability: all nine queries below must be false. *)
+query attacker(reachSetup).
+query attacker(reachAuthenticTokenReplayable).
+query attacker(reachRepresentativeOverlayForwarding).
+query attacker(reachHonestDregPair12MembershipAuthorized).
+query attacker(reachHonestDregPair13MembershipAuthorized).
+query attacker(reachHonestDregPair23MembershipAuthorized).
+query attacker(reachReplayDadvPair12MembershipAuthorized).
+query attacker(reachReplayDadvPair13MembershipAuthorized).
+query attacker(reachReplayDadvPair23MembershipAuthorized).
+
+(* ----------------------------------------------------------------------- *)
+(* Honest offline card provisioning                                         *)
+(* ----------------------------------------------------------------------- *)
+
+let SmartcardAuthorize() =
+  new tokenSerial: serial;
+  let tokenBody: protocolMessage =
+    cardTokenBody(tagCardToken, pgbA, Dreg, pk(skDregDevice), tokenSerial) in
+  event CardAuthorized(pgbA, Dreg, pk(skDregDevice), tokenSerial);
+  let token: admissionToken =
+    makeCardToken(tokenBody, sign(tokenBody, skCard)) in
+  out(cardProvision, token).
+
+(* Candidate reveals the non-secret token only after local provisioning. *)
+let CandidateStart() =
+  in(cardProvision, token: admissionToken);
+  new lookupId: routeid;
+  event OverlayLookupRequested(Dreg, admissionService, lookupId);
+  out(net,
+    route(lookupId, Dreg, admissionService, O1,
+      admissionInit(Dreg, pk(skDregDevice), token)));
+  (* Marks that the genuine Dreg token has reached the attacker-visible net. *)
+  out(net, reachAuthenticTokenReplayable).
+
+(* ----------------------------------------------------------------------- *)
+(* Untrusted logical Chord routing                                           *)
+(* ----------------------------------------------------------------------- *)
+
+(*
+   Representative overlay forwarding through ordinary peer O1. 
+*)
+let O1ForwardInitialLookup() =
+  !in(net, envelope: routeEnvelope);
+  let route(routeId: routeid, source: device, =admissionService, =O1,
+            payload: wireMessage) = envelope in
+  let admissionInit(subject: device, subjectKey: pkey,
+                    token: admissionToken) = payload in
+  event OverlayForwarded(O1, source, C1, admissionService, routeId);
+  out(net, reachRepresentativeOverlayForwarding);
+  out(net, route(routeId, source, admissionService, C1, payload)).
+
+(* Representative signer dispatch through the same untrusted ordinary peer. *)
+let O1ForwardSignerRequest() =
+  !in(net, envelope: routeEnvelope);
+  let route(routeId: routeid, source: device, =admissionService, =O1,
+            payload: wireMessage) = envelope in
+  let signerRequest(target: device, subject: device, subjectKey: pkey,
+                    token: admissionToken, admissionSerial: serial) =
+    payload in
+  event OverlayForwarded(O1, source, target, admissionService, routeId);
+  out(net, route(routeId, source, admissionService, target, payload)).
+
+(* Destination delivery is diagnostic only; the attacker may also bypass it. *)
+let DeliverAt(destination: device) =
+  !in(net, envelope: routeEnvelope);
+  let route(routeId: routeid, source: device, serviceTag: service,
+            =destination, payload: wireMessage) = envelope in
+  event OverlayDelivered(destination, serviceTag, routeId);
+  out(net, payload).
+
+(* ----------------------------------------------------------------------- *)
+(* Admission coordinator and independent signers                            *)
+(* ----------------------------------------------------------------------- *)
+
+let AdmissionCoordinator() =
+  !in(net, initialization: wireMessage);
+  let admissionInit(subject: device, subjectKey: pkey,
+                    token: admissionToken) = initialization in
+  new admissionSerial: serial;
+  event RegularAdmissionStarted(subject, subjectKey, admissionSerial);
+
+  (* C1 is the contacted coordinator and receives its local request directly. *)
+  out(net, signerRequest(C1, subject, subjectKey, token, admissionSerial));
+
+  (* C2 and C3 are addressed through the representative ordinary relay O1. *)
+  new routeToC2: routeid;
+  event OverlayLookupRequested(C1, admissionService, routeToC2);
+  out(net,
+    route(routeToC2, C1, admissionService, O1,
+      signerRequest(C2, subject, subjectKey, token, admissionSerial)));
+
+  new routeToC3: routeid;
+  event OverlayLookupRequested(C1, admissionService, routeToC3);
+  out(net,
+    route(routeToC3, C1, admissionService, O1,
+      signerRequest(C3, subject, subjectKey, token, admissionSerial))).
+
+(*
+   This macro is instantiated only for C1, C2, and C3. O1 and Dreg never
+   receive a thresholdShare parameter or a partial-signing continuation.
+*)
+let CertificationSigner(signerId: device, signerShare: thresholdShare,
+                        cardAnchor: pkey) =
+  !in(net, request: wireMessage);
+  let signerRequest(=signerId, subject: device, subjectKey: pkey,
+                    token: admissionToken, admissionSerial: serial) =
+    request in
+
+  (*
+     DELIBERATE DEFECT: verify the card signature and require the signed body to
+     carry the correct token tag and PGB, but do not bind the token's own subject
+     or public key to the current request. tokenSubject and tokenKey are therefore
+     intentionally extracted but not compared with subject/subjectKey. The
+     baseline signer challenge and PoP verification are also omitted entirely.
+  *)
+  let makeCardToken(signedBody: protocolMessage,
+                    tokenSignature: signature) = token in
+  let checkedBody: protocolMessage =
+    checkSign(tokenSignature, cardAnchor) in
+  if checkedBody = signedBody then
+    let cardTokenBody(=tagCardToken, =pgbA, tokenSubject: device,
+                      tokenKey: pkey, tokenSerial: serial) = signedBody in
+    (*
+       No protocol challenge exists in this defective branch. omittedPoPNonce is
+       only a fresh instrumentation value used to keep SignerValidated's event
+       parameters compatible with the baseline queries; it is not a PoP nonce.
+    *)
+    new omittedPoPNonce: nonce;
+    event UnboundTokenAccepted(signerId, subject, subjectKey, tokenSerial,
+                               admissionSerial, e0);
+    event SignerValidated(signerId, subject, subjectKey, tokenSerial,
+                          admissionSerial, e0, omittedPoPNonce);
+    let certificateBody: thresholdMessage =
+      regularLDevIDBody(tagRegularLDevID, pgbA, subject, subjectKey,
+                        regularMember, tokenSerial, admissionSerial) in
+    event PartialIssued(signerId, subject, subjectKey, admissionSerial, e0);
+    out(net,
+      partialResponse(signerId, subject, subjectKey, tokenSerial, admissionSerial,
+                      partialSign(certificateBody, signerShare))).
+
+(* ----------------------------------------------------------------------- *)
+(* Public threshold combination                                             *)
+(* ----------------------------------------------------------------------- *)
+
+(*
+   The threshold combiner itself is unchanged and untrusted. The attack happens
+   earlier: honest signers generate valid partials for the substituted request,
+   so ordinary threshold verification correctly accepts the resulting root
+   signature. The conditional blocks below only mark when the accepted subject
+   is the attacker-owned Dadv/pk(skAdv) pair.
+*)
+let CombinePair(firstSigner: device, secondSigner: device) =
+  !in(net, firstMessage: wireMessage);
+  let partialResponse(=firstSigner, subject: device, subjectKey: pkey,
+                      tokenSerial: serial, admissionSerial: serial,
+                      firstPartial: partialSignature) = firstMessage in
+
+  in(net, secondMessage: wireMessage);
+  let partialResponse(=secondSigner, =subject, =subjectKey,
+                      =tokenSerial, =admissionSerial,
+                      secondPartial: partialSignature) = secondMessage in
+
+  let certificateBody: thresholdMessage =
+    regularLDevIDBody(tagRegularLDevID, pgbA, subject, subjectKey,
+                      regularMember, tokenSerial, admissionSerial) in
+  let rootSignature: thresholdSignature =
+    combine(firstPartial, secondPartial) in
+  let credential: certificate =
+    makeRegularCertificate(certificateBody, rootSignature) in
+  let verifiedPair: signerPair =
+    verifyThreshold(rootSignature, certificateBody, pkChord) in
+  new completionNonce: nonce;
+  out(net, credential);
+  if verifiedPair = pair12 then
+    (
+      event RegularCredentialAccepted12(firstSigner, subject, subjectKey,
+                                        tokenSerial, admissionSerial, completionNonce);
+      event RegularMembershipAuthorized(firstSigner, subject, subjectKey,
+                                 tokenSerial, admissionSerial, completionNonce);
+      (* Separate honest-candidate reachability from attacker admission. *)
+      if subject = Dreg then
+        (if subjectKey = pk(skDregDevice) then
+           out(net, reachHonestDregPair12MembershipAuthorized))
+      else if subject = Dadv then
+        if subjectKey = pk(skAdv) then
+          (
+            event ReplaySubstitutionAuthorized(
+              firstSigner, Dadv, subjectKey, admissionSerial, completionNonce);
+            out(net, reachReplayDadvPair12MembershipAuthorized)
+          )
+    )
+  else if verifiedPair = pair13 then
+    (
+      event RegularCredentialAccepted13(firstSigner, subject, subjectKey,
+                                        tokenSerial, admissionSerial, completionNonce);
+      event RegularMembershipAuthorized(firstSigner, subject, subjectKey,
+                                 tokenSerial, admissionSerial, completionNonce);
+      (* Separate honest-candidate reachability from attacker admission. *)
+      if subject = Dreg then
+        (if subjectKey = pk(skDregDevice) then
+           out(net, reachHonestDregPair13MembershipAuthorized))
+      else if subject = Dadv then
+        if subjectKey = pk(skAdv) then
+          (
+            event ReplaySubstitutionAuthorized(
+              firstSigner, Dadv, subjectKey, admissionSerial, completionNonce);
+            out(net, reachReplayDadvPair13MembershipAuthorized)
+          )
+    )
+  else if verifiedPair = pair23 then
+    (
+      event RegularCredentialAccepted23(firstSigner, subject, subjectKey,
+                                        tokenSerial, admissionSerial, completionNonce);
+      event RegularMembershipAuthorized(firstSigner, subject, subjectKey,
+                                 tokenSerial, admissionSerial, completionNonce);
+      (* Separate honest-candidate reachability from attacker admission. *)
+      if subject = Dreg then
+        (if subjectKey = pk(skDregDevice) then
+           out(net, reachHonestDregPair23MembershipAuthorized))
+      else if subject = Dadv then
+        if subjectKey = pk(skAdv) then
+          (
+            event ReplaySubstitutionAuthorized(
+              firstSigner, Dadv, subjectKey, admissionSerial, completionNonce);
+            out(net, reachReplayDadvPair23MembershipAuthorized)
+          )
+    ).
+
+(* ----------------------------------------------------------------------- *)
+(* Trusted locked setup                                                     *)
+(* ----------------------------------------------------------------------- *)
+
+let LockedSetup() =
+  (* Public admission trust anchor passed to validators; skCard stays local. *)
+  let cardAnchor: pkey = pk(skCard) in
+
+  (*
+      Initial members already possess regular root credentials at lock time. O1
+     is a regular member like C1-C3, but only C1-C3 belong to the certification
+     committee and hold threshold shares.
+  *)
+  let bodyC1: thresholdMessage =
+    regularLDevIDBody(tagRegularLDevID, pgbA, C1, pk(skC1Device),
+                      regularMember, initialSerialC1, initialSerialC1) in
+  let bodyC2: thresholdMessage =
+    regularLDevIDBody(tagRegularLDevID, pgbA, C2, pk(skC2Device),
+                      regularMember, initialSerialC2, initialSerialC2) in
+  let bodyC3: thresholdMessage =
+    regularLDevIDBody(tagRegularLDevID, pgbA, C3, pk(skC3Device),
+                      regularMember, initialSerialC3, initialSerialC3) in
+  let bodyO1: thresholdMessage =
+    regularLDevIDBody(tagRegularLDevID, pgbA, O1, pk(skO1Device),
+                      regularMember, initialSerialO1, initialSerialO1) in
+
+  (*
+     The pre-existing credentials are instantiated with the valid C1+C2 signing
+     pair. This is only a concrete witness for already-completed root issuance:
+     the certificate subject need not be one of the signers, and choosing pair12
+     here gives C3 and O1 no additional certification authority.
+  *)
+  let credentialC1: certificate =
+    makeRegularCertificate(bodyC1, thresholdSig12(e0, bodyC1)) in
+  let credentialC2: certificate =
+    makeRegularCertificate(bodyC2, thresholdSig12(e0, bodyC2)) in
+  let credentialC3: certificate =
+    makeRegularCertificate(bodyC3, thresholdSig12(e0, bodyC3)) in
+  let credentialO1: certificate =
+    makeRegularCertificate(bodyO1, thresholdSig12(e0, bodyO1)) in
+
+  event InitialRegularMember(C1, pk(skC1Device));
+  event InitialRegularMember(C2, pk(skC2Device));
+  event InitialRegularMember(C3, pk(skC3Device));
+  event InitialRegularMember(O1, pk(skO1Device));
+  event InitialCommitteeMember(C1, e0);
+  event InitialCommitteeMember(C2, e0);
+  event InitialCommitteeMember(C3, e0);
+  event SetupComplete(pgbA, pkChord, cardAnchor);
+  event PGBLocked(pgbA);
+
+  (*
+      Trust anchors, existing-member public keys, and their credentials are
+     public. Dreg is not an existing member at lock time, so its public key is
+     not separately published here; it becomes public when its token/admission
+     request carrying pk(skDregDevice) is sent on net. Dadv is attacker-owned,
+     so publishing pk(skAdv) is explicit but does not reveal anything new.
+  *)
+  out(net, cardAnchor);
+  out(net, pkChord);
+  out(net, pk(skC1Device));
+  out(net, pk(skC2Device));
+  out(net, pk(skC3Device));
+  out(net, pk(skO1Device));
+  out(net, credentialC1);
+  out(net, credentialC2);
+  out(net, credentialC3);
+  out(net, credentialO1);
+  out(net, reachSetup);
+
+  (
+    SmartcardAuthorize()
+  | CandidateStart()
+  | O1ForwardInitialLookup()
+  | O1ForwardSignerRequest()
+  | DeliverAt(C1)
+  | DeliverAt(C2)
+  | DeliverAt(C3)
+  | AdmissionCoordinator()
+  | CertificationSigner(C1, share1(e0), cardAnchor)
+  | CertificationSigner(C2, share2(e0), cardAnchor)
+  | CertificationSigner(C3, share3(e0), cardAnchor)
+  | CombinePair(C1, C2)
+  | CombinePair(C1, C3)
+  | CombinePair(C2, C3)
+  ).
+
+process LockedSetup()

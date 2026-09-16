@@ -1,0 +1,65 @@
+Synthetic parser fixture: expected output shape only; NOT a ProVerif execution.
+RESULT not attacker_skey(skCard[]) is false.
+RESULT not attacker_skey(skC1Device[]) is true.
+RESULT not attacker_skey(skC2Device[]) is true.
+RESULT not attacker_skey(skC3Device[]) is true.
+RESULT not attacker_skey(skO1Device[]) is true.
+RESULT not attacker_skey(skDregDevice[]) is true.
+RESULT not attacker_thresholdShare(share1(e0)) is true.
+RESULT not attacker_thresholdShare(share2(e0)) is true.
+RESULT not attacker_thresholdShare(share3(e0)) is true.
+RESULT event(RegularMembershipAuthorized(G,D,PK,T,S,NJ)) ==> event(CardAuthorized(pgbA,D,PK,T)) is false.
+RESULT event(RegularCredentialAccepted12(G,D,PK,T,S,NJ)) ==> event(CardAuthorized(pgbA,D,PK,T)) is false.
+RESULT event(RegularCredentialAccepted13(G,D,PK,T,S,NJ)) ==> event(CardAuthorized(pgbA,D,PK,T)) is false.
+RESULT event(RegularCredentialAccepted23(G,D,PK,T,S,NJ)) ==> event(CardAuthorized(pgbA,D,PK,T)) is false.
+RESULT event(RegularMembershipAuthorized(G,D,PK,T,S,NJ)) ==> event(PGBLocked(pgbA)) is true.
+RESULT inj-event(SignerValidated(Ci,D,PK,T,S,E,N)) ==> inj-event(RegularSignerPoPVerified(Ci,D,PK,S,E,N)) is true.
+RESULT event(SignerValidated(Ci,D,PK,T,S,E,N)) ==> event(RegularPoPProduced(D,PK,Ci,S,N)) is false.
+RESULT event(SignerValidated(Ci,D,PK,T,S,E,N)) ==> event(CardAuthorized(pgbA,D,PK,T)) is false.
+RESULT event(PartialIssued(Ci,D,PK,S,E)) ==> event(SignerValidated(Ci,D,PK,T,S,E,N)) is true.
+RESULT event(RegularCredentialAccepted12(G,D,PK,T,S,NJ)) ==> event(SignerValidated(C1,D,PK,T,S,e0,N1)) && event(SignerValidated(C2,D,PK,T,S,e0,N2)) is true.
+RESULT event(RegularCredentialAccepted13(G,D,PK,T,S,NJ)) ==> event(SignerValidated(C1,D,PK,T,S,e0,N1)) && event(SignerValidated(C3,D,PK,T,S,e0,N3)) is true.
+RESULT event(RegularCredentialAccepted23(G,D,PK,T,S,NJ)) ==> event(SignerValidated(C2,D,PK,T,S,e0,N2)) && event(SignerValidated(C3,D,PK,T,S,e0,N3)) is true.
+RESULT not event(ShareActivated(O1,E,pkChord,S)) is true.
+RESULT not event(ShareActivated(Dreg,E,pkChord,S)) is true.
+RESULT not attacker_bitstring(reachSetup[]) is false.
+RESULT not attacker_bitstring(reachCardKeyLeak[]) is false.
+RESULT not attacker_bitstring(reachRepresentativeOverlayForwarding[]) is false.
+RESULT not attacker_bitstring(reachHonestDregPair12MembershipAuthorized[]) is false.
+RESULT not attacker_bitstring(reachHonestDregPair13MembershipAuthorized[]) is false.
+RESULT not attacker_bitstring(reachHonestDregPair23MembershipAuthorized[]) is false.
+RESULT not attacker_bitstring(reachUnauthorizedDadvPair12MembershipAuthorized[]) is false.
+RESULT not attacker_bitstring(reachUnauthorizedDadvPair13MembershipAuthorized[]) is false.
+RESULT not attacker_bitstring(reachUnauthorizedDadvPair23MembershipAuthorized[]) is false.
+Query not attacker_skey(skCard[]) is false.
+Query not attacker_skey(skC1Device[]) is true.
+Query not attacker_skey(skC2Device[]) is true.
+Query not attacker_skey(skC3Device[]) is true.
+Query not attacker_skey(skO1Device[]) is true.
+Query not attacker_skey(skDregDevice[]) is true.
+Query not attacker_thresholdShare(share1(e0)) is true.
+Query not attacker_thresholdShare(share2(e0)) is true.
+Query not attacker_thresholdShare(share3(e0)) is true.
+Query event(RegularMembershipAuthorized(G,D,PK,T,S,NJ)) ==> event(CardAuthorized(pgbA,D,PK,T)) is false.
+Query event(RegularCredentialAccepted12(G,D,PK,T,S,NJ)) ==> event(CardAuthorized(pgbA,D,PK,T)) is false.
+Query event(RegularCredentialAccepted13(G,D,PK,T,S,NJ)) ==> event(CardAuthorized(pgbA,D,PK,T)) is false.
+Query event(RegularCredentialAccepted23(G,D,PK,T,S,NJ)) ==> event(CardAuthorized(pgbA,D,PK,T)) is false.
+Query event(RegularMembershipAuthorized(G,D,PK,T,S,NJ)) ==> event(PGBLocked(pgbA)) is true.
+Query inj-event(SignerValidated(Ci,D,PK,T,S,E,N)) ==> inj-event(RegularSignerPoPVerified(Ci,D,PK,S,E,N)) is true.
+Query event(SignerValidated(Ci,D,PK,T,S,E,N)) ==> event(RegularPoPProduced(D,PK,Ci,S,N)) is false.
+Query event(SignerValidated(Ci,D,PK,T,S,E,N)) ==> event(CardAuthorized(pgbA,D,PK,T)) is false.
+Query event(PartialIssued(Ci,D,PK,S,E)) ==> event(SignerValidated(Ci,D,PK,T,S,E,N)) is true.
+Query event(RegularCredentialAccepted12(G,D,PK,T,S,NJ)) ==> event(SignerValidated(C1,D,PK,T,S,e0,N1)) && event(SignerValidated(C2,D,PK,T,S,e0,N2)) is true.
+Query event(RegularCredentialAccepted13(G,D,PK,T,S,NJ)) ==> event(SignerValidated(C1,D,PK,T,S,e0,N1)) && event(SignerValidated(C3,D,PK,T,S,e0,N3)) is true.
+Query event(RegularCredentialAccepted23(G,D,PK,T,S,NJ)) ==> event(SignerValidated(C2,D,PK,T,S,e0,N2)) && event(SignerValidated(C3,D,PK,T,S,e0,N3)) is true.
+Query not event(ShareActivated(O1,E,pkChord,S)) is true.
+Query not event(ShareActivated(Dreg,E,pkChord,S)) is true.
+Query not attacker_bitstring(reachSetup[]) is false.
+Query not attacker_bitstring(reachCardKeyLeak[]) is false.
+Query not attacker_bitstring(reachRepresentativeOverlayForwarding[]) is false.
+Query not attacker_bitstring(reachHonestDregPair12MembershipAuthorized[]) is false.
+Query not attacker_bitstring(reachHonestDregPair13MembershipAuthorized[]) is false.
+Query not attacker_bitstring(reachHonestDregPair23MembershipAuthorized[]) is false.
+Query not attacker_bitstring(reachUnauthorizedDadvPair12MembershipAuthorized[]) is false.
+Query not attacker_bitstring(reachUnauthorizedDadvPair13MembershipAuthorized[]) is false.
+Query not attacker_bitstring(reachUnauthorizedDadvPair23MembershipAuthorized[]) is false.

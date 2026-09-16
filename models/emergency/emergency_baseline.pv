@@ -1,0 +1,380 @@
+(*
+   PGB-PKI restricted emergency-path baseline
+
+   Purpose:
+   Verifies the restricted fallback admission path used after PGB locking when
+   normal smartcard-based admission is unavailable. C1 represents the PGB-I and
+   sole emergency issuer; C2 is only a representative existing PGB peer that
+   validates the resulting credential before restricted overlay membership.
+
+   High-level flow:
+   1. Demg already possesses a plant-PKI credential provisioned through the
+      private plantProvision channel.
+   2. Demg presents that credential to C1/PGB-I and proves possession of the
+      corresponding device key with a fresh, fully bound challenge.
+   3. C1 validates the plant credential and PoP, then signs a restricted
+      emergency LDevID with its device/issuer key.
+   4. The candidate hands the emergency credential and C1's issuer credential
+      to C2. C2 verifies that C1's issuer key is authorized by a threshold-
+      signed, CA-capable PGB-I LDevID under pkChord and validates the emergency
+      credential under that key.
+   5. Successful validation is recorded as an abstract restricted overlay join.
+
+   The model records the absence of regular-root issuance, partial-signing,
+   committee, and share-activation continuations. These are structural checks;
+   resistance to escalation against live services requires a composed model. The downstream join event represents credential-based
+   authorization; no fresh join-time PoP is claimed here.
+
+   Run with:
+
+     proverif -lib common_primitives.pvl emergency_baseline.pv
+*)
+
+free net: channel.
+(*
+   plantProvision represents trusted provisioning of Demg's already-existing
+   plant credential before it is presented on the attacker-controlled network.
+*)
+free plantProvision: channel [private].
+
+const pgbA: pgb.
+const C1, C2, C3, O1, Demg: device.
+const e0: epoch.
+const regularForgerySerial: serial.
+
+free skCard: skey [private].
+free skPlant: skey [private].
+free skC1Device: skey [private].
+free skC2Device: skey [private].
+free skC3Device: skey [private].
+free skO1Device: skey [private].
+free skDemgDevice: skey [private].
+
+free reachSetup: bitstring [private].
+free reachPlantProvisioned: bitstring [private].
+free reachEmergencyIssued: bitstring [private].
+free reachEmergencyJoinRequested: bitstring [private].
+free reachEmergencyCredentialAccepted: bitstring [private].
+free reachEmergencyOverlayJoined: bitstring [private].
+
+(* ----------------------------------------------------------------------- *)
+(* Secrecy, authorization, and containment queries                          *)
+(* ----------------------------------------------------------------------- *)
+
+query attacker(skCard).
+query attacker(skPlant).
+query attacker(skC1Device).
+query attacker(skC2Device).
+query attacker(skC3Device).
+query attacker(skO1Device).
+query attacker(skDemgDevice).
+query attacker(share1(e0)).
+query attacker(share2(e0)).
+query attacker(share3(e0)).
+
+(*
+   Downstream acceptance traces to exact PGB-I issuance and validation.
+   SIssuer is the serial of C1's CA-capable PGB-I LDevID, S is the emergency
+   credential serial, and SPlant is the external plant-credential serial.
+*)
+query G: device, D: device, PK: pkey,
+      SIssuer: serial, S: serial, SPlant: serial;
+  event(EmergencyCredentialAccepted(G, D, PK, SIssuer, S))
+  ==>
+  event(EmergencyCredentialIssued(C1, D, PK, S)) &&
+  event(PlantCredentialValidated(C1, D, PK, SPlant, S)).
+
+query G: device, D: device, PK: pkey,
+      SIssuer: serial, S: serial;
+  event(EmergencyCredentialAccepted(G, D, PK, SIssuer, S))
+  ==>
+  event(PGBILDevIDCAValidated(
+    G, C1, pk(skC1Device), SIssuer)).
+
+query G: device, D: device, PK: pkey,
+      SIssuer: serial, S: serial;
+  event(EmergencyOverlayJoined(G, D, PK, SIssuer, S))
+  ==>
+  event(EmergencyCredentialAccepted(G, D, PK, SIssuer, S)).
+
+query G: device, D: device, PK: pkey,
+      SIssuer: serial, S: serial;
+  event(EmergencyOverlayJoined(G, D, PK, SIssuer, S))
+  ==>
+  event(PGBLocked(pgbA)).
+
+query G: device, PK: pkey, SIssuer: serial;
+  event(PGBILDevIDCAValidated(G, C1, PK, SIssuer))
+  ==>
+  event(PGBILDevIDWithCAIssued(C1, PK, SIssuer)).
+
+query P: device, D: device, PK: pkey, S: serial, SPlant: serial;
+  event(EmergencyCredentialIssued(P, D, PK, S))
+  ==>
+  event(PlantCredentialValidated(P, D, PK, SPlant, S)).
+
+query P: device, D: device, PK: pkey, SPlant: serial, S: serial;
+  event(PlantCredentialValidated(P, D, PK, SPlant, S))
+  ==>
+  event(PlantCredentialProvisioned(D, PK, SPlant)).
+
+query P: device, D: device, PK: pkey, SPlant: serial, S: serial, N: nonce;
+  inj-event(PlantCredentialValidated(P, D, PK, SPlant, S))
+  ==>
+  inj-event(EmergencyPoPVerified(P, D, PK, SPlant, S, N)).
+
+query P: device, D: device, PK: pkey, SPlant: serial, S: serial, N: nonce;
+  inj-event(PlantCredentialValidated(P, D, PK, SPlant, S))
+  ==>
+  inj-event(EmergencyPoPProduced(D, PK, P, SPlant, S, N)).
+
+(* Structural nonreachability: regular signing, membership, committee voting,
+   and share activation services are absent from this focused model. These
+   queries do not prove containment against those services running together.
+   An absent PartialIssued event also does not mean that an attacker with a
+   leaked share cannot construct a partial signature. *)
+query G: device, PK: pkey, T: serial, S: serial, N: nonce;
+  event(RegularMembershipAuthorized(G, Demg, PK, T, S, N)).
+
+query PK: pkey, S: serial, E: epoch;
+  event(PartialIssued(C1, Demg, PK, S, E)).
+
+query E: epoch, S: serial;
+  event(ShareActivated(Demg, E, pkChord, S)).
+
+query E0: epoch, E1: epoch, PK: pkey, SAdmission: serial, SUpdate: serial;
+  event(CommitteeApproved(E0, E1, Demg, PK, SAdmission, SUpdate)).
+
+(* No emergency key or credential can manufacture a regular root signature. *)
+query attacker(
+  thresholdSig12(
+    e0,
+    regularLDevIDBody(tagRegularLDevID, pgbA, Demg, pk(skDemgDevice),
+                      regularMember, regularForgerySerial, regularForgerySerial))).
+
+(* Sanity reachability: all six secrecy queries below must be false. *)
+query attacker(reachSetup).
+query attacker(reachPlantProvisioned).
+query attacker(reachEmergencyIssued).
+query attacker(reachEmergencyJoinRequested).
+query attacker(reachEmergencyCredentialAccepted).
+query attacker(reachEmergencyOverlayJoined).
+
+(* ----------------------------------------------------------------------- *)
+(* Plant provisioning and emergency candidate                              *)
+(* ----------------------------------------------------------------------- *)
+
+(*
+   Model the trusted plant side issuing Demg a plant credential. The credential
+   is delivered privately first; EmergencyCandidateStart later presents it on
+   the public network as the input to the fallback path.
+*)
+let PlantProvisionDemg() =
+  new plantSerial: serial;
+  let plantBody: protocolMessage =
+    plantCertBody(tagPlantCert, Demg, pk(skDemgDevice),
+                  plantDevice, plantSerial) in
+  event PlantCredentialProvisioned(Demg, pk(skDemgDevice), plantSerial);
+  let credential: plantCredential =
+    makePlantCredential(plantBody, sign(plantBody, skPlant)) in
+  out(plantProvision, credential);
+  out(net, reachPlantProvisioned).
+
+let EmergencyCandidateStart() =
+  in(plantProvision, credential: plantCredential);
+  out(net, emergencyInit(Demg, pk(skDemgDevice), credential)).
+
+let EmergencyIssuancePoPResponder() =
+  !in(net, challenge: wireMessage);
+  let emergencyChallenge(=pgbA, =Demg, =pk(skDemgDevice),
+                         plantSerial: serial, emergencySerial: serial,
+                         pgbi: device, verifierNonce: nonce) = challenge in
+  if pgbi = C1 then
+    let context: protocolMessage =
+      emergencyPoPContext(tagEmergencyPoP, pgbA,
+                          Demg, pk(skDemgDevice),
+                          plantSerial, emergencySerial, C1, verifierNonce) in
+    event EmergencyPoPProduced(
+      Demg, pk(skDemgDevice), C1,
+      plantSerial, emergencySerial, verifierNonce);
+    out(net,
+      emergencyPoPResponse(
+        C1, Demg, pk(skDemgDevice), plantSerial, emergencySerial,
+        verifierNonce, sign(context, skDemgDevice))).
+
+(* ----------------------------------------------------------------------- *)
+(* Honest PGB-I issuance                                                    *)
+(* ----------------------------------------------------------------------- *)
+
+(*
+   C1/PGB-I is the only honest emergency issuer. Parsing the incoming plant
+   credential does not by itself trust it: issuance continues only after
+   validatePlantCredential succeeds and the candidate's signature matches the
+   fresh emergency PoP context bound to both credential serials.
+*)
+let EmergencyIssuer(plantAnchor: pkey) =
+  !in(net, request: wireMessage);
+  let emergencyInit(subject: device, subjectKey: pkey,
+                    plantCredentialValue: plantCredential) = request in
+  let makePlantCredential(plantBody: protocolMessage,
+                          plantSignature: signature) = plantCredentialValue in
+  let plantCertBody(=tagPlantCert, =subject, =subjectKey,
+                    =plantDevice, plantSerial: serial) = plantBody in
+
+  new emergencySerial: serial;
+  new verifierNonce: nonce;
+  out(net,
+    emergencyChallenge(pgbA, subject, subjectKey,
+                       plantSerial, emergencySerial, C1, verifierNonce));
+
+  in(net, response: wireMessage);
+  let emergencyPoPResponse(=C1, =subject, =subjectKey,
+                           =plantSerial, =emergencySerial, =verifierNonce,
+                           popSignature: signature) = response in
+  let validatedPlantSerial: serial =
+    validatePlantCredential(
+      plantCredentialValue, plantAnchor, subject, subjectKey) in
+  if validatedPlantSerial = plantSerial then
+    let checkedContext: protocolMessage =
+      checkSign(popSignature, subjectKey) in
+    let expectedContext: protocolMessage =
+      emergencyPoPContext(tagEmergencyPoP, pgbA,
+                          subject, subjectKey,
+                          plantSerial, emergencySerial, C1, verifierNonce) in
+    if checkedContext = expectedContext then
+      event EmergencyPoPVerified(
+        C1, subject, subjectKey,
+        plantSerial, emergencySerial, verifierNonce);
+      event PlantCredentialValidated(
+        C1, subject, subjectKey, plantSerial, emergencySerial);
+      let emergencyBody: protocolMessage =
+        emergencyLDevIDBody(tagEmergencyLDevID, pgbA,
+                            subject, subjectKey, emergencyMember,
+                            emergencySerial) in
+      let credential: emergencyCredential =
+        makeEmergencyCredential(
+          emergencyBody, sign(emergencyBody, skC1Device)) in
+      event EmergencyCredentialIssued(
+        C1, subject, subjectKey, emergencySerial);
+      out(net, reachEmergencyIssued);
+      out(net,
+        emergencyCredentialResponse(
+          C1, subject, subjectKey, emergencySerial, credential)).
+
+(* ----------------------------------------------------------------------- *)
+(* Honest candidate handoff and downstream credential validation           *)
+(* ----------------------------------------------------------------------- *)
+
+(*
+   The honest candidate accepts only a response naming Demg and its own public
+   key, then forwards the received emergency credential together with C1's
+   issuer credential. Final trust validation is performed by the existing PGB
+   peer below rather than by this handoff step.
+*)
+let EmergencyCandidateJoin(issuerCredential: certificate) =
+  !in(net, response: wireMessage);
+  let emergencyCredentialResponse(=C1, subject: device, subjectKey: pkey,
+                                  emergencySerial: serial,
+                                  credential: emergencyCredential) =
+    response in
+  if subject = Demg then
+  if subjectKey = pk(skDemgDevice) then
+    event EmergencyJoinRequested(subject, subjectKey, emergencySerial);
+    out(net, reachEmergencyJoinRequested);
+    out(net,
+      emergencyJoinRequest(
+        subject, subjectKey, emergencySerial, credential,
+        issuerCredential)).
+
+(*
+   C2 is a representative existing PGB peer, not a second admission authority.
+   It first validates C1's threshold-signed, CA-capable PGB-I LDevID under
+   pkChord, obtains the authorized issuer key from that credential, and then
+   validates the restricted emergency credential under that key. Its own
+   threshold share is irrelevant to this check.
+
+   EmergencyOverlayJoined records that this credential was accepted as
+   sufficient for restricted emergency membership; it does not model a fresh
+   join-time proof of possession.
+*)
+let EmergencyCredentialValidator() =
+  !in(net, request: wireMessage);
+  let emergencyJoinRequest(subject: device, subjectKey: pkey,
+                           emergencySerial: serial,
+                           credential: emergencyCredential,
+                           issuerCredential: certificate) = request in
+  let makeRegularCertificate(authorityBody: thresholdMessage,
+                             authoritySignature: thresholdSignature) =
+    issuerCredential in
+  let pgbiLDevIDBody(=tagPGBILDevID, =pgbA, =C1,
+                     issuerKey: pkey, =regularMember,
+                     =emergencyIssuerCACap,
+                     issuerSerial: serial) = authorityBody in
+  let authorityPair: signerPair =
+    verifyThreshold(authoritySignature, authorityBody, pkChord) in
+  let validatedEmergencySerial: serial =
+    validateEmergencyCredential(
+      credential, issuerKey, pgbA, subject, subjectKey) in
+  if validatedEmergencySerial = emergencySerial then
+    event PGBILDevIDCAValidated(
+      C2, C1, issuerKey, issuerSerial);
+    event EmergencyCredentialAccepted(
+      C2, subject, subjectKey, issuerSerial, emergencySerial);
+    out(net, reachEmergencyCredentialAccepted);
+    event EmergencyOverlayJoined(
+      C2, subject, subjectKey, issuerSerial, emergencySerial);
+    out(net, reachEmergencyOverlayJoined).
+
+(* ----------------------------------------------------------------------- *)
+(* Trusted locked setup                                                     *)
+(* ----------------------------------------------------------------------- *)
+
+(*
+   The focused setup assumes an already locked PGB. It constructs C1's
+   threshold-signed PGB-I LDevID directly: this credential binds C1's device
+   key to the emergencyIssuerCACap capability and is the trust anchor used by
+   downstream peers for emergency credentials. The full regular-admission
+   lifecycle is intentionally not replayed here.
+*)
+let LockedSetup() =
+  let plantAnchor: pkey = pk(skPlant) in
+  new issuerSerial: serial;
+  let issuerBody: thresholdMessage =
+    pgbiLDevIDBody(tagPGBILDevID, pgbA, C1,
+                   pk(skC1Device), regularMember,
+                   emergencyIssuerCACap, issuerSerial) in
+  let issuerCredential: certificate =
+    makeRegularCertificate(
+      issuerBody, thresholdSig12(e0, issuerBody)) in
+
+  event InitialRegularMember(C1, pk(skC1Device));
+  event InitialRegularMember(C2, pk(skC2Device));
+  event InitialRegularMember(C3, pk(skC3Device));
+  event InitialRegularMember(O1, pk(skO1Device));
+  event InitialCommitteeMember(C1, e0);
+  event InitialCommitteeMember(C2, e0);
+  event InitialCommitteeMember(C3, e0);
+  event PGBILDevIDWithCAIssued(C1, pk(skC1Device), issuerSerial);
+  event SetupComplete(pgbA, pkChord, pk(skCard));
+  event PGBLocked(pgbA);
+
+  out(net, plantAnchor);
+  out(net, issuerCredential);
+  out(net, pkChord);
+  out(net, pk(skC1Device));
+  out(net, pk(skC2Device));
+  out(net, pk(skC3Device));
+  out(net, pk(skO1Device));
+  out(net, pk(skDemgDevice));
+  out(net, reachSetup);
+
+  (
+    PlantProvisionDemg()
+  | EmergencyCandidateStart()
+  | EmergencyIssuancePoPResponder()
+  | EmergencyIssuer(plantAnchor)
+  | EmergencyCandidateJoin(issuerCredential)
+  | EmergencyCredentialValidator()
+  ).
+
+process LockedSetup()

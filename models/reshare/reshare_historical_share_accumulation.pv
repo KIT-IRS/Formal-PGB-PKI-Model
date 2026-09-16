@@ -1,0 +1,167 @@
+(*
+   PGB-PKI historical same-epoch share accumulation negative control
+
+   Purpose:
+   Demonstrates that resharing does not erase threshold shares already learned
+   by the attacker. Two e0 shares are disclosed at different times, with a
+   legitimate e0 -> e1 committee transition occurring between the disclosures.
+
+   High-level flow:
+   1. share1(e0) is disclosed before the transition.
+   2. A compact legitimate C3 resharing trace activates e1 and demonstrates
+      continuity under the unchanged pkChord root.
+   3. Only afterwards is share2(e0) disclosed.
+   4. Because attacker knowledge persists, the two retired e0 shares can still
+      form a valid pair12 signature for an unauthorized Dadv LDevID body.
+
+   This focused model tests historical attacker-knowledge accumulation. It does
+   not repeat the full admission, eligibility, share-delivery, or activation
+   protocol of reshare_2to3_baseline.pv.
+
+   Expected result:
+   - share1(e0) and share2(e0) become attacker-known at different times;
+   - the attacker eventually derives the unauthorized old-epoch root signature;
+   - the corresponding honest card-authorization provenance is absent;
+   - the legitimate e1 transition still preserves pkChord.
+*)
+
+(* The public network carries both deliberate leaks and the forged signature. *)
+free net: channel.
+
+const pgbA: pgb.
+const C1, C2, C3, Dadv: device.
+const e0, e1: epoch.
+const admittedSerial, updateSerial, historicalRootSerial: serial.
+
+(*
+   C3 keeps a dedicated honest device key for the legitimate transition. skAdv
+   is public attacker-controlled material used only for the unauthorized Dadv
+   credential, keeping the honest and malicious identities separate.
+*)
+free skC3Device: skey [private].
+free skAdv: skey.
+free reachFirstOldLeak: bitstring [private].
+free reachLegitimateReshare: bitstring [private].
+free reachSecondOldLeak: bitstring [private].
+free reachHistoricalForgery: bitstring [private].
+
+(* ----------------------------------------------------------------------- *)
+(* Security and sanity queries                                              *)
+(* ----------------------------------------------------------------------- *)
+
+(*
+   Both share1(e0) and share2(e0) are intentionally disclosed, so those two
+   secrecy queries are expected to be false. share3(e0), all e1 shares, and
+   C3's honest device key must remain secret.
+*)
+query attacker(skC3Device).
+query attacker(share1(e0)).
+query attacker(share2(e0)).
+query attacker(share3(e0)).
+query attacker(share1(e1)).
+query attacker(share2(e1)).
+query attacker(share3(e1)).
+
+(*
+   After the two historical e0 disclosures, this attacker-selected Dadv root
+   signature is expected to become reachable even though e0 is no longer the
+   active committee epoch.
+*)
+query attacker(
+  thresholdSig12(e0,
+    regularLDevIDBody(tagRegularLDevID, pgbA, Dadv, pk(skAdv),
+                      regularMember, historicalRootSerial, historicalRootSerial))).
+
+(*
+   Expected false correspondence: the accepted historical forgery has no
+   matching smartcard authorization for Dadv. Its reachability is the intended
+   negative-control result once the old e0 threshold has accumulated.
+*)
+query S: serial;
+  event(HistoricalRootForgeryAccepted(Dadv, pk(skAdv), e0, S))
+  ==>
+  event(CardAuthorized(pgbA, Dadv, pk(skAdv), S)).
+
+(* The intervening legitimate transition must still preserve the root anchor. *)
+query E: epoch, PKRoot: rootPublicKey, S: serial;
+  event(CommitteeActivated(E, PKRoot, S)) ==> PKRoot = pkChord.
+
+(*
+   The e1 share generation can still produce a threshold signature verified
+   under the unchanged root; this remains a check of the ideal abstraction.
+*)
+query E: epoch, PKRoot: rootPublicKey, P: signerPair, S: serial;
+  event(RootContinuityAccepted(E, PKRoot, P, S))
+  ==>
+  event(CommitteeActivated(E, PKRoot, S)) && PKRoot = pkChord.
+
+(* Sanity reachability: all four secrecy queries below must be false. *)
+query attacker(reachFirstOldLeak).
+query attacker(reachLegitimateReshare).
+query attacker(reachSecondOldLeak).
+query attacker(reachHistoricalForgery).
+
+(*
+   Compact legitimate-transition witness. The full admission and committee
+   authorization stages are deliberately omitted here because they are verified
+   in the resharing baseline. This process directly records an authorized C3
+   proposal, activates all three e1 shares, and checks root continuity with an
+   e1 pair13 signature. It then releases the second retired e0 share.
+*)
+let LegitimateReshare() =
+  let proposal: thresholdMessage =
+    committeeProposal(tagCommittee, pgbA, e0, e1,
+                      C1, C2, C3, C3, pk(skC3Device), pkChord,
+                      admittedSerial, updateSerial) in
+  event CommitteeVote(
+    C1, e0, e1, C3, pk(skC3Device), admittedSerial, updateSerial);
+  event CommitteeVote(
+    C2, e0, e1, C3, pk(skC3Device), admittedSerial, updateSerial);
+  let approval: thresholdSignature =
+    combine(partialSign(proposal, share1(e0)),
+            partialSign(proposal, share2(e0))) in
+  let (=pair12) = verifyThreshold(approval, proposal, pkChord) in
+  event CommitteeApproved(
+    e0, e1, C3, pk(skC3Device), admittedSerial, updateSerial);
+  event ReshareStarted(
+    e0, e1, C3, pk(skC3Device), admittedSerial, updateSerial);
+  event ShareActivated(C1, e1, pkChord, updateSerial);
+  event ShareActivated(C2, e1, pkChord, updateSerial);
+  event ShareActivated(C3, e1, pkChord, updateSerial);
+  event CommitteeActivated(e1, pkChord, updateSerial);
+  let continuitySignature: thresholdSignature =
+    combine(partialSign(proposal, share1(e1)),
+            partialSign(proposal, share3(e1))) in
+  let continuityPair: signerPair =
+    verifyThreshold(continuitySignature, proposal, pkChord) in
+  event RootContinuityAccepted(
+    e1, pkChord, continuityPair, updateSerial);
+  out(net, reachLegitimateReshare);
+  out(net, share2(e0));
+  out(net, reachSecondOldLeak).
+
+(*
+   The gate accepts any network-supplied threshold signature only if it verifies
+   as pair12 for the fixed unauthorized Dadv e0 LDevID body. After both retired
+   e0 shares have leaked, the attacker can construct exactly such a signature.
+*)
+let HistoricalRootGate() =
+  !in(net, candidateSignature: thresholdSignature);
+  let body: thresholdMessage =
+    regularLDevIDBody(tagRegularLDevID, pgbA, Dadv, pk(skAdv),
+                      regularMember, historicalRootSerial, historicalRootSerial) in
+  let (=pair12) =
+    verifyThreshold(candidateSignature, body, pkChord) in
+  event HistoricalRootForgeryAccepted(
+    Dadv, pk(skAdv), e0, historicalRootSerial);
+  out(net, reachHistoricalForgery).
+
+(*
+   share1(e0) is leaked first. The legitimate transition and forgery gate then
+   run concurrently; share2(e0) becomes public only after the e1 transition has
+   completed, so the attack specifically demonstrates accumulation over time.
+*)
+process
+  out(net, share1(e0));
+  out(net, reachFirstOldLeak);
+  (LegitimateReshare() | HistoricalRootGate())

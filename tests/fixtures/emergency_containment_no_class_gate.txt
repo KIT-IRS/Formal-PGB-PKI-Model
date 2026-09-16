@@ -1,0 +1,33 @@
+Synthetic parser fixture: intended output shape only; NOT a ProVerif execution.
+RESULT not attacker_skey(skCard[]) is true.
+RESULT not attacker_skey(skC1Device[]) is false.
+RESULT not attacker_skey(skC2Device[]) is true.
+RESULT not attacker_skey(skDregDevice[]) is true.
+RESULT not attacker_thresholdShare(share1(e0)) is false.
+RESULT not attacker_thresholdShare(share2(e0)) is true.
+RESULT not attacker_thresholdShare(share1(e1)) is false.
+RESULT not attacker_thresholdShare(share2(e1)) is true.
+RESULT not attacker_thresholdShare(share3(e1)) is false.
+RESULT event(ContainmentHonestPartial(D,PK)) ==> event(ContainmentCardGrant(D,PK)) is true.
+RESULT event(ContainmentRegularAccepted(D,PK)) ==> event(ContainmentCardGrant(D,PK)) is false.
+RESULT event(ContainmentApproved(D,PK)) ==> event(ContainmentRegularEvidence(D,PK)) is false.
+RESULT event(ContainmentApproved(D,PK)) ==> event(ContainmentEligible(D,PK)) is true.
+RESULT event(ContainmentDelivered(D,PK)) ==> event(ContainmentApproved(D,PK)) is true.
+RESULT not event(ContainmentAttackRegular(Dadv)) is false.
+RESULT not event(ContainmentAttackPartial(Dadv)) is true.
+RESULT not event(ContainmentAttackVote(Dadv)) is false.
+RESULT not event(ContainmentAttackApproved(Dadv)) is false.
+RESULT not event(ContainmentAttackDelivered(Dadv)) is false.
+RESULT not event(ContainmentAttackActivated(Dadv)) is false.
+RESULT not attacker_bitstring(reachContainmentEmergency[]) is false.
+RESULT not attacker_bitstring(reachContainmentAdmissionAttempt[]) is false.
+RESULT not attacker_bitstring(reachContainmentCommitteeAttempt[]) is false.
+RESULT not attacker_bitstring(reachContainmentRegular[]) is false.
+RESULT not attacker_bitstring(reachContainmentHonestPartial[]) is false.
+RESULT not attacker_bitstring(reachContainmentHonestVote[]) is false.
+RESULT not attacker_bitstring(reachContainmentApproved[]) is false.
+RESULT not attacker_bitstring(reachContainmentDelivered[]) is false.
+RESULT not attacker_bitstring(reachContainmentActivated[]) is false.
+RESULT not attacker_bitstring(reachContainmentAttackApproved[]) is false.
+RESULT not attacker_bitstring(reachContainmentAttackDelivered[]) is false.
+RESULT not attacker_bitstring(reachContainmentAttackActivated[]) is false.

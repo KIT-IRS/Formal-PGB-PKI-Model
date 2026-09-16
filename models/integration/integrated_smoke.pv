@@ -1,0 +1,813 @@
+(*
+   PGB-PKI integrated lifecycle smoke composition
+
+   Purpose:
+   Composes the already verified focused components in one source to check that
+   their shared types, events, credentials, and state transitions remain
+   compatible when connected end to end. This model is a composition smoke test,
+   not a replacement for the focused adversarial models.
+
+   High-level flow:
+   1. The PGB starts locked with C1/C2 as the e0 certification committee and an
+      existing CA-capable PGB-I credential for C1.
+   2. C3 completes regular smartcard-based admission.
+   3. C3 is separately marked certification-capable and the approved e0 -> e1
+      transition reshapes the committee to C1/C2/C3 under unchanged pkChord.
+   4. After all e1 shares activate, Demg follows the restricted emergency path
+      through PGB-I C1 and is accepted by representative peer C2.
+   5. Newly admitted committee member C3 and emergency member Demg complete the
+      abstract peer-authentication transcript using C3's original admission
+      certificate, whose e0 signature remains valid after the e1 transition.
+
+   The regular-admission and resharing stages retain their explicit checks. The
+   final emergency/peer continuation is intentionally compact and follows one
+   honest successful trace; emergency, peer, and compromise behavior is tested
+   in detail by their dedicated focused models.
+
+   Expected result:
+   - all long-term keys and e0/e1 threshold shares remain secret;
+   - the regular-admission and resharing provenance correspondences remain true;
+   - emergency acceptance traces to plant validation and the genuine PGB-I CA
+     credential, but Demg never receives a threshold share;
+   - the final peer-authentication acceptance traces back across both lifecycle
+     branches, including equality of the complete admitted and peer-used
+     C3 credential and its original token/admission serials;
+   - all ten lifecycle reachability canaries are intentionally reachable.
+
+   Run with:
+
+     proverif -lib common_primitives.pvl -lib reshare_primitives.pvl \
+       integrated_smoke.pv
+*)
+
+(* ----------------------------------------------------------------------- *)
+(* Fixed architecture instance and composition state                       *)
+(* ----------------------------------------------------------------------- *)
+
+(*
+   net is attacker-controlled. The private channels carry only local state and
+   synchronization between honest stages: successful admission, eligibility,
+   resharing state/acknowledgments, and the signal that the e1 transition is
+   complete before the integrated emergency/peer continuation begins.
+*)
+free net: channel.
+free cardProvision: channel [private].
+free admittedCandidate: channel [private].
+(* A separate local handoff avoids competing with CommitteeStart for input. *)
+free admittedPeerCredential: channel [private].
+free eligibility: channel [private].
+free reshareState: channel [private].
+free activatedC1, activatedC2, activatedC3: channel [private].
+free integrationReady: channel [private].
+
+const pgbA: pgb.
+(*
+   C1/C2 are the initial certification committee, C3 is the regular-admission
+   candidate later added to it, O1 is an ordinary initial member, and Demg is
+   the restricted emergency device. Dreg has no active protocol role here; it
+   is retained only for the ordinary-member no-share sanity query below.
+*)
+const C1, C2, C3, O1, Dreg, Demg: device.
+const e0, e1: epoch.
+
+free skCard: skey [private].
+free skC1Device: skey [private].
+free skC2Device: skey [private].
+free skC3Device: skey [private].
+free skO1Device: skey [private].
+free skPlant: skey [private].
+free skDemgDevice: skey [private].
+
+free reachSetup: bitstring [private].
+free reachRegularMembershipAuthorized: bitstring [private].
+free reachCommitteeApproved: bitstring [private].
+free reachShareC1: bitstring [private].
+free reachShareC2: bitstring [private].
+free reachShareC3: bitstring [private].
+free reachCommitteeActivated: bitstring [private].
+free reachRootContinuity: bitstring [private].
+
+(*
+   These tables have the same role as in reshare_2to3_baseline.pv: completed
+   regular admission and trusted certification eligibility are recorded as
+   separate persistent facts before committee voting can proceed.
+*)
+table authorizedForCommittee(device, pkey, serial, certificate).
+table eligibleForCommittee(device, pkey).
+free reachIntegratedEmergency: bitstring [private].
+free reachIntegratedPeer: bitstring [private].
+
+(* Carry the complete certificate term, not only its subject or public key. *)
+event IntegratedAdmissionCredential(certificate, serial, serial).
+event IntegratedPeerCredentialValidated(certificate, serial, serial, serial).
+
+(* ----------------------------------------------------------------------- *)
+(* Security, provenance, and reachability queries                           *)
+(* ----------------------------------------------------------------------- *)
+
+(* Long-term keys and both share generations remain secret. *)
+query attacker(skCard).
+query attacker(skC1Device).
+query attacker(skC2Device).
+query attacker(skC3Device).
+query attacker(skO1Device).
+query attacker(skPlant).
+query attacker(skDemgDevice).
+query attacker(share1(e0)).
+query attacker(share2(e0)).
+query attacker(share3(e0)).
+query attacker(share1(e1)).
+query attacker(share2(e1)).
+query attacker(share3(e1)).
+
+(*
+   Emergency overlay acceptance must trace to an accepted emergency credential,
+   genuine issuance by C1, plant-credential validation, the genuine CA-capable
+   PGB-I credential, and the issuance PoP. These are the same provenance links
+   exercised in the focused emergency baseline.
+*)
+query G: device, SIssuer: serial, S: serial, SPlant: serial;
+  event(EmergencyOverlayJoined(
+    G, Demg, pk(skDemgDevice), SIssuer, S))
+  ==>
+  event(EmergencyCredentialAccepted(
+    G, Demg, pk(skDemgDevice), SIssuer, S)) &&
+  event(EmergencyCredentialIssued(C1, Demg, pk(skDemgDevice), S)) &&
+  event(PlantCredentialValidated(
+    C1, Demg, pk(skDemgDevice), SPlant, S)).
+
+query G: device, SIssuer: serial, S: serial,
+      SPlant: serial, NIssuance: nonce;
+  event(EmergencyOverlayJoined(
+    G, Demg, pk(skDemgDevice), SIssuer, S))
+  ==>
+  event(PGBILDevIDCAValidated(
+    G, C1, pk(skC1Device), SIssuer)) &&
+  event(PGBILDevIDWithCAIssued(
+    C1, pk(skC1Device), SIssuer)) &&
+  event(EmergencyPoPVerified(
+    C1, Demg, pk(skDemgDevice), SPlant, S, NIssuance)).
+
+(*
+   The next two injective correspondences check both directions of the final
+   C3 <-> Demg peer-authentication transcript.
+*)
+query S: serial, NA: nonce, NB: nonce;
+  inj-event(PeerAcceptedByInitiator(
+    C3, pk(skC3Device), Demg, pk(skDemgDevice), S, NA, NB))
+  ==>
+  inj-event(PeerAuthResponded(
+    Demg, pk(skDemgDevice), C3, pk(skC3Device), S, NA, NB)).
+
+query S: serial, NA: nonce, NB: nonce;
+  inj-event(PeerAcceptedByResponder(
+    Demg, pk(skDemgDevice), C3, pk(skC3Device), S, NA, NB))
+  ==>
+  inj-event(PeerAuthFinalized(
+    C3, pk(skC3Device), Demg, pk(skDemgDevice), S, NA, NB)).
+
+(*
+   Composition-specific provenance check: if C3 accepts Demg as its peer, the
+   trace must also contain C3's genuine smartcard-backed regular membership and
+   Demg's plant-validated emergency admission. This links the final peer session
+   back across both lifecycle branches rather than checking the peer transcript
+   in isolation.
+*)
+query S: serial, NA: nonce, NB: nonce,
+      TAdmission: serial, SAdmission: serial, NRegular: nonce,
+      SIssuer: serial, SPlant: serial, SEmergency: serial;
+  event(PeerAcceptedByInitiator(
+    C3, pk(skC3Device), Demg, pk(skDemgDevice), S, NA, NB))
+  ==>
+  event(RegularMembershipAuthorized(
+    C1, C3, pk(skC3Device), TAdmission, SAdmission, NRegular)) &&
+  event(CardAuthorized(
+    pgbA, C3, pk(skC3Device), TAdmission)) &&
+  event(EmergencyCredentialAccepted(
+    C2, Demg, pk(skDemgDevice), SIssuer, SEmergency)) &&
+  event(PlantCredentialValidated(
+    C1, Demg, pk(skDemgDevice), SPlant, SEmergency)).
+
+(* Exact credential continuity across admission, resharing, and peer use.
+   Cred binds the complete certificate including the original root signature;
+   T and A bind its token/admission serials, and S binds the peer session. *)
+query Cred: certificate, T: serial, A: serial, S: serial;
+  event(IntegratedPeerCredentialValidated(Cred, T, A, S))
+  ==> event(IntegratedAdmissionCredential(Cred, T, A)).
+
+(* The existing peer reachability witness also exercises this validation.
+   The accepted responder session must use the certificate recorded above. *)
+query S: serial, NA: nonce, NB: nonce, Cred: certificate, T: serial, A: serial;
+  event(PeerAcceptedByResponder(
+    Demg, pk(skDemgDevice), C3, pk(skC3Device), S, NA, NB))
+  ==> event(IntegratedPeerCredentialValidated(Cred, T, A, S)).
+
+(* Structural nonreachability: this smoke model has no Demg share recipient. *)
+query E: epoch, S: serial;
+  event(ShareActivated(Demg, E, pkChord, S)).
+
+(*
+   The following resharing correspondences are intentionally the same core
+   provenance checks as in the focused resharing baseline. The smoke model keeps
+   them here to ensure those event relationships survive the larger composition.
+*)
+
+(* C3's committee candidacy is linked to its genuine regular admission. *)
+query G: device, PK: pkey, T: serial,
+      SAdmission: serial, NCompletion: nonce;
+  event(RegularMembershipAuthorized(G, C3, PK, T, SAdmission, NCompletion))
+  ==>
+  event(CardAuthorized(pgbA, C3, PK, T)).
+
+query V: device, PK: pkey, SAdmission: serial, SUpdate: serial, N: nonce;
+  inj-event(CommitteePoPVerified(V, C3, PK, SAdmission, SUpdate, N))
+  ==>
+  inj-event(CommitteePoPProduced(C3, PK, V, SAdmission, SUpdate, N)).
+
+query V: device, D: device, PK: pkey,
+      TAdmission: serial, SAdmission: serial, SUpdate: serial,
+      NCompletion: nonce, NCommittee: nonce;
+  event(CommitteeCandidateAuthenticated(V, D, PK, SAdmission, SUpdate))
+  ==>
+  event(CertificationEligible(D, PK)) &&
+  event(RegularMembershipAuthorized(
+    C1, D, PK, TAdmission, SAdmission, NCompletion)) &&
+  event(CommitteePoPVerified(V, D, PK, SAdmission, SUpdate, NCommittee)).
+
+query V: device, D: device, PK: pkey,
+      SAdmission: serial, SUpdate: serial;
+  event(CommitteeVote(V, e0, e1, D, PK, SAdmission, SUpdate))
+  ==>
+  event(CommitteeCandidateAuthenticated(V, D, PK, SAdmission, SUpdate)).
+
+(* The uncompromised 2-of-2 approval contains both independent votes. *)
+query D: device, PK: pkey, SAdmission: serial, SUpdate: serial;
+  event(CommitteeApproved(e0, e1, D, PK, SAdmission, SUpdate))
+  ==>
+  event(CommitteeVote(C1, e0, e1, D, PK, SAdmission, SUpdate)) &&
+  event(CommitteeVote(C2, e0, e1, D, PK, SAdmission, SUpdate)).
+
+query E0: epoch, E1: epoch, D: device, PK: pkey,
+      SAdmission: serial, SUpdate: serial;
+  event(ReshareStarted(E0, E1, D, PK, SAdmission, SUpdate))
+  ==>
+  event(CommitteeApproved(E0, E1, D, PK, SAdmission, SUpdate)).
+
+query E: epoch, SUpdate: serial, PK: pkey,
+      TAdmission: serial, SAdmission: serial, NCompletion: nonce;
+  event(ShareActivated(C3, E, pkChord, SUpdate))
+  ==>
+  event(CertificationEligible(C3, PK)) &&
+  event(RegularMembershipAuthorized(
+    C1, C3, PK, TAdmission, SAdmission, NCompletion)) &&
+  event(CommitteeApproved(e0, E, C3, PK, SAdmission, SUpdate)).
+
+query E: epoch, SUpdate: serial, D: device, PK: pkey,
+      SAdmission: serial;
+  event(ShareActivated(C1, E, pkChord, SUpdate))
+  ==>
+  event(CommitteeApproved(e0, E, D, PK, SAdmission, SUpdate)).
+
+query E: epoch, SUpdate: serial, D: device, PK: pkey,
+      SAdmission: serial;
+  event(ShareActivated(C2, E, pkChord, SUpdate))
+  ==>
+  event(CommitteeApproved(e0, E, D, PK, SAdmission, SUpdate)).
+
+query E: epoch, PKRoot: rootPublicKey, SUpdate: serial,
+      D: device, PK: pkey, SAdmission: serial;
+  event(CommitteeActivated(E, PKRoot, SUpdate))
+  ==>
+  event(CommitteeApproved(e0, E, D, PK, SAdmission, SUpdate)) &&
+  event(ShareActivated(C1, E, PKRoot, SUpdate)) &&
+  event(ShareActivated(C2, E, PKRoot, SUpdate)) &&
+  event(ShareActivated(C3, E, PKRoot, SUpdate)).
+
+query E: epoch, PKRoot: rootPublicKey, SUpdate: serial;
+  event(CommitteeActivated(E, PKRoot, SUpdate)) ==> PKRoot = pkChord.
+
+query E: epoch, PKRoot: rootPublicKey, P: signerPair, SUpdate: serial;
+  event(RootContinuityAccepted(E, PKRoot, P, SUpdate))
+  ==>
+  event(CommitteeActivated(E, PKRoot, SUpdate)) && PKRoot = pkChord.
+
+(* Structural nonreachability: only the fixed C1/C2/C3 recipients exist. *)
+query E: epoch, S: serial; event(ShareActivated(O1, E, pkChord, S)).
+query E: epoch, S: serial; event(ShareActivated(Dreg, E, pkChord, S)).
+
+(* Sanity reachability: all ten lifecycle secrecy queries below must be false. *)
+query attacker(reachSetup).
+query attacker(reachRegularMembershipAuthorized).
+query attacker(reachCommitteeApproved).
+query attacker(reachShareC1).
+query attacker(reachShareC2).
+query attacker(reachShareC3).
+query attacker(reachCommitteeActivated).
+query attacker(reachRootContinuity).
+query attacker(reachIntegratedEmergency).
+query attacker(reachIntegratedPeer).
+
+(* ----------------------------------------------------------------------- *)
+(* Stage 1: C3 regular admission                                            *)
+(* ----------------------------------------------------------------------- *)
+
+(*
+   This stage is the compact integrated instance of the regular-admission flow:
+   the card authorizes C3, C1/C2 independently validate token and PoP, and the
+   pair12 threshold result establishes C3's regular membership. The successful
+   credential is also recorded for the later committee transition.
+*)
+let SmartcardAuthorizeC3() =
+  new tokenSerial: serial;
+  let body: protocolMessage =
+    cardTokenBody(tagCardToken, pgbA, C3, pk(skC3Device), tokenSerial) in
+  event CardAuthorized(pgbA, C3, pk(skC3Device), tokenSerial);
+  out(cardProvision,
+    makeCardToken(body, sign(body, skCard))).
+
+let CandidateStart() =
+  in(cardProvision, token: admissionToken);
+  out(net, admissionInit(C3, pk(skC3Device), token)).
+
+let CandidateAdmissionPoP() =
+  !in(net, challenge: wireMessage);
+  let signerChallenge(=pgbA, =C3, =pk(skC3Device), admissionSerial: serial,
+                      signer: device, verifierNonce: nonce) = challenge in
+  let context: protocolMessage =
+    regularPoPContext(tagRegPoP, pgbA, C3, pk(skC3Device),
+                      admissionSerial, signer, verifierNonce) in
+  event RegularPoPProduced(
+    C3, pk(skC3Device), signer, admissionSerial, verifierNonce);
+  out(net,
+    regularPoPResponse(signer, C3, pk(skC3Device), admissionSerial,
+                       verifierNonce, sign(context, skC3Device))).
+
+let AdmissionCoordinator() =
+  in(net, initialization: wireMessage);
+  let admissionInit(=C3, =pk(skC3Device), token: admissionToken) =
+    initialization in
+  new admissionSerial: serial;
+  event RegularAdmissionStarted(C3, pk(skC3Device), admissionSerial);
+  out(net, signerRequest(C1, C3, pk(skC3Device), token, admissionSerial));
+  out(net, signerRequest(C2, C3, pk(skC3Device), token, admissionSerial)).
+
+let AdmissionSigner(signer: device, signerShare: thresholdShare,
+                    cardAnchor: pkey) =
+  !in(net, request: wireMessage);
+  let signerRequest(=signer, subject: device, subjectKey: pkey,
+                    token: admissionToken, admissionSerial: serial) = request in
+  let tokenSerial: serial =
+    validateCardToken(token, cardAnchor, pgbA, subject, subjectKey) in
+  new verifierNonce: nonce;
+  out(net,
+    signerChallenge(pgbA, subject, subjectKey, admissionSerial,
+                    signer, verifierNonce));
+  in(net, response: wireMessage);
+  let regularPoPResponse(=signer, =subject, =subjectKey, =admissionSerial,
+                         =verifierNonce, popSignature: signature) = response in
+  let checked: protocolMessage = checkSign(popSignature, subjectKey) in
+  let expected: protocolMessage =
+    regularPoPContext(tagRegPoP, pgbA, subject, subjectKey,
+                      admissionSerial, signer, verifierNonce) in
+  if checked = expected then
+    event RegularSignerPoPVerified(
+      signer, subject, subjectKey, admissionSerial, e0, verifierNonce);
+    event SignerValidated(
+      signer, subject, subjectKey, tokenSerial,
+      admissionSerial, e0, verifierNonce);
+    let certBody: thresholdMessage =
+      regularLDevIDBody(tagRegularLDevID, pgbA, subject, subjectKey,
+                        regularMember, tokenSerial, admissionSerial) in
+    event PartialIssued(signer, subject, subjectKey, admissionSerial, e0);
+    out(net,
+      partialResponse(signer, subject, subjectKey, tokenSerial, admissionSerial,
+                      partialSign(certBody, signerShare))).
+
+let AdmissionCombiner() =
+  in(net, response1: wireMessage);
+  let partialResponse(=C1, =C3, =pk(skC3Device), tokenSerial: serial,
+                      admissionSerial: serial,
+                      partial1: partialSignature) = response1 in
+  in(net, response2: wireMessage);
+  let partialResponse(=C2, =C3, =pk(skC3Device), =tokenSerial,
+                      =admissionSerial,
+                      partial2: partialSignature) = response2 in
+  let certBody: thresholdMessage =
+    regularLDevIDBody(tagRegularLDevID, pgbA, C3, pk(skC3Device),
+                      regularMember, tokenSerial, admissionSerial) in
+  let rootSignature: thresholdSignature = combine(partial1, partial2) in
+  let (=pair12) = verifyThreshold(rootSignature, certBody, pkChord) in
+  let credential: certificate =
+    makeRegularCertificate(certBody, rootSignature) in
+  new completionNonce: nonce;
+  event RegularCredentialAccepted12(
+    C1, C3, pk(skC3Device), tokenSerial, admissionSerial, completionNonce);
+  event RegularMembershipAuthorized(
+    C1, C3, pk(skC3Device), tokenSerial, admissionSerial, completionNonce);
+  event IntegratedAdmissionCredential(credential, tokenSerial, admissionSerial);
+  insert authorizedForCommittee(C3, pk(skC3Device), admissionSerial, credential);
+  out(net, reachRegularMembershipAuthorized);
+  out(admittedCandidate, (credential, admissionSerial));
+  out(admittedPeerCredential, (credential, tokenSerial, admissionSerial)).
+
+(* ----------------------------------------------------------------------- *)
+(* Stage 2: authorization of the e0 -> e1 committee transition              *)
+(* ----------------------------------------------------------------------- *)
+
+(* Regular membership and certification capability remain separate decisions. *)
+let MarkC3Eligible() =
+  event CertificationEligible(C3, pk(skC3Device));
+  insert eligibleForCommittee(C3, pk(skC3Device));
+  out(eligibility, pk(skC3Device)).
+
+let CommitteeStart() =
+  in(admittedCandidate, (credential: certificate, admissionSerial: serial));
+  in(eligibility, =pk(skC3Device));
+  new updateSerial: serial;
+  let proposal: thresholdMessage =
+    committeeProposal(tagCommittee, pgbA, e0, e1,
+                      C1, C2, C3, C3, pk(skC3Device), pkChord,
+                      admissionSerial, updateSerial) in
+  out(net,
+    committeeRequest(C1, e0, e1, C3, pk(skC3Device),
+                     admissionSerial, updateSerial, credential, proposal));
+  out(net,
+    committeeRequest(C2, e0, e1, C3, pk(skC3Device),
+                     admissionSerial, updateSerial, credential, proposal)).
+
+let CommitteeCandidatePoP() =
+  !in(net, challenge: wireMessage);
+  let committeeChallenge(=pgbA, =e0, =e1, =C3, =pk(skC3Device),
+                         admissionSerial: serial, updateSerial: serial,
+                         voter: device, verifierNonce: nonce) = challenge in
+  let context: protocolMessage =
+    committeePoPContext(tagCommitteePoP, pgbA, e0, e1,
+                        C3, pk(skC3Device), admissionSerial, updateSerial,
+                        voter, verifierNonce) in
+  event CommitteePoPProduced(
+    C3, pk(skC3Device), voter,
+    admissionSerial, updateSerial, verifierNonce);
+  out(net,
+    committeePoPResponse(voter, C3, pk(skC3Device),
+                         admissionSerial, updateSerial, verifierNonce,
+                         sign(context, skC3Device))).
+
+let CommitteeVoter(voter: device, voterShare: thresholdShare) =
+  in(net, request: wireMessage);
+  let committeeRequest(=voter, =e0, =e1,
+                       candidate: device, candidateKey: pkey,
+                       admissionSerial: serial, updateSerial: serial,
+                       credential: certificate, proposal: thresholdMessage) =
+    request in
+  get authorizedForCommittee(=candidate, =candidateKey,
+                         =admissionSerial, =credential) in
+  get eligibleForCommittee(=candidate, =candidateKey) in
+  let committeeProposal(=tagCommittee, =pgbA, =e0, =e1,
+                        =C1, =C2, =C3, =candidate, =candidateKey,
+                        =pkChord, =admissionSerial, =updateSerial) = proposal in
+  let makeRegularCertificate(certBody: thresholdMessage,
+                             rootSignature: thresholdSignature) = credential in
+  let regularLDevIDBody(=tagRegularLDevID, =pgbA, =candidate, =candidateKey,
+                       =regularMember, credentialTokenSerial: serial, =admissionSerial) = certBody in
+  let (=pair12) = verifyThreshold(rootSignature, certBody, pkChord) in
+  if candidate = C3 then
+    if candidateKey = pk(skC3Device) then
+      new verifierNonce: nonce;
+      out(net,
+        committeeChallenge(pgbA, e0, e1, candidate, candidateKey,
+                           admissionSerial, updateSerial,
+                           voter, verifierNonce));
+      in(net, response: wireMessage);
+      let committeePoPResponse(=voter, =candidate, =candidateKey,
+                               =admissionSerial, =updateSerial,
+                               =verifierNonce, popSignature: signature) =
+        response in
+      let checked: protocolMessage = checkSign(popSignature, candidateKey) in
+      let expected: protocolMessage =
+        committeePoPContext(tagCommitteePoP, pgbA, e0, e1,
+                            candidate, candidateKey,
+                            admissionSerial, updateSerial,
+                            voter, verifierNonce) in
+      if checked = expected then
+        event CommitteePoPVerified(
+          voter, candidate, candidateKey,
+          admissionSerial, updateSerial, verifierNonce);
+        event CommitteeCandidateAuthenticated(
+          voter, candidate, candidateKey, admissionSerial, updateSerial);
+        event CommitteeVote(
+          voter, e0, e1, candidate, candidateKey,
+          admissionSerial, updateSerial);
+        out(net,
+          committeeVoteResponse(
+            voter, e0, e1, candidate, candidateKey,
+            admissionSerial, updateSerial,
+            partialSign(proposal, voterShare))).
+
+let CommitteeCombiner() =
+  in(net, vote1: wireMessage);
+  let committeeVoteResponse(=C1, =e0, =e1, candidate: device,
+                            candidateKey: pkey, admissionSerial: serial,
+                            updateSerial: serial,
+                            partial1: partialSignature) = vote1 in
+  in(net, vote2: wireMessage);
+  let committeeVoteResponse(=C2, =e0, =e1, =candidate,
+                            =candidateKey, =admissionSerial, =updateSerial,
+                            partial2: partialSignature) = vote2 in
+  let proposal: thresholdMessage =
+    committeeProposal(tagCommittee, pgbA, e0, e1,
+                      C1, C2, C3, candidate, candidateKey, pkChord,
+                      admissionSerial, updateSerial) in
+  let approval: thresholdSignature = combine(partial1, partial2) in
+  let (=pair12) = verifyThreshold(approval, proposal, pkChord) in
+  out(net, committeeApprovalRequest(proposal, approval)).
+
+(* ----------------------------------------------------------------------- *)
+(* Stage 3: ideal resharing, activation, and root continuity                 *)
+(* ----------------------------------------------------------------------- *)
+
+(*
+   As in the focused resharing baseline, this service is the authorization
+   boundary around an ideal resharing primitive. Only a valid threshold approval
+   over the exact proposal releases recipient-bound e1 share packages. The
+   ciphertexts model secure share delivery and do not claim to implement a
+   concrete DKG/resharing algorithm.
+*)
+let ReshareService() =
+  !in(net, request: wireMessage);
+  let committeeApprovalRequest(proposal: thresholdMessage,
+                               approval: thresholdSignature) = request in
+  let committeeProposal(=tagCommittee, =pgbA, =e0, =e1,
+                        =C1, =C2, =C3, candidate: device,
+                        candidateKey: pkey, =pkChord,
+                        admissionSerial: serial, updateSerial: serial) =
+    proposal in
+  let (=pair12) = verifyThreshold(approval, proposal, pkChord) in
+  event CommitteeApproved(
+    e0, e1, candidate, candidateKey, admissionSerial, updateSerial);
+  event ReshareStarted(
+    e0, e1, candidate, candidateKey, admissionSerial, updateSerial);
+  out(net, reachCommitteeApproved);
+  event SharePackageSent(C1, e1, pkChord, updateSerial);
+  out(net,
+    aenc(sharePackage(pgbA, e1, C1, pkChord, share1(e1), updateSerial),
+         pk(skC1Device)));
+  event SharePackageSent(C2, e1, pkChord, updateSerial);
+  out(net,
+    aenc(sharePackage(pgbA, e1, C2, pkChord, share2(e1), updateSerial),
+         pk(skC2Device)));
+  event SharePackageSent(C3, e1, pkChord, updateSerial);
+  out(net,
+    aenc(sharePackage(pgbA, e1, C3, pkChord, share3(e1), updateSerial),
+         pk(skC3Device)));
+  out(reshareState, (admissionSerial, updateSerial, proposal)).
+
+(* Each target member accepts only its own correctly bound e1 share package. *)
+let ShareRecipient(member: device, deviceKey: skey,
+                   expectedShare: thresholdShare, ack: channel,
+                   canary: bitstring) =
+  in(net, encryptedPackage: ciphertext);
+  let package: protocolMessage = adec(encryptedPackage, deviceKey) in
+  let sharePackage(=pgbA, =e1, =member, =pkChord,
+                   receivedShare: thresholdShare,
+                   updateSerial: serial) = package in
+  if receivedShare = expectedShare then
+    event ShareActivated(member, e1, pkChord, updateSerial);
+    out(net, canary);
+    out(ack, updateSerial).
+
+(*
+   Activation waits for all three target acknowledgments. The final pair13
+   signature is a root-continuity witness: fresh e1 shares still verify under
+   the unchanged pkChord root. integrationReady then enables the final composed
+   emergency/peer stage.
+*)
+let ActivateCommittee() =
+  in(reshareState,
+     (admissionSerial: serial, updateSerial: serial,
+      proposal: thresholdMessage));
+  in(activatedC1, =updateSerial);
+  in(activatedC2, =updateSerial);
+  in(activatedC3, =updateSerial);
+  event CommitteeActivated(e1, pkChord, updateSerial);
+  out(net, reachCommitteeActivated);
+  let continuitySignature: thresholdSignature =
+    combine(partialSign(proposal, share1(e1)),
+            partialSign(proposal, share3(e1))) in
+  let continuityPair: signerPair =
+    verifyThreshold(continuitySignature, proposal, pkChord) in
+  event RootContinuityAccepted(
+    e1, pkChord, continuityPair, updateSerial);
+  out(net, reachRootContinuity);
+  out(integrationReady, (admissionSerial, updateSerial)).
+
+(* ----------------------------------------------------------------------- *)
+(* Stage 4: compact emergency admission and peer-authentication continuation *)
+(* ----------------------------------------------------------------------- *)
+
+(*
+   This is deliberately a composition-only successful continuation. It keeps
+   the cryptographic credential and signature checks explicit, but constructs
+   the honest plant credential, emergency PoP, emergency credential, and peer
+   transcript locally instead of reproducing all attacker-controlled protocol
+   roles and compromise variants from emergency_baseline.pv and
+   peer_authentication.pv. Those focused files remain authoritative for the
+   security of the individual mechanisms. C3's regular credential is received
+   from AdmissionCombiner, not constructed here. Credential continuity is a
+   property of this local handoff and explicit validation in the smoke model;
+   it does not upgrade this continuation to an adversarial network handshake.
+*)
+let IntegratedEmergencyAndPeer(issuerCredential: certificate) =
+  in(integrationReady, (admissionSerial: serial, updateSerial: serial));
+  in(admittedPeerCredential,
+     (admittedCredential: certificate, tokenSerial: serial, =admissionSerial));
+
+  new plantSerial: serial;
+  let plantBody: protocolMessage =
+    plantCertBody(tagPlantCert, Demg, pk(skDemgDevice),
+                  plantDevice, plantSerial) in
+  event PlantCredentialProvisioned(
+    Demg, pk(skDemgDevice), plantSerial);
+  let plantCredentialValue: plantCredential =
+    makePlantCredential(plantBody, sign(plantBody, skPlant)) in
+
+  new emergencySerial: serial;
+  new issuanceNonce: nonce;
+  let issuanceContext: protocolMessage =
+    emergencyPoPContext(tagEmergencyPoP, pgbA,
+                        Demg, pk(skDemgDevice),
+                        plantSerial, emergencySerial, C1, issuanceNonce) in
+  event EmergencyPoPProduced(
+    Demg, pk(skDemgDevice), C1,
+    plantSerial, emergencySerial, issuanceNonce);
+  let issuanceSignature: signature =
+    sign(issuanceContext, skDemgDevice) in
+  let validatedPlantSerial: serial =
+    validatePlantCredential(
+      plantCredentialValue, pk(skPlant), Demg, pk(skDemgDevice)) in
+  if validatedPlantSerial = plantSerial then
+    let checkedIssuanceContext: protocolMessage =
+      checkSign(issuanceSignature, pk(skDemgDevice)) in
+    if checkedIssuanceContext = issuanceContext then
+      event EmergencyPoPVerified(
+        C1, Demg, pk(skDemgDevice),
+        plantSerial, emergencySerial, issuanceNonce);
+      event PlantCredentialValidated(
+        C1, Demg, pk(skDemgDevice), plantSerial, emergencySerial);
+      let emergencyBody: protocolMessage =
+        emergencyLDevIDBody(tagEmergencyLDevID, pgbA,
+                            Demg, pk(skDemgDevice), emergencyMember,
+                            emergencySerial) in
+      let emergencyCredentialValue: emergencyCredential =
+        makeEmergencyCredential(
+          emergencyBody, sign(emergencyBody, skC1Device)) in
+      event EmergencyCredentialIssued(
+        C1, Demg, pk(skDemgDevice), emergencySerial);
+
+      event EmergencyJoinRequested(
+        Demg, pk(skDemgDevice), emergencySerial);
+      let joinRequest: wireMessage =
+        emergencyJoinRequest(
+          Demg, pk(skDemgDevice), emergencySerial,
+          emergencyCredentialValue, issuerCredential) in
+      let emergencyJoinRequest(=Demg, =pk(skDemgDevice),
+                               =emergencySerial,
+                               presentedCredential: emergencyCredential,
+                               presentedIssuer: certificate) = joinRequest in
+      let makeRegularCertificate(authorityBody: thresholdMessage,
+                                 authoritySignature: thresholdSignature) =
+        presentedIssuer in
+      let pgbiLDevIDBody(=tagPGBILDevID, =pgbA, =C1,
+                         issuerKey: pkey, =regularMember,
+                         =emergencyIssuerCACap,
+                         issuerSerial: serial) = authorityBody in
+      let authorityPair: signerPair =
+        verifyThreshold(authoritySignature, authorityBody, pkChord) in
+      let checkedEmergencySerial: serial =
+        validateEmergencyCredential(
+          presentedCredential, issuerKey,
+          pgbA, Demg, pk(skDemgDevice)) in
+      if checkedEmergencySerial = emergencySerial then
+        event PGBILDevIDCAValidated(
+          C2, C1, issuerKey, issuerSerial);
+        event EmergencyCredentialAccepted(
+          C2, Demg, pk(skDemgDevice), issuerSerial, emergencySerial);
+        event EmergencyOverlayJoined(
+          C2, Demg, pk(skDemgDevice), issuerSerial, emergencySerial);
+        out(net, reachIntegratedEmergency);
+
+        (* Reuse the exact C3 certificate returned by AdmissionCombiner.
+           Its e0 signature remains valid under unchanged pkChord after e1
+           activation. No renewal, new serial, or direct reissuance is modeled.
+           The peer credential wrapper is parsed and its root signature and
+           PGB/subject/key/role/serial bindings are checked before peer use. *)
+        let presentedRegularPeer: peerCredential =
+          peerRegularCredential(admittedCredential) in
+        let peerRegularCredential(regularCredential: certificate) =
+          presentedRegularPeer in
+        let makeRegularCertificate(regularPeerBody: thresholdMessage,
+                                   regularPeerSignature: thresholdSignature) =
+          regularCredential in
+        let regularLDevIDBody(=tagRegularLDevID, =pgbA, =C3,
+                             =pk(skC3Device), =regularMember,
+                             =tokenSerial, =admissionSerial) = regularPeerBody in
+        let regularPeerPair: signerPair =
+          verifyThreshold(regularPeerSignature, regularPeerBody, pkChord) in
+
+          new peerSerial: serial;
+          new nonceA: nonce;
+          new nonceB: nonce;
+          event IntegratedPeerCredentialValidated(
+            regularCredential, tokenSerial, admissionSerial, peerSerial);
+          let peerContext: protocolMessage =
+            peerAuthContext(tagPeerAuth, pgbA,
+                            C3, pk(skC3Device),
+                            Demg, pk(skDemgDevice),
+                            nonceA, nonceB, peerSerial) in
+          event PeerAuthStarted(
+            C3, pk(skC3Device), Demg, peerSerial, nonceA);
+          event PeerAuthResponded(
+            Demg, pk(skDemgDevice), C3, pk(skC3Device),
+            peerSerial, nonceA, nonceB);
+          let responderSignature: signature =
+            sign(peerContext, skDemgDevice) in
+          let checkedResponderContext: protocolMessage =
+            checkSign(responderSignature, pk(skDemgDevice)) in
+          if checkedResponderContext = peerContext then
+            event PeerAcceptedByInitiator(
+              C3, pk(skC3Device), Demg, pk(skDemgDevice),
+              peerSerial, nonceA, nonceB);
+            event PeerAuthFinalized(
+              C3, pk(skC3Device), Demg, pk(skDemgDevice),
+              peerSerial, nonceA, nonceB);
+            let initiatorSignature: signature =
+              sign(peerContext, skC3Device) in
+            let checkedInitiatorContext: protocolMessage =
+              checkSign(initiatorSignature, pk(skC3Device)) in
+            if checkedInitiatorContext = peerContext then
+              event PeerAcceptedByResponder(
+                Demg, pk(skDemgDevice), C3, pk(skC3Device),
+                peerSerial, nonceA, nonceB);
+              out(net, reachIntegratedPeer).
+
+(* ----------------------------------------------------------------------- *)
+(* Initial locked setup and concurrent lifecycle roles                      *)
+(* ----------------------------------------------------------------------- *)
+
+(*
+   The sequential prefix creates the fixed locked starting state and C1's
+   existing CA-capable PGB-I credential. The parenthesized processes then run
+   concurrently. Private state/synchronization channels impose only the required
+   lifecycle dependencies: admission before committee processing, all share
+   activations before e1 committee activation, and committee activation before
+   the integrated emergency/peer continuation.
+*)
+process
+  let cardAnchor: pkey = pk(skCard) in
+  new issuerSerial: serial;
+  let issuerBody: thresholdMessage =
+    pgbiLDevIDBody(tagPGBILDevID, pgbA, C1,
+                   pk(skC1Device), regularMember,
+                   emergencyIssuerCACap, issuerSerial) in
+  (*
+     The CA-capable PGB-I credential is part of the pre-existing locked setup in
+     this smoke composition. thresholdSig12 is used directly to instantiate that
+     already-issued credential rather than replaying an additional issuance flow.
+  *)
+  let issuerCredential: certificate =
+    makeRegularCertificate(
+      issuerBody, thresholdSig12(e0, issuerBody)) in
+  event SetupComplete(pgbA, pkChord, cardAnchor);
+  event InitialRegularMember(C1, pk(skC1Device));
+  event InitialRegularMember(C2, pk(skC2Device));
+  event InitialRegularMember(O1, pk(skO1Device));
+  event InitialCommitteeMember(C1, e0);
+  event InitialCommitteeMember(C2, e0);
+  event PGBILDevIDWithCAIssued(
+    C1, pk(skC1Device), issuerSerial);
+  event PGBLocked(pgbA);
+  out(net, reachSetup);
+  out(net, issuerCredential);
+  (
+    SmartcardAuthorizeC3()
+    | CandidateStart()
+    | CandidateAdmissionPoP()
+    | AdmissionCoordinator()
+    | AdmissionSigner(C1, share1(e0), cardAnchor)
+    | AdmissionSigner(C2, share2(e0), cardAnchor)
+    | AdmissionCombiner()
+    | MarkC3Eligible()
+    | CommitteeStart()
+    | CommitteeCandidatePoP()
+    | CommitteeVoter(C1, share1(e0))
+    | CommitteeVoter(C2, share2(e0))
+    | CommitteeCombiner()
+    | ReshareService()
+    | ShareRecipient(C1, skC1Device, share1(e1),
+                     activatedC1, reachShareC1)
+    | ShareRecipient(C2, skC2Device, share2(e1),
+                     activatedC2, reachShareC2)
+    | ShareRecipient(C3, skC3Device, share3(e1),
+                     activatedC3, reachShareC3)
+    | ActivateCommittee()
+    | IntegratedEmergencyAndPeer(issuerCredential)
+  )

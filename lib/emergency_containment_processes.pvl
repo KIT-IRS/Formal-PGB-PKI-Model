@@ -1,0 +1,307 @@
+(*
+   Live emergency/regular/committee composition, shared by the two new models.
+   Load after common_primitives.pvl and reshare_primitives.pvl.
+
+   Policy realization, not an implementation extracted from the paper:
+   certification suitability is a trusted table; old-committee agreement is a
+   2-of-3 signature on an exact proposal; resharing is an ideal functionality.
+   Both Dreg and Dadv are suitable hardware. Only Dreg gets a smartcard token.
+   The emergency-only Dadv must be excluded by credential class, not identity.
+
+   C1's issuer/device key and e0 share are leaked. Services for e0 remain live;
+   no erasure, revocation, expiry, or rejection of historical signatures is
+   introduced. The new C1 share is encrypted to the same compromised key.
+   In the negative control, wrongly admitting Dadv to the committee therefore
+   exposes a second e1 share and enables root forgery. This is a consequence
+   of escalation, not an additional assumed compromise.
+*)
+free net: channel.
+const pgbA: pgb.
+const C1, C2, Dreg, Dadv: device.
+const e0, e1: epoch.
+const issuerSerial, honestTokenSerial, attackSerial: serial.
+free skCard, skC1Device, skC2Device, skDregDevice: skey [private].
+free skAdv: skey.
+
+table containmentEligible(device, pkey).
+fun containmentCommitteeRequest(device, device, pkey, serial, serial,
+                                 peerCredential): wireMessage [data].
+fun containmentDelivery(device, pkey, ciphertext): wireMessage [data].
+
+event ContainmentCardGrant(device, pkey).
+event ContainmentEligible(device, pkey).
+event ContainmentHonestPartial(device, pkey).
+event ContainmentRegularAccepted(device, pkey).
+event ContainmentRegularEvidence(device, pkey).
+event ContainmentApproved(device, pkey).
+event ContainmentDelivered(device, pkey).
+event ContainmentAttackRegular(device).
+event ContainmentAttackPartial(device).
+event ContainmentAttackVote(device).
+event ContainmentAttackApproved(device).
+event ContainmentAttackDelivered(device).
+event ContainmentAttackActivated(device).
+
+free reachContainmentEmergency: bitstring [private].
+free reachContainmentAdmissionAttempt: bitstring [private].
+free reachContainmentCommitteeAttempt: bitstring [private].
+free reachContainmentRegular: bitstring [private].
+free reachContainmentHonestPartial: bitstring [private].
+free reachContainmentHonestVote: bitstring [private].
+free reachContainmentApproved: bitstring [private].
+free reachContainmentDelivered: bitstring [private].
+free reachContainmentActivated: bitstring [private].
+free reachContainmentAttackApproved: bitstring [private].
+free reachContainmentAttackDelivered: bitstring [private].
+free reachContainmentAttackActivated: bitstring [private].
+
+(* Live regular signer: subject and key are public inputs, not a whitelist.
+   A syntactically well-formed card token signed by the compromised PGB-I key
+   reaches this service but fails the actual smartcard-signature check. *)
+let ContainmentSigner(cardAnchor: pkey) =
+  !in(net, request: wireMessage);
+  let signerRequest(=C2, subject: device, subjectKey: pkey,
+                    token: admissionToken, admissionSerial: serial) = request in
+  (
+  (if subject = Dadv then if subjectKey = pk(skAdv) then
+     out(net, reachContainmentAdmissionAttempt)) |
+  (let tokenSerial: serial =
+     validateCardToken(token, cardAnchor, pgbA, subject, subjectKey) in
+   new verifierNonce: nonce;
+   out(net, signerChallenge(pgbA, subject, subjectKey, admissionSerial,
+                            C2, verifierNonce));
+   in(net, response: wireMessage);
+   let regularPoPResponse(=C2, =subject, =subjectKey, =admissionSerial,
+                          =verifierNonce, popSignature: signature) = response in
+   let checked: protocolMessage = checkSign(popSignature, subjectKey) in
+   if checked = regularPoPContext(tagRegPoP, pgbA, subject, subjectKey,
+                                  admissionSerial, C2, verifierNonce) then
+     event ContainmentHonestPartial(subject, subjectKey);
+     event PartialIssued(C2, subject, subjectKey, admissionSerial, e0);
+     let body: thresholdMessage =
+       regularLDevIDBody(tagRegularLDevID, pgbA, subject, subjectKey,
+                         regularMember, tokenSerial, admissionSerial) in
+     out(net, partialResponse(C2, subject, subjectKey, tokenSerial,
+                               admissionSerial, partialSign(body, share2(e0))));
+     if subject = Dreg then
+       (if subjectKey = pk(skDregDevice) then
+          out(net, reachContainmentHonestPartial))
+     else if subject = Dadv then event ContainmentAttackPartial(Dadv))
+  ).
+
+(* Root credential validation accepts every supported signing epoch, as in
+   the existing libraries. It deliberately adds no historical-key protection. *)
+let ContainmentRegularValidator() =
+  !in(net, credential: certificate);
+  let makeRegularCertificate(body: thresholdMessage,
+                              rootSignature: thresholdSignature) = credential in
+  let regularLDevIDBody(=tagRegularLDevID, =pgbA, subject: device,
+                        subjectKey: pkey, =regularMember,
+                        tokenSerial: serial, admissionSerial: serial) = body in
+  let pair: signerPair = verifyThreshold(rootSignature, body, pkChord) in
+  event ContainmentRegularAccepted(subject, subjectKey);
+  if subject = Dreg then
+    (if subjectKey = pk(skDregDevice) then out(net, reachContainmentRegular))
+  else if subject = Dadv then event ContainmentAttackRegular(Dadv).
+
+(* Shared continuation after credential-class validation. The proposal binds
+   target {C1,C2,subject}, key, epochs, root, and both serials. The target is
+   attacker selectable. Suitability alone is never regular admission. *)
+let ContainmentVote(subject: device, subjectKey: pkey,
+                     admissionSerial: serial, updateSerial: serial) =
+  new verifierNonce: nonce;
+  out(net, committeeChallenge(pgbA, e0, e1, subject, subjectKey,
+                               admissionSerial, updateSerial, C2, verifierNonce));
+  in(net, response: wireMessage);
+  let committeePoPResponse(=C2, =subject, =subjectKey, =admissionSerial,
+                           =updateSerial, =verifierNonce, popSignature: signature) = response in
+  let checked: protocolMessage = checkSign(popSignature, subjectKey) in
+  if checked = committeePoPContext(tagCommitteePoP, pgbA, e0, e1,
+                                    subject, subjectKey, admissionSerial,
+                                    updateSerial, C2, verifierNonce) then
+    let proposal: thresholdMessage =
+      committeeProposal(tagCommittee, pgbA, e0, e1,
+                         C1, C2, subject, subject, subjectKey, pkChord,
+                         admissionSerial, updateSerial) in
+    event CommitteeVote(C2, e0, e1, subject, subjectKey,
+                         admissionSerial, updateSerial);
+    out(net, committeeVoteResponse(C2, e0, e1, subject, subjectKey,
+                                    admissionSerial, updateSerial,
+                                    partialSign(proposal, share2(e0))));
+    if subject = Dreg then
+      (if subjectKey = pk(skDregDevice) then out(net, reachContainmentHonestVote))
+    else if subject = Dadv then event ContainmentAttackVote(Dadv).
+
+(* The sole difference between models is allowEmergency. Even the defective
+   branch verifies the genuine CA chain, emergency credential, suitability,
+   and candidate PoP. It incorrectly substitutes emergency for regular status.
+   There is no private admission-table or fixed-recipient restriction hiding
+   this attack. Trusted suitability is explicit in both models. *)
+let ContainmentVoter(allowEmergency: bool, issuerCredential: certificate) =
+  !in(net, request: wireMessage);
+  let containmentCommitteeRequest(=C2, subject: device, subjectKey: pkey,
+                                   admissionSerial: serial, updateSerial: serial,
+                                   evidence: peerCredential) = request in
+  (
+  (if subject = Dadv then if subjectKey = pk(skAdv) then
+     out(net, reachContainmentCommitteeAttempt)) |
+  (get containmentEligible(=subject, =subjectKey) in
+   let peerRegularCredential(credential: certificate) = evidence in
+     (let makeRegularCertificate(body: thresholdMessage,
+                                  rootSignature: thresholdSignature) = credential in
+      let regularLDevIDBody(=tagRegularLDevID, =pgbA, =subject, =subjectKey,
+                            =regularMember, tokenSerial: serial,
+                            =admissionSerial) = body in
+      let pair: signerPair = verifyThreshold(rootSignature, body, pkChord) in
+      event ContainmentRegularEvidence(subject, subjectKey);
+      ContainmentVote(subject, subjectKey, admissionSerial, updateSerial))
+   else
+     (let peerEmergencyCredential(credential: emergencyCredential) = evidence in
+      let makeRegularCertificate(authorityBody: thresholdMessage,
+                                  authoritySignature: thresholdSignature) = issuerCredential in
+      let pgbiLDevIDBody(=tagPGBILDevID, =pgbA, =C1, issuerKey: pkey,
+                         =regularMember, =emergencyIssuerCACap, =issuerSerial) = authorityBody in
+      let pair: signerPair = verifyThreshold(authoritySignature, authorityBody, pkChord) in
+      let validatedSerial: serial =
+        validateEmergencyCredential(credential, issuerKey, pgbA, subject, subjectKey) in
+      if validatedSerial = admissionSerial then
+      if allowEmergency then
+        ContainmentVote(subject, subjectKey, admissionSerial, updateSerial)))
+  ).
+
+(* Public approval endpoint. A compromised C1 supplies one partial directly;
+   an honest C2 vote is still needed for an e0 pair12 approval. *)
+let ContainmentReshare() =
+  !in(net, request: wireMessage);
+  let committeeApprovalRequest(proposal: thresholdMessage,
+                                approval: thresholdSignature) = request in
+  let committeeProposal(=tagCommittee, =pgbA, =e0, =e1,
+                         =C1, =C2, target: device, subject: device,
+                         subjectKey: pkey, =pkChord,
+                         admissionSerial: serial, updateSerial: serial) = proposal in
+  if target = subject then
+  let (=pair12) = verifyThreshold(approval, proposal, pkChord) in
+  event ContainmentApproved(subject, subjectKey);
+  event CommitteeApproved(e0, e1, subject, subjectKey, admissionSerial, updateSerial);
+  event ContainmentDelivered(subject, subjectKey);
+  out(net, containmentDelivery(C1, pk(skC1Device),
+    aenc(sharePackage(pgbA, e1, C1, pkChord, share1(e1), updateSerial), pk(skC1Device))));
+  out(net, containmentDelivery(C2, pk(skC2Device),
+    aenc(sharePackage(pgbA, e1, C2, pkChord, share2(e1), updateSerial), pk(skC2Device))));
+  out(net, containmentDelivery(subject, subjectKey,
+    aenc(sharePackage(pgbA, e1, subject, pkChord, share3(e1), updateSerial), subjectKey)));
+  if subject = Dreg then
+    (if subjectKey = pk(skDregDevice) then
+       (out(net, reachContainmentApproved); out(net, reachContainmentDelivered)))
+  else if subject = Dadv then
+    (event ContainmentAttackApproved(Dadv); event ContainmentAttackDelivered(Dadv);
+     out(net, reachContainmentAttackApproved); out(net, reachContainmentAttackDelivered)).
+
+(* Same recipient code for honest and attacker devices. Confidentiality queries
+   independently test actual share knowledge; activation events alone do not. *)
+let ContainmentRecipient(subject: device, subjectSecret: skey) =
+  !in(net, delivery: wireMessage);
+  let containmentDelivery(=subject, =pk(subjectSecret), encrypted: ciphertext) = delivery in
+  let package: protocolMessage = adec(encrypted, subjectSecret) in
+  let sharePackage(=pgbA, =e1, =subject, =pkChord, =share3(e1),
+                    updateSerial: serial) = package in
+  event ShareActivated(subject, e1, pkChord, updateSerial);
+  if subject = Dreg then out(net, reachContainmentActivated)
+  else if subject = Dadv then
+    (event ContainmentAttackActivated(Dadv); out(net, reachContainmentAttackActivated)).
+
+let ContainmentEmergencyValidator(issuerCredential: certificate) =
+  !in(net, request: wireMessage);
+  let emergencyJoinRequest(subject: device, subjectKey: pkey,
+                            emergencySerial: serial, credential: emergencyCredential,
+                            =issuerCredential) = request in
+  let makeRegularCertificate(authorityBody: thresholdMessage,
+                              authoritySignature: thresholdSignature) = issuerCredential in
+  let pgbiLDevIDBody(=tagPGBILDevID, =pgbA, =C1, issuerKey: pkey,
+                     =regularMember, =emergencyIssuerCACap, =issuerSerial) = authorityBody in
+  let pair: signerPair = verifyThreshold(authoritySignature, authorityBody, pkChord) in
+  let checkedSerial: serial =
+    validateEmergencyCredential(credential, issuerKey, pgbA, subject, subjectKey) in
+  if checkedSerial = emergencySerial then
+    event EmergencyOverlayJoined(C2, subject, subjectKey, issuerSerial, emergencySerial);
+    if subject = Dadv then if subjectKey = pk(skAdv) then
+      out(net, reachContainmentEmergency).
+
+(* Public drivers provide concrete successful executions; they use only
+   attacker-known values except the genuine candidate's own PoP key. No driver
+   emits an acceptance, approval, delivery, or activation event itself. *)
+let ContainmentHonestStart() =
+  let tokenBody: protocolMessage =
+    cardTokenBody(tagCardToken, pgbA, Dreg, pk(skDregDevice), honestTokenSerial) in
+  event ContainmentCardGrant(Dreg, pk(skDregDevice));
+  let token: admissionToken = makeCardToken(tokenBody, sign(tokenBody, skCard)) in
+  out(net, token);
+  new admissionSerial: serial;
+  out(net, signerRequest(C2, Dreg, pk(skDregDevice), token, admissionSerial)).
+
+let ContainmentHonestPoP() =
+  (!in(net, request: wireMessage);
+   let signerChallenge(=pgbA, =Dreg, =pk(skDregDevice), s: serial, =C2, n: nonce) = request in
+   out(net, regularPoPResponse(C2, Dreg, pk(skDregDevice), s, n,
+     sign(regularPoPContext(tagRegPoP, pgbA, Dreg, pk(skDregDevice), s, C2, n), skDregDevice)))) |
+  (!in(net, request: wireMessage);
+   let committeeChallenge(=pgbA, =e0, =e1, =Dreg, =pk(skDregDevice),
+                           s: serial, u: serial, =C2, n: nonce) = request in
+   out(net, committeePoPResponse(C2, Dreg, pk(skDregDevice), s, u, n,
+     sign(committeePoPContext(tagCommitteePoP, pgbA, e0, e1,
+                              Dreg, pk(skDregDevice), s, u, C2, n), skDregDevice)))).
+
+let ContainmentPublicCombine() =
+  (!in(net, response: wireMessage);
+   let partialResponse(=C2, d: device, k: pkey, t: serial, s: serial,
+                        partial: partialSignature) = response in
+   let body: thresholdMessage = regularLDevIDBody(tagRegularLDevID, pgbA, d, k, regularMember, t, s) in
+   let rootSignature: thresholdSignature = combine(partialSign(body, share1(e0)), partial) in
+   let credential: certificate = makeRegularCertificate(body, rootSignature) in
+   out(net, credential);
+   new u: serial;
+   out(net, containmentCommitteeRequest(C2, d, k, s, u, peerRegularCredential(credential)))) |
+  (!in(net, response: wireMessage);
+   let committeeVoteResponse(=C2, =e0, =e1, d: device, k: pkey, s: serial, u: serial,
+                              partial: partialSignature) = response in
+   let proposal: thresholdMessage = committeeProposal(tagCommittee, pgbA, e0, e1,
+                                                      C1, C2, d, d, k, pkChord, s, u) in
+   let approval: thresholdSignature = combine(partialSign(proposal, share1(e0)), partial) in
+   out(net, committeeApprovalRequest(proposal, approval))).
+
+let ContainmentEmergencyAttack(issuerCredential: certificate) =
+  let body: protocolMessage = emergencyLDevIDBody(tagEmergencyLDevID, pgbA,
+                                                 Dadv, pk(skAdv), emergencyMember, attackSerial) in
+  let credential: emergencyCredential = makeEmergencyCredential(body, sign(body, skC1Device)) in
+  out(net, emergencyJoinRequest(Dadv, pk(skAdv), attackSerial, credential, issuerCredential));
+  let fakeTokenBody: protocolMessage = cardTokenBody(tagCardToken, pgbA, Dadv, pk(skAdv), attackSerial) in
+  out(net, signerRequest(C2, Dadv, pk(skAdv),
+                          makeCardToken(fakeTokenBody, sign(fakeTokenBody, skC1Device)), attackSerial));
+  out(net, containmentCommitteeRequest(C2, Dadv, pk(skAdv), attackSerial, attackSerial,
+                                        peerEmergencyCredential(credential))).
+
+let ContainmentAttackPoP() =
+  !in(net, request: wireMessage);
+  let committeeChallenge(=pgbA, =e0, =e1, =Dadv, =pk(skAdv),
+                          s: serial, u: serial, =C2, n: nonce) = request in
+  out(net, committeePoPResponse(C2, Dadv, pk(skAdv), s, u, n,
+    sign(committeePoPContext(tagCommitteePoP, pgbA, e0, e1,
+                             Dadv, pk(skAdv), s, u, C2, n), skAdv))).
+
+let EmergencyContainment(allowEmergency: bool) =
+  let issuerBody: thresholdMessage = pgbiLDevIDBody(tagPGBILDevID, pgbA, C1,
+    pk(skC1Device), regularMember, emergencyIssuerCACap, issuerSerial) in
+  let issuerCredential: certificate = makeRegularCertificate(issuerBody, thresholdSig12(e0, issuerBody)) in
+  event ContainmentEligible(Dreg, pk(skDregDevice));
+  insert containmentEligible(Dreg, pk(skDregDevice));
+  event ContainmentEligible(Dadv, pk(skAdv));
+  insert containmentEligible(Dadv, pk(skAdv));
+  event PGBLocked(pgbA);
+  out(net, pk(skCard)); out(net, pk(skC2Device)); out(net, pk(skDregDevice));
+  out(net, issuerCredential); out(net, skC1Device); out(net, share1(e0));
+  (ContainmentSigner(pk(skCard)) | ContainmentRegularValidator()
+   | ContainmentVoter(allowEmergency, issuerCredential) | ContainmentReshare()
+   | ContainmentRecipient(Dreg, skDregDevice) | ContainmentRecipient(Dadv, skAdv)
+   | ContainmentEmergencyValidator(issuerCredential)
+   | ContainmentHonestStart() | ContainmentHonestPoP() | ContainmentPublicCombine()
+   | ContainmentEmergencyAttack(issuerCredential) | ContainmentAttackPoP()).

@@ -1,0 +1,77 @@
+Synthetic parser fixture: expected output shape only; NOT a ProVerif execution.
+RESULT not attacker_skey(skCard[]) is true.
+RESULT not attacker_skey(skC1Device[]) is true.
+RESULT not attacker_skey(skO1Device[]) is true.
+RESULT not attacker_skey(skDregDevice[]) is true.
+RESULT not attacker_skey(skDemgDevice[]) is true.
+RESULT not attacker_skey(skDleakDevice[]) is false.
+RESULT not attacker_thresholdShare(share1(e0)) is true.
+RESULT not attacker_thresholdShare(share2(e0)) is true.
+RESULT not attacker_thresholdShare(share3(e0)) is true.
+RESULT event(PeerAcceptedByInitiator(C1,pk(skC1Device[]),Demg,pk(skDemgDevice[]),S,NA,NB)) ==> event(PGBILDevIDWithCAIssued(C1,pk(skC1Device[]),pgbiIssuerSerial)) && event(PGBILDevIDCAValidated(C1,C1,pk(skC1Device[]),pgbiIssuerSerial)) is true.
+RESULT event(PeerAcceptedByResponder(C1,pk(skC1Device[]),Demg,pk(skDemgDevice[]),S,NA,NB)) ==> event(PGBILDevIDWithCAIssued(C1,pk(skC1Device[]),pgbiIssuerSerial)) && event(PGBILDevIDCAValidated(C1,C1,pk(skC1Device[]),pgbiIssuerSerial)) is true.
+RESULT not event(ShareActivated(Dleak,E,pkChord,S)) is true.
+RESULT not event(PartialIssued(Dleak,Dleak,PK,S,E)) is true.
+RESULT inj-event(PeerAcceptedByInitiator(Dreg,pk(skDregDevice[]),O1,pk(skO1Device[]),S,NA,NB)) ==> inj-event(PeerAuthResponded(O1,pk(skO1Device[]),Dreg,pk(skDregDevice[]),S,NA,NB)) is true.
+RESULT inj-event(PeerAcceptedByResponder(O1,pk(skO1Device[]),Dreg,pk(skDregDevice[]),S,NA,NB)) ==> inj-event(PeerAuthFinalized(Dreg,pk(skDregDevice[]),O1,pk(skO1Device[]),S,NA,NB)) is true.
+RESULT inj-event(PeerAuthFinalized(Dreg,pk(skDregDevice[]),O1,pk(skO1Device[]),S,NA,NB)) ==> inj-event(PeerAuthStarted(Dreg,pk(skDregDevice[]),O1,S,NA)) is true.
+RESULT inj-event(PeerAcceptedByInitiator(Demg,pk(skDemgDevice[]),C1,pk(skC1Device[]),S,NA,NB)) ==> inj-event(PeerAuthResponded(C1,pk(skC1Device[]),Demg,pk(skDemgDevice[]),S,NA,NB)) is true.
+RESULT inj-event(PeerAcceptedByResponder(C1,pk(skC1Device[]),Demg,pk(skDemgDevice[]),S,NA,NB)) ==> inj-event(PeerAuthFinalized(Demg,pk(skDemgDevice[]),C1,pk(skC1Device[]),S,NA,NB)) is true.
+RESULT inj-event(PeerAuthFinalized(Demg,pk(skDemgDevice[]),C1,pk(skC1Device[]),S,NA,NB)) ==> inj-event(PeerAuthStarted(Demg,pk(skDemgDevice[]),C1,S,NA)) is true.
+RESULT inj-event(PeerAcceptedByInitiator(C1,pk(skC1Device[]),Demg,pk(skDemgDevice[]),S,NA,NB)) ==> inj-event(PeerAuthResponded(Demg,pk(skDemgDevice[]),C1,pk(skC1Device[]),S,NA,NB)) is true.
+RESULT inj-event(PeerAcceptedByResponder(Demg,pk(skDemgDevice[]),C1,pk(skC1Device[]),S,NA,NB)) ==> inj-event(PeerAuthFinalized(C1,pk(skC1Device[]),Demg,pk(skDemgDevice[]),S,NA,NB)) is true.
+RESULT inj-event(PeerAuthFinalized(C1,pk(skC1Device[]),Demg,pk(skDemgDevice[]),S,NA,NB)) ==> inj-event(PeerAuthStarted(C1,pk(skC1Device[]),Demg,S,NA)) is true.
+RESULT inj-event(PeerAcceptedByResponder(Dleak,pk(skDleakDevice[]),C1,pk(skC1Device[]),S,NA,NB)) ==> inj-event(PeerAuthFinalized(C1,pk(skC1Device[]),Dleak,pk(skDleakDevice[]),S,NA,NB)) is true.
+RESULT inj-event(PeerAcceptedByInitiator(Dleak,pk(skDleakDevice[]),O1,pk(skO1Device[]),S,NA,NB)) ==> inj-event(PeerAuthResponded(O1,pk(skO1Device[]),Dleak,pk(skDleakDevice[]),S,NA,NB)) is true.
+RESULT event(PeerAcceptedByInitiator(C1,pk(skC1Device[]),Dleak,pk(skDleakDevice[]),S,NA,NB)) ==> event(PeerAuthResponded(Dleak,pk(skDleakDevice[]),C1,pk(skC1Device[]),S,NA,NB)) is false.
+RESULT event(PeerAcceptedByResponder(O1,pk(skO1Device[]),Dleak,pk(skDleakDevice[]),S,NA,NB)) ==> event(PeerAuthFinalized(Dleak,pk(skDleakDevice[]),O1,pk(skO1Device[]),S,NA,NB)) is false.
+RESULT not attacker_bitstring(reachSetup[]) is false.
+RESULT not attacker_bitstring(reachDleakKeyLeak[]) is false.
+RESULT not attacker_bitstring(reachRRInitiatorAccepted[]) is false.
+RESULT not attacker_bitstring(reachRRResponderAccepted[]) is false.
+RESULT not attacker_bitstring(reachERInitiatorAccepted[]) is false.
+RESULT not attacker_bitstring(reachERResponderAccepted[]) is false.
+RESULT not attacker_bitstring(reachREInitiatorAccepted[]) is false.
+RESULT not attacker_bitstring(reachREResponderAccepted[]) is false.
+RESULT not attacker_bitstring(reachC1AcceptsDleak[]) is false.
+RESULT not attacker_bitstring(reachDleakAcceptsO1[]) is false.
+RESULT not attacker_bitstring(reachDleakAcceptsC1[]) is false.
+RESULT not attacker_bitstring(reachO1AcceptsDleak[]) is false.
+Query not attacker_skey(skCard[]) is true.
+Query not attacker_skey(skC1Device[]) is true.
+Query not attacker_skey(skO1Device[]) is true.
+Query not attacker_skey(skDregDevice[]) is true.
+Query not attacker_skey(skDemgDevice[]) is true.
+Query not attacker_skey(skDleakDevice[]) is false.
+Query not attacker_thresholdShare(share1(e0)) is true.
+Query not attacker_thresholdShare(share2(e0)) is true.
+Query not attacker_thresholdShare(share3(e0)) is true.
+Query event(PeerAcceptedByInitiator(C1,pk(skC1Device[]),Demg,pk(skDemgDevice[]),S,NA,NB)) ==> event(PGBILDevIDWithCAIssued(C1,pk(skC1Device[]),pgbiIssuerSerial)) && event(PGBILDevIDCAValidated(C1,C1,pk(skC1Device[]),pgbiIssuerSerial)) is true.
+Query event(PeerAcceptedByResponder(C1,pk(skC1Device[]),Demg,pk(skDemgDevice[]),S,NA,NB)) ==> event(PGBILDevIDWithCAIssued(C1,pk(skC1Device[]),pgbiIssuerSerial)) && event(PGBILDevIDCAValidated(C1,C1,pk(skC1Device[]),pgbiIssuerSerial)) is true.
+Query not event(ShareActivated(Dleak,E,pkChord,S)) is true.
+Query not event(PartialIssued(Dleak,Dleak,PK,S,E)) is true.
+Query inj-event(PeerAcceptedByInitiator(Dreg,pk(skDregDevice[]),O1,pk(skO1Device[]),S,NA,NB)) ==> inj-event(PeerAuthResponded(O1,pk(skO1Device[]),Dreg,pk(skDregDevice[]),S,NA,NB)) is true.
+Query inj-event(PeerAcceptedByResponder(O1,pk(skO1Device[]),Dreg,pk(skDregDevice[]),S,NA,NB)) ==> inj-event(PeerAuthFinalized(Dreg,pk(skDregDevice[]),O1,pk(skO1Device[]),S,NA,NB)) is true.
+Query inj-event(PeerAuthFinalized(Dreg,pk(skDregDevice[]),O1,pk(skO1Device[]),S,NA,NB)) ==> inj-event(PeerAuthStarted(Dreg,pk(skDregDevice[]),O1,S,NA)) is true.
+Query inj-event(PeerAcceptedByInitiator(Demg,pk(skDemgDevice[]),C1,pk(skC1Device[]),S,NA,NB)) ==> inj-event(PeerAuthResponded(C1,pk(skC1Device[]),Demg,pk(skDemgDevice[]),S,NA,NB)) is true.
+Query inj-event(PeerAcceptedByResponder(C1,pk(skC1Device[]),Demg,pk(skDemgDevice[]),S,NA,NB)) ==> inj-event(PeerAuthFinalized(Demg,pk(skDemgDevice[]),C1,pk(skC1Device[]),S,NA,NB)) is true.
+Query inj-event(PeerAuthFinalized(Demg,pk(skDemgDevice[]),C1,pk(skC1Device[]),S,NA,NB)) ==> inj-event(PeerAuthStarted(Demg,pk(skDemgDevice[]),C1,S,NA)) is true.
+Query inj-event(PeerAcceptedByInitiator(C1,pk(skC1Device[]),Demg,pk(skDemgDevice[]),S,NA,NB)) ==> inj-event(PeerAuthResponded(Demg,pk(skDemgDevice[]),C1,pk(skC1Device[]),S,NA,NB)) is true.
+Query inj-event(PeerAcceptedByResponder(Demg,pk(skDemgDevice[]),C1,pk(skC1Device[]),S,NA,NB)) ==> inj-event(PeerAuthFinalized(C1,pk(skC1Device[]),Demg,pk(skDemgDevice[]),S,NA,NB)) is true.
+Query inj-event(PeerAuthFinalized(C1,pk(skC1Device[]),Demg,pk(skDemgDevice[]),S,NA,NB)) ==> inj-event(PeerAuthStarted(C1,pk(skC1Device[]),Demg,S,NA)) is true.
+Query inj-event(PeerAcceptedByResponder(Dleak,pk(skDleakDevice[]),C1,pk(skC1Device[]),S,NA,NB)) ==> inj-event(PeerAuthFinalized(C1,pk(skC1Device[]),Dleak,pk(skDleakDevice[]),S,NA,NB)) is true.
+Query inj-event(PeerAcceptedByInitiator(Dleak,pk(skDleakDevice[]),O1,pk(skO1Device[]),S,NA,NB)) ==> inj-event(PeerAuthResponded(O1,pk(skO1Device[]),Dleak,pk(skDleakDevice[]),S,NA,NB)) is true.
+Query event(PeerAcceptedByInitiator(C1,pk(skC1Device[]),Dleak,pk(skDleakDevice[]),S,NA,NB)) ==> event(PeerAuthResponded(Dleak,pk(skDleakDevice[]),C1,pk(skC1Device[]),S,NA,NB)) is false.
+Query event(PeerAcceptedByResponder(O1,pk(skO1Device[]),Dleak,pk(skDleakDevice[]),S,NA,NB)) ==> event(PeerAuthFinalized(Dleak,pk(skDleakDevice[]),O1,pk(skO1Device[]),S,NA,NB)) is false.
+Query not attacker_bitstring(reachSetup[]) is false.
+Query not attacker_bitstring(reachDleakKeyLeak[]) is false.
+Query not attacker_bitstring(reachRRInitiatorAccepted[]) is false.
+Query not attacker_bitstring(reachRRResponderAccepted[]) is false.
+Query not attacker_bitstring(reachERInitiatorAccepted[]) is false.
+Query not attacker_bitstring(reachERResponderAccepted[]) is false.
+Query not attacker_bitstring(reachREInitiatorAccepted[]) is false.
+Query not attacker_bitstring(reachREResponderAccepted[]) is false.
+Query not attacker_bitstring(reachC1AcceptsDleak[]) is false.
+Query not attacker_bitstring(reachDleakAcceptsO1[]) is false.
+Query not attacker_bitstring(reachDleakAcceptsC1[]) is false.
+Query not attacker_bitstring(reachO1AcceptsDleak[]) is false.

@@ -1,0 +1,329 @@
+(*
+   PGB-PKI common ProVerif primitives
+
+   Purpose:
+   Shared symbolic definitions used by the PGB-PKI verification models. The
+   library provides ordinary public-key operations, message formats, events,
+   and the concrete 2-of-3 threshold-signature abstraction used by the main
+   verification suite.
+
+   Threshold model:
+   - C1, C2, and C3 hold distinct, epoch-specific shares.
+   - Any two distinct shares from the same epoch are sufficient.
+   - Reusing one share, mixing epochs, or mixing signed messages cannot form a
+     valid threshold signature because no reduction rule exists for those cases.
+   - DKG, share generation, partial signing, and threshold combination are
+     modeled symbolically rather than as concrete cryptographic algorithms.
+   - The Chord root public key stays constant across share epochs; no monolithic
+     root private key is modeled.
+
+   Load this library with, for example:
+
+     proverif -lib common_primitives.pvl regular_2of3_baseline.pv
+*)
+
+(*
+   ProVerif normally performs some analyses without respecting user-defined
+   types. Setting ignoreTypes to false keeps the explicit type separation below
+   relevant to the verification (for example, a threshold share is not treated
+   as an ordinary message or key).
+*)
+set ignoreTypes = false.
+
+(*
+   User-defined types. A declaration such as "type device." introduces a
+   separate symbolic sort; it does not create any concrete device value.
+*)
+type pgb.
+type device.
+type epoch.
+type nonce.
+type serial.
+type role.
+type capability.
+type certCapability.
+type service.
+type routeid.
+type domainTag.
+
+type skey.
+type pkey.
+type protocolMessage.
+type signature.
+type ciphertext.
+type admissionToken.
+type certificate.
+type plantCredential.
+type emergencyCredential.
+type peerCredential.
+type wireMessage.
+type routeEnvelope.
+
+(* Threshold-specific types. *)
+type thresholdMessage.
+type thresholdShare.
+type partialSignature.
+type thresholdSignature.
+type rootPublicKey.
+type signerPair.
+
+(* Public domain-separation, role, capability, and service constants. *)
+const tagCardToken, tagRegPoP, tagRegularLDevID: domainTag.
+const tagCommittee, tagEmergencyPoP, tagPeerAuth: domainTag.
+const tagPlantCert, tagEmergencyLDevID, tagPGBILDevID: domainTag.
+const regularMember, emergencyMember, plantDevice: role.
+const ordinaryCap, certificationCap: capability.
+const noCACap, emergencyIssuerCACap: certCapability.
+const admissionService, committeeService, authService: service.
+
+(*
+   Ordinary public-key signatures and encryption.
+
+   "fun" declares a symbolic constructor. The first reduction rule says that a
+   signature created with sk can be successfully checked with pk(sk), yielding
+   the signed message. No other way of producing a successful check is defined.
+*)
+fun pk(skey): pkey.
+fun sign(protocolMessage, skey): signature.
+
+reduc forall m: protocolMessage, sk: skey;
+  checkSign(sign(m, sk), pk(sk)) = m.
+
+fun aenc(protocolMessage, pkey): ciphertext.
+
+reduc forall m: protocolMessage, sk: skey;
+  adec(aenc(m, pk(sk)), sk) = m.
+
+(*
+   Domain-separated regular-admission objects.
+
+   The [data] annotation makes these constructors transparent data structures:
+   their fields can be pattern-matched/decomposed. They provide structure and
+   binding, not secrecy by themselves.
+*)
+fun cardTokenBody(domainTag, pgb, device, pkey, serial):
+  protocolMessage [data].
+
+fun regularPoPContext(domainTag, pgb, device, pkey, serial,
+                      device, nonce): protocolMessage [data].
+
+fun makeCardToken(protocolMessage, signature): admissionToken [data].
+
+(*
+   Token validation simultaneously checks the genuine signing key represented
+   by the supplied public key, the card-token domain tag, and exact PGB,
+   subject, public-key, and token-serial binding.
+*)
+reduc forall p: pgb, d: device, k: pkey, t: serial, sk: skey;
+  validateCardToken(
+    makeCardToken(
+      cardTokenBody(tagCardToken, p, d, k, t),
+      sign(cardTokenBody(tagCardToken, p, d, k, t), sk)),
+    pk(sk), p, d, k) = t.
+
+(* The regular LDevID body is the exact message threshold-signed by the root. *)
+fun regularLDevIDBody(domainTag, pgb, device, pkey, role, serial, serial):
+  thresholdMessage [data].
+
+fun makeRegularCertificate(thresholdMessage, thresholdSignature):
+  certificate [data].
+
+(* Root-authorized PGB-I intermediate-CA profile. *)
+fun pgbiLDevIDBody(domainTag, pgb, device, pkey, role, certCapability,
+                   serial):
+  thresholdMessage [data].
+
+(* Distinct external-plant and restricted emergency credential classes. *)
+fun plantCertBody(domainTag, device, pkey, role, serial):
+  protocolMessage [data].
+
+fun makePlantCredential(protocolMessage, signature):
+  plantCredential [data].
+
+reduc forall d: device, k: pkey, s: serial, sk: skey;
+  validatePlantCredential(
+    makePlantCredential(
+      plantCertBody(tagPlantCert, d, k, plantDevice, s),
+      sign(plantCertBody(tagPlantCert, d, k, plantDevice, s), sk)),
+    pk(sk), d, k) = s.
+
+fun emergencyLDevIDBody(domainTag, pgb, device, pkey, role, serial):
+  protocolMessage [data].
+
+fun makeEmergencyCredential(protocolMessage, signature):
+  emergencyCredential [data].
+
+reduc forall p: pgb, d: device, k: pkey, s: serial, sk: skey;
+  validateEmergencyCredential(
+    makeEmergencyCredential(
+      emergencyLDevIDBody(tagEmergencyLDevID, p, d, k,
+                          emergencyMember, s),
+      sign(emergencyLDevIDBody(tagEmergencyLDevID, p, d, k,
+                              emergencyMember, s), sk)),
+    pk(sk), p, d, k) = s.
+
+(* Emergency issuance uses a fully bound proof-of-possession context. *)
+fun emergencyPoPContext(domainTag, pgb, device, pkey, serial, serial,
+                        device, nonce): protocolMessage [data].
+
+(* Credential-class wrapper used only by abstract post-lock peer auth. *)
+fun peerRegularCredential(certificate): peerCredential [data].
+fun peerEmergencyCredential(emergencyCredential): peerCredential [data].
+
+fun peerAuthContext(domainTag, pgb, device, pkey, device, pkey,
+                    nonce, nonce, serial): protocolMessage [data].
+
+(* Public wire wrappers. They carry no authority and may be rewritten. *)
+fun admissionInit(device, pkey, admissionToken): wireMessage [data].
+fun signerRequest(device, device, pkey, admissionToken, serial):
+  wireMessage [data].
+fun signerChallenge(pgb, device, pkey, serial, device, nonce):
+  wireMessage [data].
+fun regularPoPResponse(device, device, pkey, serial, nonce, signature):
+  wireMessage [data].
+fun partialResponse(device, device, pkey, serial, serial, partialSignature):
+  wireMessage [data].
+
+(* Emergency issuance and membership-validation wire messages. *)
+fun emergencyInit(device, pkey, plantCredential): wireMessage [data].
+fun emergencyChallenge(pgb, device, pkey, serial, serial, device, nonce):
+  wireMessage [data].
+fun emergencyPoPResponse(device, device, pkey, serial, serial, nonce,
+                         signature): wireMessage [data].
+fun emergencyCredentialResponse(device, device, pkey, serial,
+                                emergencyCredential): wireMessage [data].
+fun emergencyJoinRequest(device, pkey, serial, emergencyCredential,
+                         certificate): wireMessage [data].
+
+(* Abstract post-lock mutual-authentication transcript. *)
+fun peerAuthInit(device, pkey, device, serial, nonce, peerCredential):
+  wireMessage [data].
+fun peerAuthResponse(device, pkey, device, pkey, serial, nonce, nonce,
+                     peerCredential, signature): wireMessage [data].
+fun peerAuthFinal(device, pkey, device, pkey, serial, nonce, nonce,
+                  signature): wireMessage [data].
+
+(* Chord is an untrusted, attacker-readable logical routing wrapper. *)
+fun route(routeid, device, service, device, wireMessage):
+  routeEnvelope [data].
+
+(* The root public key remains constant across share epochs. *)
+const pkChord: rootPublicKey.
+
+(* Ghost labels returned by verification for pair-specific queries. *)
+const pair12, pair13, pair23: signerPair.
+
+(*
+   Shared event vocabulary. Events are internal trace markers used only by
+   ProVerif queries; emitting an event does not send anything on the network.
+*)
+event SetupComplete(pgb, rootPublicKey, pkey).
+event PGBLocked(pgb).
+event InitialRegularMember(device, pkey).
+event InitialCommitteeMember(device, epoch).
+event CommitteeApproved(epoch, epoch, device, pkey, serial, serial).
+
+event CardAuthorized(pgb, device, pkey, serial).
+event RegularAdmissionStarted(device, pkey, serial).
+event RegularPoPProduced(device, pkey, device, serial, nonce).
+event RegularSignerPoPVerified(device, device, pkey, serial, epoch, nonce).
+event SignerValidated(device, device, pkey, serial, serial, epoch, nonce).
+event PartialIssued(device, device, pkey, serial, epoch).
+
+event RegularCredentialAccepted12(device, device, pkey, serial, serial, nonce).
+event RegularCredentialAccepted13(device, device, pkey, serial, serial, nonce).
+event RegularCredentialAccepted23(device, device, pkey, serial, serial, nonce).
+event RegularMembershipAuthorized(device, device, pkey,
+                                  serial, serial, nonce).
+
+(* Restricted emergency lifecycle. *)
+event PlantCredentialProvisioned(device, pkey, serial).
+event PGBILDevIDWithCAIssued(device, pkey, serial).
+event PGBILDevIDCAValidated(device, device, pkey, serial).
+event EmergencyPoPProduced(device, pkey, device, serial, serial, nonce).
+event EmergencyPoPVerified(device, device, pkey, serial, serial, nonce).
+event PlantCredentialValidated(device, device, pkey, serial, serial).
+event EmergencyCredentialIssued(device, device, pkey, serial).
+event EmergencyJoinRequested(device, pkey, serial).
+event EmergencyCredentialAccepted(device, device, pkey, serial, serial).
+event EmergencyOverlayJoined(device, device, pkey, serial, serial).
+
+(* Abstract certificate-based post-lock mutual authentication. *)
+event PeerAuthStarted(device, pkey, device, serial, nonce).
+event PeerAuthResponded(device, pkey, device, pkey, serial, nonce, nonce).
+event PeerAuthFinalized(device, pkey, device, pkey, serial, nonce, nonce).
+event PeerAcceptedByInitiator(device, pkey, device, pkey,
+                              serial, nonce, nonce).
+event PeerAcceptedByResponder(device, pkey, device, pkey,
+                              serial, nonce, nonce).
+
+event OverlayLookupRequested(device, service, routeid).
+event OverlayForwarded(device, device, device, service, routeid).
+event OverlayDelivered(device, service, routeid).
+
+(* Declared now so ordinary-node non-activation can be queried explicitly. *)
+event ShareActivated(device, epoch, rootPublicKey, serial).
+
+(*
+   Threshold shares. The [private] annotation means the share constructors are
+   unavailable to the attacker: knowing an epoch does not allow the attacker to
+   construct that epoch's share. If a model explicitly leaks a share term,
+   however, the attacker can use it with the public operations below.
+*)
+fun share1(epoch): thresholdShare [private].
+fun share2(epoch): thresholdShare [private].
+fun share3(epoch): thresholdShare [private].
+
+(*
+   partialSign is public: any party that obtains a share can create a partial
+   signature on an attacker-chosen threshold message. Security therefore comes
+   from keeping fewer than two shares secret, not from restricting this function.
+*)
+fun partialSign(thresholdMessage, thresholdShare): partialSignature.
+
+(*
+   Final threshold-signature constructors are private. They can therefore arise
+   in protocol execution only through one of the explicit combine reductions
+   below (or from trusted setup code that deliberately uses the constructor).
+*)
+fun thresholdSig12(epoch, thresholdMessage): thresholdSignature [private].
+fun thresholdSig13(epoch, thresholdMessage): thresholdSignature [private].
+fun thresholdSig23(epoch, thresholdMessage): thresholdSignature [private].
+
+(*
+   Canonical 2-of-3 combination rules. Each successful rule requires partial
+   signatures on the same message, from two different shareholders, and from the
+   same epoch. There is intentionally no catch-all combine rule.
+*)
+reduc
+  forall e: epoch, m: thresholdMessage;
+    combine(partialSign(m, share1(e)), partialSign(m, share2(e))) =
+      thresholdSig12(e, m);
+  forall e: epoch, m: thresholdMessage;
+    combine(partialSign(m, share1(e)), partialSign(m, share3(e))) =
+      thresholdSig13(e, m);
+  forall e: epoch, m: thresholdMessage;
+    combine(partialSign(m, share2(e)), partialSign(m, share3(e))) =
+      thresholdSig23(e, m).
+
+(*
+   All three pair forms verify under the same Chord root public key.
+   The returned pair is proof-only metadata; it is not certificate content.
+*)
+reduc
+  forall e: epoch, m: thresholdMessage;
+    verifyThreshold(thresholdSig12(e, m), m, pkChord) = pair12;
+  forall e: epoch, m: thresholdMessage;
+    verifyThreshold(thresholdSig13(e, m), m, pkChord) = pair13;
+  forall e: epoch, m: thresholdMessage;
+    verifyThreshold(thresholdSig23(e, m), m, pkChord) = pair23.
+
+(*
+   Deliberately absent:
+   - unary combination;
+   - share1/share1, share2/share2, or share3/share3 combination;
+   - combination across messages or epochs;
+   - a share constructor for an ordinary/non-certification unit;
+   - extraction of a share from a partial or final signature;
+   - a root-private-key constructor.
+*)
