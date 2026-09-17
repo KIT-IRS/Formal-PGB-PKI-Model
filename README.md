@@ -197,7 +197,7 @@ bash scripts/capture_raw_results.sh
 ```
 
 can be used to regenerate these outputs from the ProVerif models.
-To avoidaccidentally overwriting the committed reference outputs, the script only
+To avoid accidentally overwriting the committed reference outputs, the script only
 creates its output when the outputs/ directory does not already exist.
 
 ### Validate the assertion runners
