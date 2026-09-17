@@ -1,0 +1,619 @@
+Process 0 (that is, the initial process):
+(
+    {1}let signature35: thresholdSignature = combineThree(partialSign(message35,share1(e35)),partialSign(message35,share2(e35)),partialSign(message35,share3(e35))) in
+    {2}let =triple123 = verifyThreshold35(signature35,message35,pkChord35) in
+    {3}out(net, reach123)
+) | (
+    {4}let signature35_1: thresholdSignature = combineThree(partialSign(message35,share1(e35)),partialSign(message35,share2(e35)),partialSign(message35,share4(e35))) in
+    {5}let =triple124 = verifyThreshold35(signature35_1,message35,pkChord35) in
+    {6}out(net, reach124)
+) | (
+    {7}let signature35_2: thresholdSignature = combineThree(partialSign(message35,share1(e35)),partialSign(message35,share2(e35)),partialSign(message35,share5(e35))) in
+    {8}let =triple125 = verifyThreshold35(signature35_2,message35,pkChord35) in
+    {9}out(net, reach125)
+) | (
+    {10}let signature35_3: thresholdSignature = combineThree(partialSign(message35,share1(e35)),partialSign(message35,share3(e35)),partialSign(message35,share4(e35))) in
+    {11}let =triple134 = verifyThreshold35(signature35_3,message35,pkChord35) in
+    {12}out(net, reach134)
+) | (
+    {13}let signature35_4: thresholdSignature = combineThree(partialSign(message35,share1(e35)),partialSign(message35,share3(e35)),partialSign(message35,share5(e35))) in
+    {14}let =triple135 = verifyThreshold35(signature35_4,message35,pkChord35) in
+    {15}out(net, reach135)
+) | (
+    {16}let signature35_5: thresholdSignature = combineThree(partialSign(message35,share1(e35)),partialSign(message35,share4(e35)),partialSign(message35,share5(e35))) in
+    {17}let =triple145 = verifyThreshold35(signature35_5,message35,pkChord35) in
+    {18}out(net, reach145)
+) | (
+    {19}let signature35_6: thresholdSignature = combineThree(partialSign(message35,share2(e35)),partialSign(message35,share3(e35)),partialSign(message35,share4(e35))) in
+    {20}let =triple234 = verifyThreshold35(signature35_6,message35,pkChord35) in
+    {21}out(net, reach234)
+) | (
+    {22}let signature35_7: thresholdSignature = combineThree(partialSign(message35,share2(e35)),partialSign(message35,share3(e35)),partialSign(message35,share5(e35))) in
+    {23}let =triple235 = verifyThreshold35(signature35_7,message35,pkChord35) in
+    {24}out(net, reach235)
+) | (
+    {25}let signature35_8: thresholdSignature = combineThree(partialSign(message35,share2(e35)),partialSign(message35,share4(e35)),partialSign(message35,share5(e35))) in
+    {26}let =triple245 = verifyThreshold35(signature35_8,message35,pkChord35) in
+    {27}out(net, reach245)
+) | (
+    {28}let signature35_9: thresholdSignature = combineThree(partialSign(message35,share3(e35)),partialSign(message35,share4(e35)),partialSign(message35,share5(e35))) in
+    {29}let =triple345 = verifyThreshold35(signature35_9,message35,pkChord35) in
+    {30}out(net, reach345)
+) | (
+    {31}let candidate: thresholdSignature = combineThree(partialSign(message35,share1(e35)),partialSign(message35,share2(e35)),partialSign(message35,share2(e35))) in
+    {32}let anyTriple: signerTriple = verifyThreshold35(candidate,message35,pkChord35) in
+    {33}out(net, canaryPairOnly)
+) | (
+    {34}let candidate_1: thresholdSignature = combineThree(partialSign(message35,share4(e35)),partialSign(message35,share4(e35)),partialSign(message35,share5(e35))) in
+    {35}let anyTriple_1: signerTriple = verifyThreshold35(candidate_1,message35,pkChord35) in
+    {36}out(net, canaryDuplicate)
+) | (
+    {37}let candidate_2: thresholdSignature = combineThree(partialSign(message35,share1(e35)),partialSign(message35,share2(e35)),partialSign(message35,share3(e35Other))) in
+    {38}let anyTriple_2: signerTriple = verifyThreshold35(candidate_2,message35,pkChord35) in
+    {39}out(net, canaryMixedEpoch)
+) | (
+    {40}let candidate_3: thresholdSignature = combineThree(partialSign(message35,share1(e35)),partialSign(message35,share2(e35)),partialSign(message35Other,share3(e35))) in
+    {41}let anyTriple_3: signerTriple = verifyThreshold35(candidate_3,message35,pkChord35) in
+    {42}out(net, canaryMixedMessage)
+) | (
+    {43}let signature35_10: thresholdSignature = combineThree(partialSign(message35,share1(e35)),partialSign(message35,share2(e35)),partialSign(message35,share3(e35))) in
+    {44}let anyTriple_4: signerTriple = verifyThreshold35(signature35_10,message35,pkWrong35) in
+    {45}out(net, canaryWrongRoot)
+)
+
+-- Query not attacker_thresholdShare(share1(e35)) in process 0.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (64 with conclusion selected). Queue: 251 rules.
+400 rules inserted. Base: 400 rules (179 with conclusion selected). Queue: 64 rules.
+Starting query not attacker_thresholdShare(share1(e35))
+RESULT not attacker_thresholdShare(share1(e35)) is true.
+-- Query not attacker_thresholdShare(share2(e35)) in process 0.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (64 with conclusion selected). Queue: 251 rules.
+400 rules inserted. Base: 400 rules (179 with conclusion selected). Queue: 64 rules.
+Starting query not attacker_thresholdShare(share2(e35))
+RESULT not attacker_thresholdShare(share2(e35)) is true.
+-- Query not attacker_thresholdShare(share3(e35)) in process 0.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (64 with conclusion selected). Queue: 251 rules.
+400 rules inserted. Base: 400 rules (179 with conclusion selected). Queue: 64 rules.
+Starting query not attacker_thresholdShare(share3(e35))
+RESULT not attacker_thresholdShare(share3(e35)) is true.
+-- Query not attacker_thresholdShare(share4(e35)) in process 0.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (64 with conclusion selected). Queue: 251 rules.
+400 rules inserted. Base: 400 rules (179 with conclusion selected). Queue: 64 rules.
+Starting query not attacker_thresholdShare(share4(e35))
+RESULT not attacker_thresholdShare(share4(e35)) is true.
+-- Query not attacker_thresholdShare(share5(e35)) in process 0.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (64 with conclusion selected). Queue: 251 rules.
+400 rules inserted. Base: 400 rules (179 with conclusion selected). Queue: 64 rules.
+Starting query not attacker_thresholdShare(share5(e35))
+RESULT not attacker_thresholdShare(share5(e35)) is true.
+-- Query not attacker_bitstring(reach123[]) in process 0.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (64 with conclusion selected). Queue: 251 rules.
+400 rules inserted. Base: 400 rules (179 with conclusion selected). Queue: 64 rules.
+Starting query not attacker_bitstring(reach123[])
+goal reachable: attacker_bitstring(reach123[])
+
+Derivation:
+
+1. The message reach123[] may be sent to the attacker at output {3}.
+attacker_bitstring(reach123[]).
+
+2. By 1, attacker_bitstring(reach123[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reach123[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(net, ~M) with ~M = reach345 at {30}
+
+out(net, ~M_1) with ~M_1 = reach245 at {27}
+
+out(net, ~M_2) with ~M_2 = reach235 at {24}
+
+out(net, ~M_3) with ~M_3 = reach234 at {21}
+
+out(net, ~M_4) with ~M_4 = reach145 at {18}
+
+out(net, ~M_5) with ~M_5 = reach135 at {15}
+
+out(net, ~M_6) with ~M_6 = reach134 at {12}
+
+out(net, ~M_7) with ~M_7 = reach125 at {9}
+
+out(net, ~M_8) with ~M_8 = reach124 at {6}
+
+out(net, ~M_9) with ~M_9 = reach123 at {3}
+
+The attacker has the message ~M_9 = reach123.
+A trace has been found.
+RESULT not attacker_bitstring(reach123[]) is false.
+-- Query not attacker_bitstring(reach124[]) in process 0.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (64 with conclusion selected). Queue: 251 rules.
+400 rules inserted. Base: 400 rules (179 with conclusion selected). Queue: 64 rules.
+Starting query not attacker_bitstring(reach124[])
+goal reachable: attacker_bitstring(reach124[])
+
+Derivation:
+
+1. The message reach124[] may be sent to the attacker at output {6}.
+attacker_bitstring(reach124[]).
+
+2. By 1, attacker_bitstring(reach124[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reach124[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(net, ~M) with ~M = reach345 at {30}
+
+out(net, ~M_1) with ~M_1 = reach245 at {27}
+
+out(net, ~M_2) with ~M_2 = reach235 at {24}
+
+out(net, ~M_3) with ~M_3 = reach234 at {21}
+
+out(net, ~M_4) with ~M_4 = reach145 at {18}
+
+out(net, ~M_5) with ~M_5 = reach135 at {15}
+
+out(net, ~M_6) with ~M_6 = reach134 at {12}
+
+out(net, ~M_7) with ~M_7 = reach125 at {9}
+
+out(net, ~M_8) with ~M_8 = reach124 at {6}
+
+out(net, ~M_9) with ~M_9 = reach123 at {3}
+
+The attacker has the message ~M_8 = reach124.
+A trace has been found.
+RESULT not attacker_bitstring(reach124[]) is false.
+-- Query not attacker_bitstring(reach125[]) in process 0.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (64 with conclusion selected). Queue: 251 rules.
+400 rules inserted. Base: 400 rules (179 with conclusion selected). Queue: 64 rules.
+Starting query not attacker_bitstring(reach125[])
+goal reachable: attacker_bitstring(reach125[])
+
+Derivation:
+
+1. The message reach125[] may be sent to the attacker at output {9}.
+attacker_bitstring(reach125[]).
+
+2. By 1, attacker_bitstring(reach125[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reach125[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(net, ~M) with ~M = reach345 at {30}
+
+out(net, ~M_1) with ~M_1 = reach245 at {27}
+
+out(net, ~M_2) with ~M_2 = reach235 at {24}
+
+out(net, ~M_3) with ~M_3 = reach234 at {21}
+
+out(net, ~M_4) with ~M_4 = reach145 at {18}
+
+out(net, ~M_5) with ~M_5 = reach135 at {15}
+
+out(net, ~M_6) with ~M_6 = reach134 at {12}
+
+out(net, ~M_7) with ~M_7 = reach125 at {9}
+
+out(net, ~M_8) with ~M_8 = reach124 at {6}
+
+out(net, ~M_9) with ~M_9 = reach123 at {3}
+
+The attacker has the message ~M_7 = reach125.
+A trace has been found.
+RESULT not attacker_bitstring(reach125[]) is false.
+-- Query not attacker_bitstring(reach134[]) in process 0.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (64 with conclusion selected). Queue: 251 rules.
+400 rules inserted. Base: 400 rules (179 with conclusion selected). Queue: 64 rules.
+Starting query not attacker_bitstring(reach134[])
+goal reachable: attacker_bitstring(reach134[])
+
+Derivation:
+
+1. The message reach134[] may be sent to the attacker at output {12}.
+attacker_bitstring(reach134[]).
+
+2. By 1, attacker_bitstring(reach134[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reach134[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(net, ~M) with ~M = reach345 at {30}
+
+out(net, ~M_1) with ~M_1 = reach245 at {27}
+
+out(net, ~M_2) with ~M_2 = reach235 at {24}
+
+out(net, ~M_3) with ~M_3 = reach234 at {21}
+
+out(net, ~M_4) with ~M_4 = reach145 at {18}
+
+out(net, ~M_5) with ~M_5 = reach135 at {15}
+
+out(net, ~M_6) with ~M_6 = reach134 at {12}
+
+out(net, ~M_7) with ~M_7 = reach125 at {9}
+
+out(net, ~M_8) with ~M_8 = reach124 at {6}
+
+out(net, ~M_9) with ~M_9 = reach123 at {3}
+
+The attacker has the message ~M_6 = reach134.
+A trace has been found.
+RESULT not attacker_bitstring(reach134[]) is false.
+-- Query not attacker_bitstring(reach135[]) in process 0.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (64 with conclusion selected). Queue: 251 rules.
+400 rules inserted. Base: 400 rules (179 with conclusion selected). Queue: 64 rules.
+Starting query not attacker_bitstring(reach135[])
+goal reachable: attacker_bitstring(reach135[])
+
+Derivation:
+
+1. The message reach135[] may be sent to the attacker at output {15}.
+attacker_bitstring(reach135[]).
+
+2. By 1, attacker_bitstring(reach135[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reach135[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(net, ~M) with ~M = reach345 at {30}
+
+out(net, ~M_1) with ~M_1 = reach245 at {27}
+
+out(net, ~M_2) with ~M_2 = reach235 at {24}
+
+out(net, ~M_3) with ~M_3 = reach234 at {21}
+
+out(net, ~M_4) with ~M_4 = reach145 at {18}
+
+out(net, ~M_5) with ~M_5 = reach135 at {15}
+
+out(net, ~M_6) with ~M_6 = reach134 at {12}
+
+out(net, ~M_7) with ~M_7 = reach125 at {9}
+
+out(net, ~M_8) with ~M_8 = reach124 at {6}
+
+out(net, ~M_9) with ~M_9 = reach123 at {3}
+
+The attacker has the message ~M_5 = reach135.
+A trace has been found.
+RESULT not attacker_bitstring(reach135[]) is false.
+-- Query not attacker_bitstring(reach145[]) in process 0.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (64 with conclusion selected). Queue: 251 rules.
+400 rules inserted. Base: 400 rules (179 with conclusion selected). Queue: 64 rules.
+Starting query not attacker_bitstring(reach145[])
+goal reachable: attacker_bitstring(reach145[])
+
+Derivation:
+
+1. The message reach145[] may be sent to the attacker at output {18}.
+attacker_bitstring(reach145[]).
+
+2. By 1, attacker_bitstring(reach145[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reach145[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(net, ~M) with ~M = reach345 at {30}
+
+out(net, ~M_1) with ~M_1 = reach245 at {27}
+
+out(net, ~M_2) with ~M_2 = reach235 at {24}
+
+out(net, ~M_3) with ~M_3 = reach234 at {21}
+
+out(net, ~M_4) with ~M_4 = reach145 at {18}
+
+out(net, ~M_5) with ~M_5 = reach135 at {15}
+
+out(net, ~M_6) with ~M_6 = reach134 at {12}
+
+out(net, ~M_7) with ~M_7 = reach125 at {9}
+
+out(net, ~M_8) with ~M_8 = reach124 at {6}
+
+out(net, ~M_9) with ~M_9 = reach123 at {3}
+
+The attacker has the message ~M_4 = reach145.
+A trace has been found.
+RESULT not attacker_bitstring(reach145[]) is false.
+-- Query not attacker_bitstring(reach234[]) in process 0.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (64 with conclusion selected). Queue: 251 rules.
+400 rules inserted. Base: 400 rules (179 with conclusion selected). Queue: 64 rules.
+Starting query not attacker_bitstring(reach234[])
+goal reachable: attacker_bitstring(reach234[])
+
+Derivation:
+
+1. The message reach234[] may be sent to the attacker at output {21}.
+attacker_bitstring(reach234[]).
+
+2. By 1, attacker_bitstring(reach234[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reach234[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(net, ~M) with ~M = reach345 at {30}
+
+out(net, ~M_1) with ~M_1 = reach245 at {27}
+
+out(net, ~M_2) with ~M_2 = reach235 at {24}
+
+out(net, ~M_3) with ~M_3 = reach234 at {21}
+
+out(net, ~M_4) with ~M_4 = reach145 at {18}
+
+out(net, ~M_5) with ~M_5 = reach135 at {15}
+
+out(net, ~M_6) with ~M_6 = reach134 at {12}
+
+out(net, ~M_7) with ~M_7 = reach125 at {9}
+
+out(net, ~M_8) with ~M_8 = reach124 at {6}
+
+out(net, ~M_9) with ~M_9 = reach123 at {3}
+
+The attacker has the message ~M_3 = reach234.
+A trace has been found.
+RESULT not attacker_bitstring(reach234[]) is false.
+-- Query not attacker_bitstring(reach235[]) in process 0.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (64 with conclusion selected). Queue: 251 rules.
+400 rules inserted. Base: 400 rules (179 with conclusion selected). Queue: 64 rules.
+Starting query not attacker_bitstring(reach235[])
+goal reachable: attacker_bitstring(reach235[])
+
+Derivation:
+
+1. The message reach235[] may be sent to the attacker at output {24}.
+attacker_bitstring(reach235[]).
+
+2. By 1, attacker_bitstring(reach235[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reach235[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(net, ~M) with ~M = reach345 at {30}
+
+out(net, ~M_1) with ~M_1 = reach245 at {27}
+
+out(net, ~M_2) with ~M_2 = reach235 at {24}
+
+out(net, ~M_3) with ~M_3 = reach234 at {21}
+
+out(net, ~M_4) with ~M_4 = reach145 at {18}
+
+out(net, ~M_5) with ~M_5 = reach135 at {15}
+
+out(net, ~M_6) with ~M_6 = reach134 at {12}
+
+out(net, ~M_7) with ~M_7 = reach125 at {9}
+
+out(net, ~M_8) with ~M_8 = reach124 at {6}
+
+out(net, ~M_9) with ~M_9 = reach123 at {3}
+
+The attacker has the message ~M_2 = reach235.
+A trace has been found.
+RESULT not attacker_bitstring(reach235[]) is false.
+-- Query not attacker_bitstring(reach245[]) in process 0.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (64 with conclusion selected). Queue: 251 rules.
+400 rules inserted. Base: 400 rules (179 with conclusion selected). Queue: 64 rules.
+Starting query not attacker_bitstring(reach245[])
+goal reachable: attacker_bitstring(reach245[])
+
+Derivation:
+
+1. The message reach245[] may be sent to the attacker at output {27}.
+attacker_bitstring(reach245[]).
+
+2. By 1, attacker_bitstring(reach245[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reach245[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(net, ~M) with ~M = reach345 at {30}
+
+out(net, ~M_1) with ~M_1 = reach245 at {27}
+
+out(net, ~M_2) with ~M_2 = reach235 at {24}
+
+out(net, ~M_3) with ~M_3 = reach234 at {21}
+
+out(net, ~M_4) with ~M_4 = reach145 at {18}
+
+out(net, ~M_5) with ~M_5 = reach135 at {15}
+
+out(net, ~M_6) with ~M_6 = reach134 at {12}
+
+out(net, ~M_7) with ~M_7 = reach125 at {9}
+
+out(net, ~M_8) with ~M_8 = reach124 at {6}
+
+out(net, ~M_9) with ~M_9 = reach123 at {3}
+
+The attacker has the message ~M_1 = reach245.
+A trace has been found.
+RESULT not attacker_bitstring(reach245[]) is false.
+-- Query not attacker_bitstring(reach345[]) in process 0.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (64 with conclusion selected). Queue: 251 rules.
+400 rules inserted. Base: 400 rules (179 with conclusion selected). Queue: 64 rules.
+Starting query not attacker_bitstring(reach345[])
+goal reachable: attacker_bitstring(reach345[])
+
+Derivation:
+
+1. The message reach345[] may be sent to the attacker at output {30}.
+attacker_bitstring(reach345[]).
+
+2. By 1, attacker_bitstring(reach345[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reach345[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(net, ~M) with ~M = reach345 at {30}
+
+out(net, ~M_1) with ~M_1 = reach245 at {27}
+
+out(net, ~M_2) with ~M_2 = reach235 at {24}
+
+out(net, ~M_3) with ~M_3 = reach234 at {21}
+
+out(net, ~M_4) with ~M_4 = reach145 at {18}
+
+out(net, ~M_5) with ~M_5 = reach135 at {15}
+
+out(net, ~M_6) with ~M_6 = reach134 at {12}
+
+out(net, ~M_7) with ~M_7 = reach125 at {9}
+
+out(net, ~M_8) with ~M_8 = reach124 at {6}
+
+out(net, ~M_9) with ~M_9 = reach123 at {3}
+
+The attacker has the message ~M = reach345.
+A trace has been found.
+RESULT not attacker_bitstring(reach345[]) is false.
+-- Query not attacker_bitstring(canaryPairOnly[]) in process 0.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (64 with conclusion selected). Queue: 251 rules.
+400 rules inserted. Base: 400 rules (179 with conclusion selected). Queue: 64 rules.
+Starting query not attacker_bitstring(canaryPairOnly[])
+RESULT not attacker_bitstring(canaryPairOnly[]) is true.
+-- Query not attacker_bitstring(canaryDuplicate[]) in process 0.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (64 with conclusion selected). Queue: 251 rules.
+400 rules inserted. Base: 400 rules (179 with conclusion selected). Queue: 64 rules.
+Starting query not attacker_bitstring(canaryDuplicate[])
+RESULT not attacker_bitstring(canaryDuplicate[]) is true.
+-- Query not attacker_bitstring(canaryMixedEpoch[]) in process 0.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (64 with conclusion selected). Queue: 251 rules.
+400 rules inserted. Base: 400 rules (179 with conclusion selected). Queue: 64 rules.
+Starting query not attacker_bitstring(canaryMixedEpoch[])
+RESULT not attacker_bitstring(canaryMixedEpoch[]) is true.
+-- Query not attacker_bitstring(canaryMixedMessage[]) in process 0.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (64 with conclusion selected). Queue: 251 rules.
+400 rules inserted. Base: 400 rules (179 with conclusion selected). Queue: 64 rules.
+Starting query not attacker_bitstring(canaryMixedMessage[])
+RESULT not attacker_bitstring(canaryMixedMessage[]) is true.
+-- Query not attacker_bitstring(canaryWrongRoot[]) in process 0.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (64 with conclusion selected). Queue: 251 rules.
+400 rules inserted. Base: 400 rules (179 with conclusion selected). Queue: 64 rules.
+Starting query not attacker_bitstring(canaryWrongRoot[])
+RESULT not attacker_bitstring(canaryWrongRoot[]) is true.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query not attacker_thresholdShare(share1(e35)) is true.
+
+Query not attacker_thresholdShare(share2(e35)) is true.
+
+Query not attacker_thresholdShare(share3(e35)) is true.
+
+Query not attacker_thresholdShare(share4(e35)) is true.
+
+Query not attacker_thresholdShare(share5(e35)) is true.
+
+Query not attacker_bitstring(reach123[]) is false.
+
+Query not attacker_bitstring(reach124[]) is false.
+
+Query not attacker_bitstring(reach125[]) is false.
+
+Query not attacker_bitstring(reach134[]) is false.
+
+Query not attacker_bitstring(reach135[]) is false.
+
+Query not attacker_bitstring(reach145[]) is false.
+
+Query not attacker_bitstring(reach234[]) is false.
+
+Query not attacker_bitstring(reach235[]) is false.
+
+Query not attacker_bitstring(reach245[]) is false.
+
+Query not attacker_bitstring(reach345[]) is false.
+
+Query not attacker_bitstring(canaryPairOnly[]) is true.
+
+Query not attacker_bitstring(canaryDuplicate[]) is true.
+
+Query not attacker_bitstring(canaryMixedEpoch[]) is true.
+
+Query not attacker_bitstring(canaryMixedMessage[]) is true.
+
+Query not attacker_bitstring(canaryWrongRoot[]) is true.
+
+--------------------------------------------------------------
+

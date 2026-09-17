@@ -1,0 +1,182 @@
+Process 0 (that is, the initial process):
+(
+    {1}out(net, share1(e_one_share))
+) | (
+    {2}let expectedMessage: thresholdMessage = m_one_share in
+    {3}let canary: bitstring = canary_one_share in
+    {4}in(net, candidate: thresholdSignature);
+    {5}let verifiedPair: signerPair = verifyThreshold(candidate,expectedMessage,pkChord) in
+    {6}out(net, canary)
+) | (
+    {7}out(net, share1(e_duplicate_share));
+    {8}out(net, share1(e_duplicate_share))
+) | (
+    {9}let expectedMessage_1: thresholdMessage = m_duplicate_share in
+    {10}let canary_1: bitstring = canary_duplicate_share in
+    {11}in(net, candidate_1: thresholdSignature);
+    {12}let verifiedPair_1: signerPair = verifyThreshold(candidate_1,expectedMessage_1,pkChord) in
+    {13}out(net, canary_1)
+) | (
+    {14}out(net, share1(e_mixed_old));
+    {15}out(net, share2(e_mixed_new))
+) | (
+    {16}let expectedMessage_2: thresholdMessage = m_mixed_epoch in
+    {17}let canary_2: bitstring = canary_mixed_epoch in
+    {18}in(net, candidate_2: thresholdSignature);
+    {19}let verifiedPair_2: signerPair = verifyThreshold(candidate_2,expectedMessage_2,pkChord) in
+    {20}out(net, canary_2)
+) | (
+    {21}out(net, partialSign(m_message_left,share1(e_message_binding)));
+    {22}out(net, partialSign(m_message_right,share2(e_message_binding)))
+) | (
+    {23}let expectedMessage_3: thresholdMessage = m_message_left in
+    {24}let canary_3: bitstring = canary_message_left in
+    {25}in(net, candidate_3: thresholdSignature);
+    {26}let verifiedPair_3: signerPair = verifyThreshold(candidate_3,expectedMessage_3,pkChord) in
+    {27}out(net, canary_3)
+) | (
+    {28}let expectedMessage_4: thresholdMessage = m_message_right in
+    {29}let canary_4: bitstring = canary_message_right in
+    {30}in(net, candidate_4: thresholdSignature);
+    {31}let verifiedPair_4: signerPair = verifyThreshold(candidate_4,expectedMessage_4,pkChord) in
+    {32}out(net, canary_4)
+) | (
+    {33}out(net, makeOrdinaryCredential(o1))
+) | (
+    {34}let expectedMessage_5: thresholdMessage = m_noncert_unit in
+    {35}let canary_5: bitstring = canary_noncert_unit in
+    {36}in(net, candidate_5: thresholdSignature);
+    {37}let verifiedPair_5: signerPair = verifyThreshold(candidate_5,expectedMessage_5,pkChord) in
+    {38}out(net, canary_5)
+)
+
+--  Process 1 (that is, process 0, with let moved downwards):
+(
+    {1}out(net, share1(e_one_share))
+) | (
+    {4}in(net, candidate: thresholdSignature);
+    {2}let expectedMessage: thresholdMessage = m_one_share in
+    {5}let verifiedPair: signerPair = verifyThreshold(candidate,expectedMessage,pkChord) in
+    {3}let canary: bitstring = canary_one_share in
+    {6}out(net, canary)
+) | (
+    {7}out(net, share1(e_duplicate_share));
+    {8}out(net, share1(e_duplicate_share))
+) | (
+    {11}in(net, candidate_1: thresholdSignature);
+    {9}let expectedMessage_1: thresholdMessage = m_duplicate_share in
+    {12}let verifiedPair_1: signerPair = verifyThreshold(candidate_1,expectedMessage_1,pkChord) in
+    {10}let canary_1: bitstring = canary_duplicate_share in
+    {13}out(net, canary_1)
+) | (
+    {14}out(net, share1(e_mixed_old));
+    {15}out(net, share2(e_mixed_new))
+) | (
+    {18}in(net, candidate_2: thresholdSignature);
+    {16}let expectedMessage_2: thresholdMessage = m_mixed_epoch in
+    {19}let verifiedPair_2: signerPair = verifyThreshold(candidate_2,expectedMessage_2,pkChord) in
+    {17}let canary_2: bitstring = canary_mixed_epoch in
+    {20}out(net, canary_2)
+) | (
+    {21}out(net, partialSign(m_message_left,share1(e_message_binding)));
+    {22}out(net, partialSign(m_message_right,share2(e_message_binding)))
+) | (
+    {25}in(net, candidate_3: thresholdSignature);
+    {23}let expectedMessage_3: thresholdMessage = m_message_left in
+    {26}let verifiedPair_3: signerPair = verifyThreshold(candidate_3,expectedMessage_3,pkChord) in
+    {24}let canary_3: bitstring = canary_message_left in
+    {27}out(net, canary_3)
+) | (
+    {30}in(net, candidate_4: thresholdSignature);
+    {28}let expectedMessage_4: thresholdMessage = m_message_right in
+    {31}let verifiedPair_4: signerPair = verifyThreshold(candidate_4,expectedMessage_4,pkChord) in
+    {29}let canary_4: bitstring = canary_message_right in
+    {32}out(net, canary_4)
+) | (
+    {33}out(net, makeOrdinaryCredential(o1))
+) | (
+    {36}in(net, candidate_5: thresholdSignature);
+    {34}let expectedMessage_5: thresholdMessage = m_noncert_unit in
+    {37}let verifiedPair_5: signerPair = verifyThreshold(candidate_5,expectedMessage_5,pkChord) in
+    {35}let canary_5: bitstring = canary_noncert_unit in
+    {38}out(net, canary_5)
+)
+
+-- Query not attacker_bitstring(canary_one_share[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (63 with conclusion selected). Queue: 254 rules.
+400 rules inserted. Base: 400 rules (191 with conclusion selected). Queue: 57 rules.
+Starting query not attacker_bitstring(canary_one_share[])
+RESULT not attacker_bitstring(canary_one_share[]) is true.
+-- Query not attacker_bitstring(canary_duplicate_share[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (63 with conclusion selected). Queue: 254 rules.
+400 rules inserted. Base: 400 rules (191 with conclusion selected). Queue: 57 rules.
+Starting query not attacker_bitstring(canary_duplicate_share[])
+RESULT not attacker_bitstring(canary_duplicate_share[]) is true.
+-- Query not attacker_bitstring(canary_mixed_epoch[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (63 with conclusion selected). Queue: 254 rules.
+400 rules inserted. Base: 400 rules (191 with conclusion selected). Queue: 57 rules.
+Starting query not attacker_bitstring(canary_mixed_epoch[])
+RESULT not attacker_bitstring(canary_mixed_epoch[]) is true.
+-- Query not attacker_bitstring(canary_message_left[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (63 with conclusion selected). Queue: 254 rules.
+400 rules inserted. Base: 400 rules (191 with conclusion selected). Queue: 57 rules.
+Starting query not attacker_bitstring(canary_message_left[])
+RESULT not attacker_bitstring(canary_message_left[]) is true.
+-- Query not attacker_bitstring(canary_message_right[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (63 with conclusion selected). Queue: 254 rules.
+400 rules inserted. Base: 400 rules (191 with conclusion selected). Queue: 57 rules.
+Starting query not attacker_bitstring(canary_message_right[])
+RESULT not attacker_bitstring(canary_message_right[]) is true.
+-- Query not attacker_bitstring(canary_noncert_unit[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (63 with conclusion selected). Queue: 254 rules.
+400 rules inserted. Base: 400 rules (191 with conclusion selected). Queue: 57 rules.
+Starting query not attacker_bitstring(canary_noncert_unit[])
+RESULT not attacker_bitstring(canary_noncert_unit[]) is true.
+-- Query not attacker_thresholdShare(share1(e_message_binding)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (63 with conclusion selected). Queue: 254 rules.
+400 rules inserted. Base: 400 rules (191 with conclusion selected). Queue: 57 rules.
+Starting query not attacker_thresholdShare(share1(e_message_binding))
+RESULT not attacker_thresholdShare(share1(e_message_binding)) is true.
+-- Query not attacker_thresholdShare(share2(e_message_binding)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (63 with conclusion selected). Queue: 254 rules.
+400 rules inserted. Base: 400 rules (191 with conclusion selected). Queue: 57 rules.
+Starting query not attacker_thresholdShare(share2(e_message_binding))
+RESULT not attacker_thresholdShare(share2(e_message_binding)) is true.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query not attacker_bitstring(canary_one_share[]) is true.
+
+Query not attacker_bitstring(canary_duplicate_share[]) is true.
+
+Query not attacker_bitstring(canary_mixed_epoch[]) is true.
+
+Query not attacker_bitstring(canary_message_left[]) is true.
+
+Query not attacker_bitstring(canary_message_right[]) is true.
+
+Query not attacker_bitstring(canary_noncert_unit[]) is true.
+
+Query not attacker_thresholdShare(share1(e_message_binding)) is true.
+
+Query not attacker_thresholdShare(share2(e_message_binding)) is true.
+
+--------------------------------------------------------------
+

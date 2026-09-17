@@ -1,0 +1,1983 @@
+Process 0 (that is, the initial process):
+{1}event SetupComplete(pgbA,pkChord,pk(skCard));
+{2}event InitialCommitteeMember(C1,e0);
+{3}event InitialCommitteeMember(C2,e0);
+{4}event PGBLocked(pgbA);
+{5}out(net, reachSetup);
+{6}out(net, share1(e0));
+{7}out(net, reachShare1Leak);
+{8}out(net, share2(e0));
+{9}out(net, reachShare2Leak);
+(
+    {10}let proposal: thresholdMessage = committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial) in
+    {11}let approval: thresholdSignature = combine(partialSign(proposal,share1(e0)),partialSign(proposal,share2(e0))) in
+    {12}let =pair12 = verifyThreshold(approval,proposal,pkChord) in
+    {13}out(net, committeeApprovalRequest(proposal,approval))
+) | (
+    {14}in(net, request: wireMessage);
+    {15}let committeeApprovalRequest(proposal_1: thresholdMessage,approval_1: thresholdSignature) = request in
+    {16}let committeeProposal(=tagCommittee,=pgbA,=e0,=e1,=C1,=C2,=Dadv,=Dadv,=pk(skAdv),=pkChord,=maliciousAdmissionSerial,=maliciousUpdateSerial) = proposal_1 in
+    {17}let =pair12 = verifyThreshold(approval_1,proposal_1,pkChord) in
+    {18}event CommitteeApproved(e0,e1,Dadv,pk(skAdv),maliciousAdmissionSerial,maliciousUpdateSerial);
+    {19}event ReshareStarted(e0,e1,Dadv,pk(skAdv),maliciousAdmissionSerial,maliciousUpdateSerial);
+    {20}out(net, reachMaliciousApproval);
+    {21}event SharePackageSent(C1,e1,pkChord,maliciousUpdateSerial);
+    {22}out(net, aenc(sharePackage(pgbA,e1,C1,pkChord,share1(e1),maliciousUpdateSerial),pk(skC1Device)));
+    {23}event SharePackageSent(C2,e1,pkChord,maliciousUpdateSerial);
+    {24}out(net, aenc(sharePackage(pgbA,e1,C2,pkChord,share2(e1),maliciousUpdateSerial),pk(skC2Device)));
+    {25}event SharePackageSent(Dadv,e1,pkChord,maliciousUpdateSerial);
+    {26}out(net, aenc(sharePackage(pgbA,e1,Dadv,pkChord,share3(e1),maliciousUpdateSerial),pk(skAdv)));
+    {27}out(reshareState, proposal_1)
+) | (
+    {28}let member: device = C1 in
+    {29}let deviceKey: skey = skC1Device in
+    {30}let expectedShare: thresholdShare = share1(e1) in
+    {31}let ack: channel = activatedC1 in
+    {32}let canary: bitstring = reachShareC1 in
+    {33}in(net, encryptedPackage: ciphertext);
+    {34}let package: protocolMessage = adec(encryptedPackage,deviceKey) in
+    {35}let sharePackage(=pgbA,=e1,=member,=pkChord,receivedShare: thresholdShare,=maliciousUpdateSerial) = package in
+    {36}if (receivedShare = expectedShare) then
+    {37}event ShareActivated(member,e1,pkChord,maliciousUpdateSerial);
+    {38}out(net, canary);
+    {39}out(ack, maliciousUpdateSerial)
+) | (
+    {40}let member_1: device = C2 in
+    {41}let deviceKey_1: skey = skC2Device in
+    {42}let expectedShare_1: thresholdShare = share2(e1) in
+    {43}let ack_1: channel = activatedC2 in
+    {44}let canary_1: bitstring = reachShareC2 in
+    {45}in(net, encryptedPackage_1: ciphertext);
+    {46}let package_1: protocolMessage = adec(encryptedPackage_1,deviceKey_1) in
+    {47}let sharePackage(=pgbA,=e1,=member_1,=pkChord,receivedShare_1: thresholdShare,=maliciousUpdateSerial) = package_1 in
+    {48}if (receivedShare_1 = expectedShare_1) then
+    {49}event ShareActivated(member_1,e1,pkChord,maliciousUpdateSerial);
+    {50}out(net, canary_1);
+    {51}out(ack_1, maliciousUpdateSerial)
+) | (
+    {52}in(net, encryptedPackage_2: ciphertext);
+    {53}let package_2: protocolMessage = adec(encryptedPackage_2,skAdv) in
+    {54}let sharePackage(=pgbA,=e1,=Dadv,=pkChord,receivedShare_2: thresholdShare,=maliciousUpdateSerial) = package_2 in
+    {55}if (receivedShare_2 = share3(e1)) then
+    {56}event ShareActivated(Dadv,e1,pkChord,maliciousUpdateSerial);
+    {57}out(net, share3(e1));
+    {58}out(net, reachShareDadv);
+    {59}out(activatedDadv, maliciousUpdateSerial)
+) | (
+    {60}in(reshareState, proposal_2: thresholdMessage);
+    {61}in(activatedC1, =maliciousUpdateSerial);
+    {62}in(activatedC2, =maliciousUpdateSerial);
+    {63}in(activatedDadv, =maliciousUpdateSerial);
+    {64}event CommitteeActivated(e1,pkChord,maliciousUpdateSerial);
+    {65}out(net, reachMaliciousCommittee);
+    {66}let continuitySignature: thresholdSignature = combine(partialSign(proposal_2,share1(e1)),partialSign(proposal_2,share3(e1))) in
+    {67}let continuityPair: signerPair = verifyThreshold(continuitySignature,proposal_2,pkChord) in
+    {68}event RootContinuityAccepted(e1,pkChord,continuityPair,maliciousUpdateSerial);
+    {69}out(net, reachRootContinuity)
+)
+
+--  Process 1 (that is, process 0, with let moved downwards):
+{1}event SetupComplete(pgbA,pkChord,pk(skCard));
+{2}event InitialCommitteeMember(C1,e0);
+{3}event InitialCommitteeMember(C2,e0);
+{4}event PGBLocked(pgbA);
+{5}out(net, reachSetup);
+{6}out(net, share1(e0));
+{7}out(net, reachShare1Leak);
+{8}out(net, share2(e0));
+{9}out(net, reachShare2Leak);
+(
+    {10}let proposal: thresholdMessage = committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial) in
+    {11}let approval: thresholdSignature = combine(partialSign(proposal,share1(e0)),partialSign(proposal,share2(e0))) in
+    {12}let =pair12 = verifyThreshold(approval,proposal,pkChord) in
+    {13}out(net, committeeApprovalRequest(proposal,approval))
+) | (
+    {14}in(net, request: wireMessage);
+    {15}let committeeApprovalRequest(proposal_1: thresholdMessage,approval_1: thresholdSignature) = request in
+    {16}let committeeProposal(=tagCommittee,=pgbA,=e0,=e1,=C1,=C2,=Dadv,=Dadv,=pk(skAdv),=pkChord,=maliciousAdmissionSerial,=maliciousUpdateSerial) = proposal_1 in
+    {17}let =pair12 = verifyThreshold(approval_1,proposal_1,pkChord) in
+    {18}event CommitteeApproved(e0,e1,Dadv,pk(skAdv),maliciousAdmissionSerial,maliciousUpdateSerial);
+    {19}event ReshareStarted(e0,e1,Dadv,pk(skAdv),maliciousAdmissionSerial,maliciousUpdateSerial);
+    {20}out(net, reachMaliciousApproval);
+    {21}event SharePackageSent(C1,e1,pkChord,maliciousUpdateSerial);
+    {22}out(net, aenc(sharePackage(pgbA,e1,C1,pkChord,share1(e1),maliciousUpdateSerial),pk(skC1Device)));
+    {23}event SharePackageSent(C2,e1,pkChord,maliciousUpdateSerial);
+    {24}out(net, aenc(sharePackage(pgbA,e1,C2,pkChord,share2(e1),maliciousUpdateSerial),pk(skC2Device)));
+    {25}event SharePackageSent(Dadv,e1,pkChord,maliciousUpdateSerial);
+    {26}out(net, aenc(sharePackage(pgbA,e1,Dadv,pkChord,share3(e1),maliciousUpdateSerial),pk(skAdv)));
+    {27}out(reshareState, proposal_1)
+) | (
+    {33}in(net, encryptedPackage: ciphertext);
+    {29}let deviceKey: skey = skC1Device in
+    {34}let package: protocolMessage = adec(encryptedPackage,deviceKey) in
+    {28}let member: device = C1 in
+    {35}let sharePackage(=pgbA,=e1,=member,=pkChord,receivedShare: thresholdShare,=maliciousUpdateSerial) = package in
+    {30}let expectedShare: thresholdShare = share1(e1) in
+    {36}if (receivedShare = expectedShare) then
+    {37}event ShareActivated(member,e1,pkChord,maliciousUpdateSerial);
+    {32}let canary: bitstring = reachShareC1 in
+    {38}out(net, canary);
+    {31}let ack: channel = activatedC1 in
+    {39}out(ack, maliciousUpdateSerial)
+) | (
+    {45}in(net, encryptedPackage_1: ciphertext);
+    {41}let deviceKey_1: skey = skC2Device in
+    {46}let package_1: protocolMessage = adec(encryptedPackage_1,deviceKey_1) in
+    {40}let member_1: device = C2 in
+    {47}let sharePackage(=pgbA,=e1,=member_1,=pkChord,receivedShare_1: thresholdShare,=maliciousUpdateSerial) = package_1 in
+    {42}let expectedShare_1: thresholdShare = share2(e1) in
+    {48}if (receivedShare_1 = expectedShare_1) then
+    {49}event ShareActivated(member_1,e1,pkChord,maliciousUpdateSerial);
+    {44}let canary_1: bitstring = reachShareC2 in
+    {50}out(net, canary_1);
+    {43}let ack_1: channel = activatedC2 in
+    {51}out(ack_1, maliciousUpdateSerial)
+) | (
+    {52}in(net, encryptedPackage_2: ciphertext);
+    {53}let package_2: protocolMessage = adec(encryptedPackage_2,skAdv) in
+    {54}let sharePackage(=pgbA,=e1,=Dadv,=pkChord,receivedShare_2: thresholdShare,=maliciousUpdateSerial) = package_2 in
+    {55}if (receivedShare_2 = share3(e1)) then
+    {56}event ShareActivated(Dadv,e1,pkChord,maliciousUpdateSerial);
+    {57}out(net, share3(e1));
+    {58}out(net, reachShareDadv);
+    {59}out(activatedDadv, maliciousUpdateSerial)
+) | (
+    {60}in(reshareState, proposal_2: thresholdMessage);
+    {61}in(activatedC1, =maliciousUpdateSerial);
+    {62}in(activatedC2, =maliciousUpdateSerial);
+    {63}in(activatedDadv, =maliciousUpdateSerial);
+    {64}event CommitteeActivated(e1,pkChord,maliciousUpdateSerial);
+    {65}out(net, reachMaliciousCommittee);
+    {66}let continuitySignature: thresholdSignature = combine(partialSign(proposal_2,share1(e1)),partialSign(proposal_2,share3(e1))) in
+    {67}let continuityPair: signerPair = verifyThreshold(continuitySignature,proposal_2,pkChord) in
+    {68}event RootContinuityAccepted(e1,pkChord,continuityPair,maliciousUpdateSerial);
+    {69}out(net, reachRootContinuity)
+)
+
+-- Query not attacker_skey(skCard[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 311 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 114 rules.
+Starting query not attacker_skey(skCard[])
+RESULT not attacker_skey(skCard[]) is true.
+-- Query not attacker_skey(skC1Device[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 311 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 114 rules.
+Starting query not attacker_skey(skC1Device[])
+RESULT not attacker_skey(skC1Device[]) is true.
+-- Query not attacker_skey(skC2Device[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 311 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 114 rules.
+Starting query not attacker_skey(skC2Device[])
+RESULT not attacker_skey(skC2Device[]) is true.
+-- Query not attacker_skey(skO1Device[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 311 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 114 rules.
+Starting query not attacker_skey(skO1Device[])
+RESULT not attacker_skey(skO1Device[]) is true.
+-- Query not attacker_thresholdShare(share1(e0)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 311 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 114 rules.
+Starting query not attacker_thresholdShare(share1(e0))
+goal reachable: attacker_thresholdShare(share1(e0))
+
+Derivation:
+
+1. The message share1(e0) may be sent to the attacker at output {6}.
+attacker_thresholdShare(share1(e0)).
+
+2. By 1, attacker_thresholdShare(share1(e0)).
+The goal is reached, represented in the following fact:
+attacker_thresholdShare(share1(e0)).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+event SetupComplete(pgbA,pkChord,pk(skCard)) at {1}
+
+event InitialCommitteeMember(C1,e0) at {2}
+
+event InitialCommitteeMember(C2,e0) at {3}
+
+event PGBLocked(pgbA) at {4}
+
+out(net, ~M) with ~M = reachSetup at {5}
+
+out(net, ~M_1) with ~M_1 = share1(e0) at {6}
+
+out(net, ~M_2) with ~M_2 = reachShare1Leak at {7}
+
+out(net, ~M_3) with ~M_3 = share2(e0) at {8}
+
+out(net, ~M_4) with ~M_4 = reachShare2Leak at {9}
+
+out(net, committeeApprovalRequest(committeeProposal(~M_5,~M_6,~M_7,~M_8,~M_9,~M_10,~M_11,~M_12,~M_13,~M_14,~M_15,~M_16),~M_17)) with ~M_5 = tagCommittee, ~M_6 = pgbA, ~M_7 = e0, ~M_8 = e1, ~M_9 = C1, ~M_10 = C2, ~M_11 = Dadv, ~M_12 = Dadv, ~M_13 = pk(skAdv), ~M_14 = pkChord, ~M_15 = maliciousAdmissionSerial, ~M_16 = maliciousUpdateSerial, ~M_17 = thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)) at {13}
+
+The attacker has the message ~M_1 = share1(e0).
+A trace has been found.
+RESULT not attacker_thresholdShare(share1(e0)) is false.
+-- Query not attacker_thresholdShare(share2(e0)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 311 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 114 rules.
+Starting query not attacker_thresholdShare(share2(e0))
+goal reachable: attacker_thresholdShare(share2(e0))
+
+Derivation:
+
+1. The message share2(e0) may be sent to the attacker at output {8}.
+attacker_thresholdShare(share2(e0)).
+
+2. By 1, attacker_thresholdShare(share2(e0)).
+The goal is reached, represented in the following fact:
+attacker_thresholdShare(share2(e0)).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+event SetupComplete(pgbA,pkChord,pk(skCard)) at {1}
+
+event InitialCommitteeMember(C1,e0) at {2}
+
+event InitialCommitteeMember(C2,e0) at {3}
+
+event PGBLocked(pgbA) at {4}
+
+out(net, ~M) with ~M = reachSetup at {5}
+
+out(net, ~M_1) with ~M_1 = share1(e0) at {6}
+
+out(net, ~M_2) with ~M_2 = reachShare1Leak at {7}
+
+out(net, ~M_3) with ~M_3 = share2(e0) at {8}
+
+out(net, ~M_4) with ~M_4 = reachShare2Leak at {9}
+
+out(net, committeeApprovalRequest(committeeProposal(~M_5,~M_6,~M_7,~M_8,~M_9,~M_10,~M_11,~M_12,~M_13,~M_14,~M_15,~M_16),~M_17)) with ~M_5 = tagCommittee, ~M_6 = pgbA, ~M_7 = e0, ~M_8 = e1, ~M_9 = C1, ~M_10 = C2, ~M_11 = Dadv, ~M_12 = Dadv, ~M_13 = pk(skAdv), ~M_14 = pkChord, ~M_15 = maliciousAdmissionSerial, ~M_16 = maliciousUpdateSerial, ~M_17 = thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)) at {13}
+
+The attacker has the message ~M_3 = share2(e0).
+A trace has been found.
+RESULT not attacker_thresholdShare(share2(e0)) is false.
+-- Query not attacker_thresholdShare(share3(e0)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 311 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 114 rules.
+Starting query not attacker_thresholdShare(share3(e0))
+RESULT not attacker_thresholdShare(share3(e0)) is true.
+-- Query not attacker_thresholdShare(share1(e1)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 311 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 114 rules.
+Starting query not attacker_thresholdShare(share1(e1))
+RESULT not attacker_thresholdShare(share1(e1)) is true.
+-- Query not attacker_thresholdShare(share2(e1)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 311 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 114 rules.
+Starting query not attacker_thresholdShare(share2(e1))
+RESULT not attacker_thresholdShare(share2(e1)) is true.
+-- Query not attacker_thresholdShare(share3(e1)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 311 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 114 rules.
+Starting query not attacker_thresholdShare(share3(e1))
+goal reachable: attacker_thresholdShare(share3(e1))
+
+Derivation:
+
+1. The message committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))) may be sent to the attacker at output {13}.
+attacker_wireMessage(committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)))).
+
+2. By 1, the attacker may know committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))).
+Using the function 2-proj-committeeApprovalRequest the attacker may obtain thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)).
+attacker_thresholdSignature(thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))).
+
+3. Using the function maliciousUpdateSerial the attacker may obtain maliciousUpdateSerial.
+attacker_serial(maliciousUpdateSerial).
+
+4. Using the function maliciousAdmissionSerial the attacker may obtain maliciousAdmissionSerial.
+attacker_serial(maliciousAdmissionSerial).
+
+5. Using the function pkChord the attacker may obtain pkChord.
+attacker_rootPublicKey(pkChord).
+
+6. The attacker initially knows skAdv[].
+attacker_skey(skAdv[]).
+
+7. By 6, the attacker may know skAdv[].
+Using the function pk the attacker may obtain pk(skAdv[]).
+attacker_pkey(pk(skAdv[])).
+
+8. Using the function Dadv the attacker may obtain Dadv.
+attacker_device(Dadv).
+
+9. Using the function C2 the attacker may obtain C2.
+attacker_device(C2).
+
+10. Using the function C1 the attacker may obtain C1.
+attacker_device(C1).
+
+11. Using the function e1 the attacker may obtain e1.
+attacker_epoch(e1).
+
+12. Using the function e0 the attacker may obtain e0.
+attacker_epoch(e0).
+
+13. Using the function pgbA the attacker may obtain pgbA.
+attacker_pgb(pgbA).
+
+14. Using the function tagCommittee the attacker may obtain tagCommittee.
+attacker_domainTag(tagCommittee).
+
+15. By 14, the attacker may know tagCommittee.
+By 13, the attacker may know pgbA.
+By 12, the attacker may know e0.
+By 11, the attacker may know e1.
+By 10, the attacker may know C1.
+By 9, the attacker may know C2.
+By 8, the attacker may know Dadv.
+By 8, the attacker may know Dadv.
+By 7, the attacker may know pk(skAdv[]).
+By 5, the attacker may know pkChord.
+By 4, the attacker may know maliciousAdmissionSerial.
+By 3, the attacker may know maliciousUpdateSerial.
+Using the function committeeProposal the attacker may obtain committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial).
+attacker_thresholdMessage(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)).
+
+16. By 15, the attacker may know committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial).
+By 2, the attacker may know thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)).
+Using the function committeeApprovalRequest the attacker may obtain committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))).
+attacker_wireMessage(committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)))).
+
+17. The message committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))) that the attacker may have by 16 may be received at input {14}.
+So the message aenc(sharePackage(pgbA,e1,Dadv,pkChord,share3(e1),maliciousUpdateSerial),pk(skAdv[])) may be sent to the attacker at output {26}.
+attacker_ciphertext(aenc(sharePackage(pgbA,e1,Dadv,pkChord,share3(e1),maliciousUpdateSerial),pk(skAdv[]))).
+
+18. The message aenc(sharePackage(pgbA,e1,Dadv,pkChord,share3(e1),maliciousUpdateSerial),pk(skAdv[])) that the attacker may have by 17 may be received at input {52}.
+So the message share3(e1) may be sent to the attacker at output {57}.
+attacker_thresholdShare(share3(e1)).
+
+19. By 18, attacker_thresholdShare(share3(e1)).
+The goal is reached, represented in the following fact:
+attacker_thresholdShare(share3(e1)).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+event SetupComplete(pgbA,pkChord,pk(skCard)) at {1}
+
+event InitialCommitteeMember(C1,e0) at {2}
+
+event InitialCommitteeMember(C2,e0) at {3}
+
+event PGBLocked(pgbA) at {4}
+
+out(net, ~M) with ~M = reachSetup at {5}
+
+out(net, ~M_1) with ~M_1 = share1(e0) at {6}
+
+out(net, ~M_2) with ~M_2 = reachShare1Leak at {7}
+
+out(net, ~M_3) with ~M_3 = share2(e0) at {8}
+
+out(net, ~M_4) with ~M_4 = reachShare2Leak at {9}
+
+out(net, committeeApprovalRequest(committeeProposal(~M_5,~M_6,~M_7,~M_8,~M_9,~M_10,~M_11,~M_12,~M_13,~M_14,~M_15,~M_16),~M_17)) with ~M_5 = tagCommittee, ~M_6 = pgbA, ~M_7 = e0, ~M_8 = e1, ~M_9 = C1, ~M_10 = C2, ~M_11 = Dadv, ~M_12 = Dadv, ~M_13 = pk(skAdv), ~M_14 = pkChord, ~M_15 = maliciousAdmissionSerial, ~M_16 = maliciousUpdateSerial, ~M_17 = thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)) at {13}
+
+in(net, committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),~M_17)) with ~M_17 = thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)) at {14}
+
+event CommitteeApproved(e0,e1,Dadv,pk(skAdv),maliciousAdmissionSerial,maliciousUpdateSerial) at {18}
+
+event ReshareStarted(e0,e1,Dadv,pk(skAdv),maliciousAdmissionSerial,maliciousUpdateSerial) at {19}
+
+out(net, ~M_18) with ~M_18 = reachMaliciousApproval at {20}
+
+event SharePackageSent(C1,e1,pkChord,maliciousUpdateSerial) at {21}
+
+out(net, ~M_19) with ~M_19 = aenc(sharePackage(pgbA,e1,C1,pkChord,share1(e1),maliciousUpdateSerial),pk(skC1Device)) at {22}
+
+event SharePackageSent(C2,e1,pkChord,maliciousUpdateSerial) at {23}
+
+out(net, ~M_20) with ~M_20 = aenc(sharePackage(pgbA,e1,C2,pkChord,share2(e1),maliciousUpdateSerial),pk(skC2Device)) at {24}
+
+event SharePackageSent(Dadv,e1,pkChord,maliciousUpdateSerial) at {25}
+
+out(net, ~M_21) with ~M_21 = aenc(sharePackage(pgbA,e1,Dadv,pkChord,share3(e1),maliciousUpdateSerial),pk(skAdv)) at {26}
+
+in(net, ~M_21) with ~M_21 = aenc(sharePackage(pgbA,e1,Dadv,pkChord,share3(e1),maliciousUpdateSerial),pk(skAdv)) at {52}
+
+event ShareActivated(Dadv,e1,pkChord,maliciousUpdateSerial) at {56}
+
+out(net, ~M_22) with ~M_22 = share3(e1) at {57}
+
+out(net, ~M_23) with ~M_23 = reachShareDadv at {58}
+
+The attacker has the message ~M_22 = share3(e1).
+A trace has been found.
+RESULT not attacker_thresholdShare(share3(e1)) is false.
+-- Query event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial)) ==> event(CommitteeVote(C1,e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial)) && event(CommitteeVote(C2,e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 312 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 115 rules.
+Starting query event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial)) ==> event(CommitteeVote(C1,e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial)) && event(CommitteeVote(C2,e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial))
+goal reachable: event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial))
+
+Derivation:
+
+1. The message committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))) may be sent to the attacker at output {13}.
+attacker_wireMessage(committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)))).
+
+2. By 1, the attacker may know committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))).
+Using the function 2-proj-committeeApprovalRequest the attacker may obtain thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)).
+attacker_thresholdSignature(thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))).
+
+3. Using the function maliciousUpdateSerial the attacker may obtain maliciousUpdateSerial.
+attacker_serial(maliciousUpdateSerial).
+
+4. Using the function maliciousAdmissionSerial the attacker may obtain maliciousAdmissionSerial.
+attacker_serial(maliciousAdmissionSerial).
+
+5. Using the function pkChord the attacker may obtain pkChord.
+attacker_rootPublicKey(pkChord).
+
+6. The attacker initially knows skAdv[].
+attacker_skey(skAdv[]).
+
+7. By 6, the attacker may know skAdv[].
+Using the function pk the attacker may obtain pk(skAdv[]).
+attacker_pkey(pk(skAdv[])).
+
+8. Using the function Dadv the attacker may obtain Dadv.
+attacker_device(Dadv).
+
+9. Using the function C2 the attacker may obtain C2.
+attacker_device(C2).
+
+10. Using the function C1 the attacker may obtain C1.
+attacker_device(C1).
+
+11. Using the function e1 the attacker may obtain e1.
+attacker_epoch(e1).
+
+12. Using the function e0 the attacker may obtain e0.
+attacker_epoch(e0).
+
+13. Using the function pgbA the attacker may obtain pgbA.
+attacker_pgb(pgbA).
+
+14. Using the function tagCommittee the attacker may obtain tagCommittee.
+attacker_domainTag(tagCommittee).
+
+15. By 14, the attacker may know tagCommittee.
+By 13, the attacker may know pgbA.
+By 12, the attacker may know e0.
+By 11, the attacker may know e1.
+By 10, the attacker may know C1.
+By 9, the attacker may know C2.
+By 8, the attacker may know Dadv.
+By 8, the attacker may know Dadv.
+By 7, the attacker may know pk(skAdv[]).
+By 5, the attacker may know pkChord.
+By 4, the attacker may know maliciousAdmissionSerial.
+By 3, the attacker may know maliciousUpdateSerial.
+Using the function committeeProposal the attacker may obtain committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial).
+attacker_thresholdMessage(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)).
+
+16. By 15, the attacker may know committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial).
+By 2, the attacker may know thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)).
+Using the function committeeApprovalRequest the attacker may obtain committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))).
+attacker_wireMessage(committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)))).
+
+17. The message committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))) that the attacker may have by 16 may be received at input {14}.
+So event CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial) may be executed at {18}.
+event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial)).
+
+18. By 17, event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial)).
+The goal is reached, represented in the following fact:
+event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial)).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+event SetupComplete(pgbA,pkChord,pk(skCard)) at {1}
+
+event InitialCommitteeMember(C1,e0) at {2}
+
+event InitialCommitteeMember(C2,e0) at {3}
+
+event PGBLocked(pgbA) at {4}
+
+out(net, ~M) with ~M = reachSetup at {5}
+
+out(net, ~M_1) with ~M_1 = share1(e0) at {6}
+
+out(net, ~M_2) with ~M_2 = reachShare1Leak at {7}
+
+out(net, ~M_3) with ~M_3 = share2(e0) at {8}
+
+out(net, ~M_4) with ~M_4 = reachShare2Leak at {9}
+
+out(net, committeeApprovalRequest(committeeProposal(~M_5,~M_6,~M_7,~M_8,~M_9,~M_10,~M_11,~M_12,~M_13,~M_14,~M_15,~M_16),~M_17)) with ~M_5 = tagCommittee, ~M_6 = pgbA, ~M_7 = e0, ~M_8 = e1, ~M_9 = C1, ~M_10 = C2, ~M_11 = Dadv, ~M_12 = Dadv, ~M_13 = pk(skAdv), ~M_14 = pkChord, ~M_15 = maliciousAdmissionSerial, ~M_16 = maliciousUpdateSerial, ~M_17 = thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)) at {13}
+
+in(net, committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),~M_17)) with ~M_17 = thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)) at {14}
+
+event CommitteeApproved(e0,e1,Dadv,pk(skAdv),maliciousAdmissionSerial,maliciousUpdateSerial) at {18} (goal)
+
+The event CommitteeApproved(e0,e1,Dadv,pk(skAdv),maliciousAdmissionSerial,maliciousUpdateSerial) is executed at {18}.
+A trace has been found.
+RESULT event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial)) ==> event(CommitteeVote(C1,e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial)) && event(CommitteeVote(C2,e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial)) is false.
+-- Query event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial)) ==> event(CertificationEligible(Dadv,pk(skAdv[]))) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 312 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 115 rules.
+Starting query event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial)) ==> event(CertificationEligible(Dadv,pk(skAdv[])))
+goal reachable: event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial))
+
+Derivation:
+
+1. The message committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))) may be sent to the attacker at output {13}.
+attacker_wireMessage(committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)))).
+
+2. By 1, the attacker may know committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))).
+Using the function 2-proj-committeeApprovalRequest the attacker may obtain thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)).
+attacker_thresholdSignature(thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))).
+
+3. Using the function maliciousUpdateSerial the attacker may obtain maliciousUpdateSerial.
+attacker_serial(maliciousUpdateSerial).
+
+4. Using the function maliciousAdmissionSerial the attacker may obtain maliciousAdmissionSerial.
+attacker_serial(maliciousAdmissionSerial).
+
+5. Using the function pkChord the attacker may obtain pkChord.
+attacker_rootPublicKey(pkChord).
+
+6. The attacker initially knows skAdv[].
+attacker_skey(skAdv[]).
+
+7. By 6, the attacker may know skAdv[].
+Using the function pk the attacker may obtain pk(skAdv[]).
+attacker_pkey(pk(skAdv[])).
+
+8. Using the function Dadv the attacker may obtain Dadv.
+attacker_device(Dadv).
+
+9. Using the function C2 the attacker may obtain C2.
+attacker_device(C2).
+
+10. Using the function C1 the attacker may obtain C1.
+attacker_device(C1).
+
+11. Using the function e1 the attacker may obtain e1.
+attacker_epoch(e1).
+
+12. Using the function e0 the attacker may obtain e0.
+attacker_epoch(e0).
+
+13. Using the function pgbA the attacker may obtain pgbA.
+attacker_pgb(pgbA).
+
+14. Using the function tagCommittee the attacker may obtain tagCommittee.
+attacker_domainTag(tagCommittee).
+
+15. By 14, the attacker may know tagCommittee.
+By 13, the attacker may know pgbA.
+By 12, the attacker may know e0.
+By 11, the attacker may know e1.
+By 10, the attacker may know C1.
+By 9, the attacker may know C2.
+By 8, the attacker may know Dadv.
+By 8, the attacker may know Dadv.
+By 7, the attacker may know pk(skAdv[]).
+By 5, the attacker may know pkChord.
+By 4, the attacker may know maliciousAdmissionSerial.
+By 3, the attacker may know maliciousUpdateSerial.
+Using the function committeeProposal the attacker may obtain committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial).
+attacker_thresholdMessage(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)).
+
+16. By 15, the attacker may know committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial).
+By 2, the attacker may know thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)).
+Using the function committeeApprovalRequest the attacker may obtain committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))).
+attacker_wireMessage(committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)))).
+
+17. The message committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))) that the attacker may have by 16 may be received at input {14}.
+So event CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial) may be executed at {18}.
+event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial)).
+
+18. By 17, event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial)).
+The goal is reached, represented in the following fact:
+event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial)).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+event SetupComplete(pgbA,pkChord,pk(skCard)) at {1}
+
+event InitialCommitteeMember(C1,e0) at {2}
+
+event InitialCommitteeMember(C2,e0) at {3}
+
+event PGBLocked(pgbA) at {4}
+
+out(net, ~M) with ~M = reachSetup at {5}
+
+out(net, ~M_1) with ~M_1 = share1(e0) at {6}
+
+out(net, ~M_2) with ~M_2 = reachShare1Leak at {7}
+
+out(net, ~M_3) with ~M_3 = share2(e0) at {8}
+
+out(net, ~M_4) with ~M_4 = reachShare2Leak at {9}
+
+out(net, committeeApprovalRequest(committeeProposal(~M_5,~M_6,~M_7,~M_8,~M_9,~M_10,~M_11,~M_12,~M_13,~M_14,~M_15,~M_16),~M_17)) with ~M_5 = tagCommittee, ~M_6 = pgbA, ~M_7 = e0, ~M_8 = e1, ~M_9 = C1, ~M_10 = C2, ~M_11 = Dadv, ~M_12 = Dadv, ~M_13 = pk(skAdv), ~M_14 = pkChord, ~M_15 = maliciousAdmissionSerial, ~M_16 = maliciousUpdateSerial, ~M_17 = thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)) at {13}
+
+in(net, committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),~M_17)) with ~M_17 = thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)) at {14}
+
+event CommitteeApproved(e0,e1,Dadv,pk(skAdv),maliciousAdmissionSerial,maliciousUpdateSerial) at {18} (goal)
+
+The event CommitteeApproved(e0,e1,Dadv,pk(skAdv),maliciousAdmissionSerial,maliciousUpdateSerial) is executed at {18}.
+A trace has been found.
+RESULT event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial)) ==> event(CertificationEligible(Dadv,pk(skAdv[]))) is false.
+-- Query event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial)) ==> event(RegularMembershipAuthorized(G,Dadv,pk(skAdv[]),T,maliciousAdmissionSerial,NCompletion)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 312 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 115 rules.
+Starting query event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial)) ==> event(RegularMembershipAuthorized(G,Dadv,pk(skAdv[]),T,maliciousAdmissionSerial,NCompletion))
+goal reachable: event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial))
+
+Derivation:
+
+1. The message committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))) may be sent to the attacker at output {13}.
+attacker_wireMessage(committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)))).
+
+2. By 1, the attacker may know committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))).
+Using the function 2-proj-committeeApprovalRequest the attacker may obtain thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)).
+attacker_thresholdSignature(thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))).
+
+3. Using the function maliciousUpdateSerial the attacker may obtain maliciousUpdateSerial.
+attacker_serial(maliciousUpdateSerial).
+
+4. Using the function maliciousAdmissionSerial the attacker may obtain maliciousAdmissionSerial.
+attacker_serial(maliciousAdmissionSerial).
+
+5. Using the function pkChord the attacker may obtain pkChord.
+attacker_rootPublicKey(pkChord).
+
+6. The attacker initially knows skAdv[].
+attacker_skey(skAdv[]).
+
+7. By 6, the attacker may know skAdv[].
+Using the function pk the attacker may obtain pk(skAdv[]).
+attacker_pkey(pk(skAdv[])).
+
+8. Using the function Dadv the attacker may obtain Dadv.
+attacker_device(Dadv).
+
+9. Using the function C2 the attacker may obtain C2.
+attacker_device(C2).
+
+10. Using the function C1 the attacker may obtain C1.
+attacker_device(C1).
+
+11. Using the function e1 the attacker may obtain e1.
+attacker_epoch(e1).
+
+12. Using the function e0 the attacker may obtain e0.
+attacker_epoch(e0).
+
+13. Using the function pgbA the attacker may obtain pgbA.
+attacker_pgb(pgbA).
+
+14. Using the function tagCommittee the attacker may obtain tagCommittee.
+attacker_domainTag(tagCommittee).
+
+15. By 14, the attacker may know tagCommittee.
+By 13, the attacker may know pgbA.
+By 12, the attacker may know e0.
+By 11, the attacker may know e1.
+By 10, the attacker may know C1.
+By 9, the attacker may know C2.
+By 8, the attacker may know Dadv.
+By 8, the attacker may know Dadv.
+By 7, the attacker may know pk(skAdv[]).
+By 5, the attacker may know pkChord.
+By 4, the attacker may know maliciousAdmissionSerial.
+By 3, the attacker may know maliciousUpdateSerial.
+Using the function committeeProposal the attacker may obtain committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial).
+attacker_thresholdMessage(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)).
+
+16. By 15, the attacker may know committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial).
+By 2, the attacker may know thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)).
+Using the function committeeApprovalRequest the attacker may obtain committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))).
+attacker_wireMessage(committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)))).
+
+17. The message committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))) that the attacker may have by 16 may be received at input {14}.
+So event CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial) may be executed at {18}.
+event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial)).
+
+18. By 17, event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial)).
+The goal is reached, represented in the following fact:
+event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial)).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+event SetupComplete(pgbA,pkChord,pk(skCard)) at {1}
+
+event InitialCommitteeMember(C1,e0) at {2}
+
+event InitialCommitteeMember(C2,e0) at {3}
+
+event PGBLocked(pgbA) at {4}
+
+out(net, ~M) with ~M = reachSetup at {5}
+
+out(net, ~M_1) with ~M_1 = share1(e0) at {6}
+
+out(net, ~M_2) with ~M_2 = reachShare1Leak at {7}
+
+out(net, ~M_3) with ~M_3 = share2(e0) at {8}
+
+out(net, ~M_4) with ~M_4 = reachShare2Leak at {9}
+
+out(net, committeeApprovalRequest(committeeProposal(~M_5,~M_6,~M_7,~M_8,~M_9,~M_10,~M_11,~M_12,~M_13,~M_14,~M_15,~M_16),~M_17)) with ~M_5 = tagCommittee, ~M_6 = pgbA, ~M_7 = e0, ~M_8 = e1, ~M_9 = C1, ~M_10 = C2, ~M_11 = Dadv, ~M_12 = Dadv, ~M_13 = pk(skAdv), ~M_14 = pkChord, ~M_15 = maliciousAdmissionSerial, ~M_16 = maliciousUpdateSerial, ~M_17 = thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)) at {13}
+
+in(net, committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),~M_17)) with ~M_17 = thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)) at {14}
+
+event CommitteeApproved(e0,e1,Dadv,pk(skAdv),maliciousAdmissionSerial,maliciousUpdateSerial) at {18} (goal)
+
+The event CommitteeApproved(e0,e1,Dadv,pk(skAdv),maliciousAdmissionSerial,maliciousUpdateSerial) is executed at {18}.
+A trace has been found.
+RESULT event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial)) ==> event(RegularMembershipAuthorized(G,Dadv,pk(skAdv[]),T,maliciousAdmissionSerial,NCompletion)) is false.
+-- Query event(ReshareStarted(E0,E1,D,PK,SAdmission,SUpdate)) ==> event(CommitteeApproved(E0,E1,D,PK,SAdmission,SUpdate)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 312 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 115 rules.
+Starting query event(ReshareStarted(E0,E1,D,PK,SAdmission,SUpdate)) ==> event(CommitteeApproved(E0,E1,D,PK,SAdmission,SUpdate))
+goal reachable: b-event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial)) -> event(ReshareStarted(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial))
+RESULT event(ReshareStarted(E0,E1,D,PK,SAdmission,SUpdate)) ==> event(CommitteeApproved(E0,E1,D,PK,SAdmission,SUpdate)) is true.
+-- Query event(ShareActivated(Dadv,e1,pkChord,SUpdate)) ==> event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,SUpdate)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 314 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 117 rules.
+Starting query event(ShareActivated(Dadv,e1,pkChord,SUpdate)) ==> event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,SUpdate))
+goal reachable: b-event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial)) -> event(ShareActivated(Dadv,e1,pkChord,maliciousUpdateSerial))
+RESULT event(ShareActivated(Dadv,e1,pkChord,SUpdate)) ==> event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,SUpdate)) is true.
+-- Query event(ShareActivated(C1,e1,pkChord,SUpdate)) ==> event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,SUpdate)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 314 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 117 rules.
+Starting query event(ShareActivated(C1,e1,pkChord,SUpdate)) ==> event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,SUpdate))
+goal reachable: b-event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial)) -> event(ShareActivated(C1,e1,pkChord,maliciousUpdateSerial))
+RESULT event(ShareActivated(C1,e1,pkChord,SUpdate)) ==> event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,SUpdate)) is true.
+-- Query event(ShareActivated(C2,e1,pkChord,SUpdate)) ==> event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,SUpdate)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 314 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 117 rules.
+Starting query event(ShareActivated(C2,e1,pkChord,SUpdate)) ==> event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,SUpdate))
+goal reachable: b-event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial)) -> event(ShareActivated(C2,e1,pkChord,maliciousUpdateSerial))
+RESULT event(ShareActivated(C2,e1,pkChord,SUpdate)) ==> event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,SUpdate)) is true.
+-- Query event(CommitteeActivated(E,PKRoot,SUpdate)) ==> event(CommitteeApproved(e0,E,Dadv,pk(skAdv[]),maliciousAdmissionSerial,SUpdate)) && event(ShareActivated(C1,E,PKRoot,SUpdate)) && event(ShareActivated(C2,E,PKRoot,SUpdate)) && event(ShareActivated(Dadv,E,PKRoot,SUpdate)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 312 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 115 rules.
+Starting query event(CommitteeActivated(E,PKRoot,SUpdate)) ==> event(CommitteeApproved(e0,E,Dadv,pk(skAdv[]),maliciousAdmissionSerial,SUpdate)) && event(ShareActivated(C1,E,PKRoot,SUpdate)) && event(ShareActivated(C2,E,PKRoot,SUpdate)) && event(ShareActivated(Dadv,E,PKRoot,SUpdate))
+goal reachable: b-event(ShareActivated(Dadv,e1,pkChord,maliciousUpdateSerial)) && b-event(ShareActivated(C2,e1,pkChord,maliciousUpdateSerial)) && b-event(ShareActivated(C1,e1,pkChord,maliciousUpdateSerial)) && b-event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial)) -> event(CommitteeActivated(e1,pkChord,maliciousUpdateSerial))
+RESULT event(CommitteeActivated(E,PKRoot,SUpdate)) ==> event(CommitteeApproved(e0,E,Dadv,pk(skAdv[]),maliciousAdmissionSerial,SUpdate)) && event(ShareActivated(C1,E,PKRoot,SUpdate)) && event(ShareActivated(C2,E,PKRoot,SUpdate)) && event(ShareActivated(Dadv,E,PKRoot,SUpdate)) is true.
+-- Query event(CommitteeActivated(E,PKRoot,SUpdate)) ==> PKRoot = pkChord in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 312 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 115 rules.
+Starting query event(CommitteeActivated(E,PKRoot,SUpdate)) ==> PKRoot = pkChord
+goal reachable: event(CommitteeActivated(e1,pkChord,maliciousUpdateSerial))
+RESULT event(CommitteeActivated(E,PKRoot,SUpdate)) ==> PKRoot = pkChord is true.
+-- Query event(RootContinuityAccepted(E,PKRoot,P,SUpdate)) ==> event(CommitteeActivated(E,PKRoot,SUpdate)) && PKRoot = pkChord in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 312 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 115 rules.
+Starting query event(RootContinuityAccepted(E,PKRoot,P,SUpdate)) ==> event(CommitteeActivated(E,PKRoot,SUpdate)) && PKRoot = pkChord
+goal reachable: b-event(CommitteeActivated(e1,pkChord,maliciousUpdateSerial)) -> event(RootContinuityAccepted(e1,pkChord,pair13,maliciousUpdateSerial))
+RESULT event(RootContinuityAccepted(E,PKRoot,P,SUpdate)) ==> event(CommitteeActivated(E,PKRoot,SUpdate)) && PKRoot = pkChord is true.
+-- Query not event(ShareActivated(C3,e1,pkChord,S)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 314 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 117 rules.
+Starting query not event(ShareActivated(C3,e1,pkChord,S))
+RESULT not event(ShareActivated(C3,e1,pkChord,S)) is true.
+-- Query not event(ShareActivated(O1,E,pkChord,S)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 314 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 117 rules.
+Starting query not event(ShareActivated(O1,E,pkChord,S))
+RESULT not event(ShareActivated(O1,E,pkChord,S)) is true.
+-- Query not attacker_bitstring(reachSetup[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 311 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 114 rules.
+Starting query not attacker_bitstring(reachSetup[])
+goal reachable: attacker_bitstring(reachSetup[])
+
+Derivation:
+
+1. The message reachSetup[] may be sent to the attacker at output {5}.
+attacker_bitstring(reachSetup[]).
+
+2. By 1, attacker_bitstring(reachSetup[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reachSetup[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+event SetupComplete(pgbA,pkChord,pk(skCard)) at {1}
+
+event InitialCommitteeMember(C1,e0) at {2}
+
+event InitialCommitteeMember(C2,e0) at {3}
+
+event PGBLocked(pgbA) at {4}
+
+out(net, ~M) with ~M = reachSetup at {5}
+
+out(net, ~M_1) with ~M_1 = share1(e0) at {6}
+
+out(net, ~M_2) with ~M_2 = reachShare1Leak at {7}
+
+out(net, ~M_3) with ~M_3 = share2(e0) at {8}
+
+out(net, ~M_4) with ~M_4 = reachShare2Leak at {9}
+
+out(net, committeeApprovalRequest(committeeProposal(~M_5,~M_6,~M_7,~M_8,~M_9,~M_10,~M_11,~M_12,~M_13,~M_14,~M_15,~M_16),~M_17)) with ~M_5 = tagCommittee, ~M_6 = pgbA, ~M_7 = e0, ~M_8 = e1, ~M_9 = C1, ~M_10 = C2, ~M_11 = Dadv, ~M_12 = Dadv, ~M_13 = pk(skAdv), ~M_14 = pkChord, ~M_15 = maliciousAdmissionSerial, ~M_16 = maliciousUpdateSerial, ~M_17 = thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)) at {13}
+
+The attacker has the message ~M = reachSetup.
+A trace has been found.
+RESULT not attacker_bitstring(reachSetup[]) is false.
+-- Query not attacker_bitstring(reachShare1Leak[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 311 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 114 rules.
+Starting query not attacker_bitstring(reachShare1Leak[])
+goal reachable: attacker_bitstring(reachShare1Leak[])
+
+Derivation:
+
+1. The message reachShare1Leak[] may be sent to the attacker at output {7}.
+attacker_bitstring(reachShare1Leak[]).
+
+2. By 1, attacker_bitstring(reachShare1Leak[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reachShare1Leak[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+event SetupComplete(pgbA,pkChord,pk(skCard)) at {1}
+
+event InitialCommitteeMember(C1,e0) at {2}
+
+event InitialCommitteeMember(C2,e0) at {3}
+
+event PGBLocked(pgbA) at {4}
+
+out(net, ~M) with ~M = reachSetup at {5}
+
+out(net, ~M_1) with ~M_1 = share1(e0) at {6}
+
+out(net, ~M_2) with ~M_2 = reachShare1Leak at {7}
+
+out(net, ~M_3) with ~M_3 = share2(e0) at {8}
+
+out(net, ~M_4) with ~M_4 = reachShare2Leak at {9}
+
+out(net, committeeApprovalRequest(committeeProposal(~M_5,~M_6,~M_7,~M_8,~M_9,~M_10,~M_11,~M_12,~M_13,~M_14,~M_15,~M_16),~M_17)) with ~M_5 = tagCommittee, ~M_6 = pgbA, ~M_7 = e0, ~M_8 = e1, ~M_9 = C1, ~M_10 = C2, ~M_11 = Dadv, ~M_12 = Dadv, ~M_13 = pk(skAdv), ~M_14 = pkChord, ~M_15 = maliciousAdmissionSerial, ~M_16 = maliciousUpdateSerial, ~M_17 = thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)) at {13}
+
+The attacker has the message ~M_2 = reachShare1Leak.
+A trace has been found.
+RESULT not attacker_bitstring(reachShare1Leak[]) is false.
+-- Query not attacker_bitstring(reachShare2Leak[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 311 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 114 rules.
+Starting query not attacker_bitstring(reachShare2Leak[])
+goal reachable: attacker_bitstring(reachShare2Leak[])
+
+Derivation:
+
+1. The message reachShare2Leak[] may be sent to the attacker at output {9}.
+attacker_bitstring(reachShare2Leak[]).
+
+2. By 1, attacker_bitstring(reachShare2Leak[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reachShare2Leak[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+event SetupComplete(pgbA,pkChord,pk(skCard)) at {1}
+
+event InitialCommitteeMember(C1,e0) at {2}
+
+event InitialCommitteeMember(C2,e0) at {3}
+
+event PGBLocked(pgbA) at {4}
+
+out(net, ~M) with ~M = reachSetup at {5}
+
+out(net, ~M_1) with ~M_1 = share1(e0) at {6}
+
+out(net, ~M_2) with ~M_2 = reachShare1Leak at {7}
+
+out(net, ~M_3) with ~M_3 = share2(e0) at {8}
+
+out(net, ~M_4) with ~M_4 = reachShare2Leak at {9}
+
+out(net, committeeApprovalRequest(committeeProposal(~M_5,~M_6,~M_7,~M_8,~M_9,~M_10,~M_11,~M_12,~M_13,~M_14,~M_15,~M_16),~M_17)) with ~M_5 = tagCommittee, ~M_6 = pgbA, ~M_7 = e0, ~M_8 = e1, ~M_9 = C1, ~M_10 = C2, ~M_11 = Dadv, ~M_12 = Dadv, ~M_13 = pk(skAdv), ~M_14 = pkChord, ~M_15 = maliciousAdmissionSerial, ~M_16 = maliciousUpdateSerial, ~M_17 = thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)) at {13}
+
+The attacker has the message ~M_4 = reachShare2Leak.
+A trace has been found.
+RESULT not attacker_bitstring(reachShare2Leak[]) is false.
+-- Query not attacker_bitstring(reachMaliciousApproval[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 311 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 114 rules.
+Starting query not attacker_bitstring(reachMaliciousApproval[])
+goal reachable: attacker_bitstring(reachMaliciousApproval[])
+
+Derivation:
+
+1. The message committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))) may be sent to the attacker at output {13}.
+attacker_wireMessage(committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)))).
+
+2. By 1, the attacker may know committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))).
+Using the function 2-proj-committeeApprovalRequest the attacker may obtain thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)).
+attacker_thresholdSignature(thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))).
+
+3. Using the function maliciousUpdateSerial the attacker may obtain maliciousUpdateSerial.
+attacker_serial(maliciousUpdateSerial).
+
+4. Using the function maliciousAdmissionSerial the attacker may obtain maliciousAdmissionSerial.
+attacker_serial(maliciousAdmissionSerial).
+
+5. Using the function pkChord the attacker may obtain pkChord.
+attacker_rootPublicKey(pkChord).
+
+6. The attacker initially knows skAdv[].
+attacker_skey(skAdv[]).
+
+7. By 6, the attacker may know skAdv[].
+Using the function pk the attacker may obtain pk(skAdv[]).
+attacker_pkey(pk(skAdv[])).
+
+8. Using the function Dadv the attacker may obtain Dadv.
+attacker_device(Dadv).
+
+9. Using the function C2 the attacker may obtain C2.
+attacker_device(C2).
+
+10. Using the function C1 the attacker may obtain C1.
+attacker_device(C1).
+
+11. Using the function e1 the attacker may obtain e1.
+attacker_epoch(e1).
+
+12. Using the function e0 the attacker may obtain e0.
+attacker_epoch(e0).
+
+13. Using the function pgbA the attacker may obtain pgbA.
+attacker_pgb(pgbA).
+
+14. Using the function tagCommittee the attacker may obtain tagCommittee.
+attacker_domainTag(tagCommittee).
+
+15. By 14, the attacker may know tagCommittee.
+By 13, the attacker may know pgbA.
+By 12, the attacker may know e0.
+By 11, the attacker may know e1.
+By 10, the attacker may know C1.
+By 9, the attacker may know C2.
+By 8, the attacker may know Dadv.
+By 8, the attacker may know Dadv.
+By 7, the attacker may know pk(skAdv[]).
+By 5, the attacker may know pkChord.
+By 4, the attacker may know maliciousAdmissionSerial.
+By 3, the attacker may know maliciousUpdateSerial.
+Using the function committeeProposal the attacker may obtain committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial).
+attacker_thresholdMessage(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)).
+
+16. By 15, the attacker may know committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial).
+By 2, the attacker may know thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)).
+Using the function committeeApprovalRequest the attacker may obtain committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))).
+attacker_wireMessage(committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)))).
+
+17. The message committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))) that the attacker may have by 16 may be received at input {14}.
+So the message reachMaliciousApproval[] may be sent to the attacker at output {20}.
+attacker_bitstring(reachMaliciousApproval[]).
+
+18. By 17, attacker_bitstring(reachMaliciousApproval[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reachMaliciousApproval[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+event SetupComplete(pgbA,pkChord,pk(skCard)) at {1}
+
+event InitialCommitteeMember(C1,e0) at {2}
+
+event InitialCommitteeMember(C2,e0) at {3}
+
+event PGBLocked(pgbA) at {4}
+
+out(net, ~M) with ~M = reachSetup at {5}
+
+out(net, ~M_1) with ~M_1 = share1(e0) at {6}
+
+out(net, ~M_2) with ~M_2 = reachShare1Leak at {7}
+
+out(net, ~M_3) with ~M_3 = share2(e0) at {8}
+
+out(net, ~M_4) with ~M_4 = reachShare2Leak at {9}
+
+out(net, committeeApprovalRequest(committeeProposal(~M_5,~M_6,~M_7,~M_8,~M_9,~M_10,~M_11,~M_12,~M_13,~M_14,~M_15,~M_16),~M_17)) with ~M_5 = tagCommittee, ~M_6 = pgbA, ~M_7 = e0, ~M_8 = e1, ~M_9 = C1, ~M_10 = C2, ~M_11 = Dadv, ~M_12 = Dadv, ~M_13 = pk(skAdv), ~M_14 = pkChord, ~M_15 = maliciousAdmissionSerial, ~M_16 = maliciousUpdateSerial, ~M_17 = thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)) at {13}
+
+in(net, committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),~M_17)) with ~M_17 = thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)) at {14}
+
+event CommitteeApproved(e0,e1,Dadv,pk(skAdv),maliciousAdmissionSerial,maliciousUpdateSerial) at {18}
+
+event ReshareStarted(e0,e1,Dadv,pk(skAdv),maliciousAdmissionSerial,maliciousUpdateSerial) at {19}
+
+out(net, ~M_18) with ~M_18 = reachMaliciousApproval at {20}
+
+event SharePackageSent(C1,e1,pkChord,maliciousUpdateSerial) at {21}
+
+out(net, ~M_19) with ~M_19 = aenc(sharePackage(pgbA,e1,C1,pkChord,share1(e1),maliciousUpdateSerial),pk(skC1Device)) at {22}
+
+event SharePackageSent(C2,e1,pkChord,maliciousUpdateSerial) at {23}
+
+out(net, ~M_20) with ~M_20 = aenc(sharePackage(pgbA,e1,C2,pkChord,share2(e1),maliciousUpdateSerial),pk(skC2Device)) at {24}
+
+event SharePackageSent(Dadv,e1,pkChord,maliciousUpdateSerial) at {25}
+
+out(net, ~M_21) with ~M_21 = aenc(sharePackage(pgbA,e1,Dadv,pkChord,share3(e1),maliciousUpdateSerial),pk(skAdv)) at {26}
+
+The attacker has the message ~M_18 = reachMaliciousApproval.
+A trace has been found.
+RESULT not attacker_bitstring(reachMaliciousApproval[]) is false.
+-- Query not attacker_bitstring(reachShareC1[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 311 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 114 rules.
+Starting query not attacker_bitstring(reachShareC1[])
+goal reachable: attacker_bitstring(reachShareC1[])
+
+Derivation:
+
+1. The message committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))) may be sent to the attacker at output {13}.
+attacker_wireMessage(committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)))).
+
+2. By 1, the attacker may know committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))).
+Using the function 2-proj-committeeApprovalRequest the attacker may obtain thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)).
+attacker_thresholdSignature(thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))).
+
+3. Using the function maliciousUpdateSerial the attacker may obtain maliciousUpdateSerial.
+attacker_serial(maliciousUpdateSerial).
+
+4. Using the function maliciousAdmissionSerial the attacker may obtain maliciousAdmissionSerial.
+attacker_serial(maliciousAdmissionSerial).
+
+5. Using the function pkChord the attacker may obtain pkChord.
+attacker_rootPublicKey(pkChord).
+
+6. The attacker initially knows skAdv[].
+attacker_skey(skAdv[]).
+
+7. By 6, the attacker may know skAdv[].
+Using the function pk the attacker may obtain pk(skAdv[]).
+attacker_pkey(pk(skAdv[])).
+
+8. Using the function Dadv the attacker may obtain Dadv.
+attacker_device(Dadv).
+
+9. Using the function C2 the attacker may obtain C2.
+attacker_device(C2).
+
+10. Using the function C1 the attacker may obtain C1.
+attacker_device(C1).
+
+11. Using the function e1 the attacker may obtain e1.
+attacker_epoch(e1).
+
+12. Using the function e0 the attacker may obtain e0.
+attacker_epoch(e0).
+
+13. Using the function pgbA the attacker may obtain pgbA.
+attacker_pgb(pgbA).
+
+14. Using the function tagCommittee the attacker may obtain tagCommittee.
+attacker_domainTag(tagCommittee).
+
+15. By 14, the attacker may know tagCommittee.
+By 13, the attacker may know pgbA.
+By 12, the attacker may know e0.
+By 11, the attacker may know e1.
+By 10, the attacker may know C1.
+By 9, the attacker may know C2.
+By 8, the attacker may know Dadv.
+By 8, the attacker may know Dadv.
+By 7, the attacker may know pk(skAdv[]).
+By 5, the attacker may know pkChord.
+By 4, the attacker may know maliciousAdmissionSerial.
+By 3, the attacker may know maliciousUpdateSerial.
+Using the function committeeProposal the attacker may obtain committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial).
+attacker_thresholdMessage(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)).
+
+16. By 15, the attacker may know committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial).
+By 2, the attacker may know thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)).
+Using the function committeeApprovalRequest the attacker may obtain committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))).
+attacker_wireMessage(committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)))).
+
+17. The message committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))) that the attacker may have by 16 may be received at input {14}.
+So the message aenc(sharePackage(pgbA,e1,C1,pkChord,share1(e1),maliciousUpdateSerial),pk(skC1Device[])) may be sent to the attacker at output {22}.
+attacker_ciphertext(aenc(sharePackage(pgbA,e1,C1,pkChord,share1(e1),maliciousUpdateSerial),pk(skC1Device[]))).
+
+18. The message aenc(sharePackage(pgbA,e1,C1,pkChord,share1(e1),maliciousUpdateSerial),pk(skC1Device[])) that the attacker may have by 17 may be received at input {33}.
+So the message reachShareC1[] may be sent to the attacker at output {38}.
+attacker_bitstring(reachShareC1[]).
+
+19. By 18, attacker_bitstring(reachShareC1[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reachShareC1[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+event SetupComplete(pgbA,pkChord,pk(skCard)) at {1}
+
+event InitialCommitteeMember(C1,e0) at {2}
+
+event InitialCommitteeMember(C2,e0) at {3}
+
+event PGBLocked(pgbA) at {4}
+
+out(net, ~M) with ~M = reachSetup at {5}
+
+out(net, ~M_1) with ~M_1 = share1(e0) at {6}
+
+out(net, ~M_2) with ~M_2 = reachShare1Leak at {7}
+
+out(net, ~M_3) with ~M_3 = share2(e0) at {8}
+
+out(net, ~M_4) with ~M_4 = reachShare2Leak at {9}
+
+out(net, committeeApprovalRequest(committeeProposal(~M_5,~M_6,~M_7,~M_8,~M_9,~M_10,~M_11,~M_12,~M_13,~M_14,~M_15,~M_16),~M_17)) with ~M_5 = tagCommittee, ~M_6 = pgbA, ~M_7 = e0, ~M_8 = e1, ~M_9 = C1, ~M_10 = C2, ~M_11 = Dadv, ~M_12 = Dadv, ~M_13 = pk(skAdv), ~M_14 = pkChord, ~M_15 = maliciousAdmissionSerial, ~M_16 = maliciousUpdateSerial, ~M_17 = thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)) at {13}
+
+in(net, committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),~M_17)) with ~M_17 = thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)) at {14}
+
+event CommitteeApproved(e0,e1,Dadv,pk(skAdv),maliciousAdmissionSerial,maliciousUpdateSerial) at {18}
+
+event ReshareStarted(e0,e1,Dadv,pk(skAdv),maliciousAdmissionSerial,maliciousUpdateSerial) at {19}
+
+out(net, ~M_18) with ~M_18 = reachMaliciousApproval at {20}
+
+event SharePackageSent(C1,e1,pkChord,maliciousUpdateSerial) at {21}
+
+out(net, ~M_19) with ~M_19 = aenc(sharePackage(pgbA,e1,C1,pkChord,share1(e1),maliciousUpdateSerial),pk(skC1Device)) at {22}
+
+event SharePackageSent(C2,e1,pkChord,maliciousUpdateSerial) at {23}
+
+out(net, ~M_20) with ~M_20 = aenc(sharePackage(pgbA,e1,C2,pkChord,share2(e1),maliciousUpdateSerial),pk(skC2Device)) at {24}
+
+event SharePackageSent(Dadv,e1,pkChord,maliciousUpdateSerial) at {25}
+
+out(net, ~M_21) with ~M_21 = aenc(sharePackage(pgbA,e1,Dadv,pkChord,share3(e1),maliciousUpdateSerial),pk(skAdv)) at {26}
+
+in(net, ~M_19) with ~M_19 = aenc(sharePackage(pgbA,e1,C1,pkChord,share1(e1),maliciousUpdateSerial),pk(skC1Device)) at {33}
+
+event ShareActivated(C1,e1,pkChord,maliciousUpdateSerial) at {37}
+
+out(net, ~M_22) with ~M_22 = reachShareC1 at {38}
+
+The attacker has the message ~M_22 = reachShareC1.
+A trace has been found.
+RESULT not attacker_bitstring(reachShareC1[]) is false.
+-- Query not attacker_bitstring(reachShareC2[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 311 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 114 rules.
+Starting query not attacker_bitstring(reachShareC2[])
+goal reachable: attacker_bitstring(reachShareC2[])
+
+Derivation:
+
+1. The message committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))) may be sent to the attacker at output {13}.
+attacker_wireMessage(committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)))).
+
+2. By 1, the attacker may know committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))).
+Using the function 2-proj-committeeApprovalRequest the attacker may obtain thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)).
+attacker_thresholdSignature(thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))).
+
+3. Using the function maliciousUpdateSerial the attacker may obtain maliciousUpdateSerial.
+attacker_serial(maliciousUpdateSerial).
+
+4. Using the function maliciousAdmissionSerial the attacker may obtain maliciousAdmissionSerial.
+attacker_serial(maliciousAdmissionSerial).
+
+5. Using the function pkChord the attacker may obtain pkChord.
+attacker_rootPublicKey(pkChord).
+
+6. The attacker initially knows skAdv[].
+attacker_skey(skAdv[]).
+
+7. By 6, the attacker may know skAdv[].
+Using the function pk the attacker may obtain pk(skAdv[]).
+attacker_pkey(pk(skAdv[])).
+
+8. Using the function Dadv the attacker may obtain Dadv.
+attacker_device(Dadv).
+
+9. Using the function C2 the attacker may obtain C2.
+attacker_device(C2).
+
+10. Using the function C1 the attacker may obtain C1.
+attacker_device(C1).
+
+11. Using the function e1 the attacker may obtain e1.
+attacker_epoch(e1).
+
+12. Using the function e0 the attacker may obtain e0.
+attacker_epoch(e0).
+
+13. Using the function pgbA the attacker may obtain pgbA.
+attacker_pgb(pgbA).
+
+14. Using the function tagCommittee the attacker may obtain tagCommittee.
+attacker_domainTag(tagCommittee).
+
+15. By 14, the attacker may know tagCommittee.
+By 13, the attacker may know pgbA.
+By 12, the attacker may know e0.
+By 11, the attacker may know e1.
+By 10, the attacker may know C1.
+By 9, the attacker may know C2.
+By 8, the attacker may know Dadv.
+By 8, the attacker may know Dadv.
+By 7, the attacker may know pk(skAdv[]).
+By 5, the attacker may know pkChord.
+By 4, the attacker may know maliciousAdmissionSerial.
+By 3, the attacker may know maliciousUpdateSerial.
+Using the function committeeProposal the attacker may obtain committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial).
+attacker_thresholdMessage(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)).
+
+16. By 15, the attacker may know committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial).
+By 2, the attacker may know thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)).
+Using the function committeeApprovalRequest the attacker may obtain committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))).
+attacker_wireMessage(committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)))).
+
+17. The message committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))) that the attacker may have by 16 may be received at input {14}.
+So the message aenc(sharePackage(pgbA,e1,C2,pkChord,share2(e1),maliciousUpdateSerial),pk(skC2Device[])) may be sent to the attacker at output {24}.
+attacker_ciphertext(aenc(sharePackage(pgbA,e1,C2,pkChord,share2(e1),maliciousUpdateSerial),pk(skC2Device[]))).
+
+18. The message aenc(sharePackage(pgbA,e1,C2,pkChord,share2(e1),maliciousUpdateSerial),pk(skC2Device[])) that the attacker may have by 17 may be received at input {45}.
+So the message reachShareC2[] may be sent to the attacker at output {50}.
+attacker_bitstring(reachShareC2[]).
+
+19. By 18, attacker_bitstring(reachShareC2[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reachShareC2[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+event SetupComplete(pgbA,pkChord,pk(skCard)) at {1}
+
+event InitialCommitteeMember(C1,e0) at {2}
+
+event InitialCommitteeMember(C2,e0) at {3}
+
+event PGBLocked(pgbA) at {4}
+
+out(net, ~M) with ~M = reachSetup at {5}
+
+out(net, ~M_1) with ~M_1 = share1(e0) at {6}
+
+out(net, ~M_2) with ~M_2 = reachShare1Leak at {7}
+
+out(net, ~M_3) with ~M_3 = share2(e0) at {8}
+
+out(net, ~M_4) with ~M_4 = reachShare2Leak at {9}
+
+out(net, committeeApprovalRequest(committeeProposal(~M_5,~M_6,~M_7,~M_8,~M_9,~M_10,~M_11,~M_12,~M_13,~M_14,~M_15,~M_16),~M_17)) with ~M_5 = tagCommittee, ~M_6 = pgbA, ~M_7 = e0, ~M_8 = e1, ~M_9 = C1, ~M_10 = C2, ~M_11 = Dadv, ~M_12 = Dadv, ~M_13 = pk(skAdv), ~M_14 = pkChord, ~M_15 = maliciousAdmissionSerial, ~M_16 = maliciousUpdateSerial, ~M_17 = thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)) at {13}
+
+in(net, committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),~M_17)) with ~M_17 = thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)) at {14}
+
+event CommitteeApproved(e0,e1,Dadv,pk(skAdv),maliciousAdmissionSerial,maliciousUpdateSerial) at {18}
+
+event ReshareStarted(e0,e1,Dadv,pk(skAdv),maliciousAdmissionSerial,maliciousUpdateSerial) at {19}
+
+out(net, ~M_18) with ~M_18 = reachMaliciousApproval at {20}
+
+event SharePackageSent(C1,e1,pkChord,maliciousUpdateSerial) at {21}
+
+out(net, ~M_19) with ~M_19 = aenc(sharePackage(pgbA,e1,C1,pkChord,share1(e1),maliciousUpdateSerial),pk(skC1Device)) at {22}
+
+event SharePackageSent(C2,e1,pkChord,maliciousUpdateSerial) at {23}
+
+out(net, ~M_20) with ~M_20 = aenc(sharePackage(pgbA,e1,C2,pkChord,share2(e1),maliciousUpdateSerial),pk(skC2Device)) at {24}
+
+event SharePackageSent(Dadv,e1,pkChord,maliciousUpdateSerial) at {25}
+
+out(net, ~M_21) with ~M_21 = aenc(sharePackage(pgbA,e1,Dadv,pkChord,share3(e1),maliciousUpdateSerial),pk(skAdv)) at {26}
+
+in(net, ~M_20) with ~M_20 = aenc(sharePackage(pgbA,e1,C2,pkChord,share2(e1),maliciousUpdateSerial),pk(skC2Device)) at {45}
+
+event ShareActivated(C2,e1,pkChord,maliciousUpdateSerial) at {49}
+
+out(net, ~M_22) with ~M_22 = reachShareC2 at {50}
+
+The attacker has the message ~M_22 = reachShareC2.
+A trace has been found.
+RESULT not attacker_bitstring(reachShareC2[]) is false.
+-- Query not attacker_bitstring(reachShareDadv[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 311 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 114 rules.
+Starting query not attacker_bitstring(reachShareDadv[])
+goal reachable: attacker_bitstring(reachShareDadv[])
+
+Derivation:
+
+1. The message committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))) may be sent to the attacker at output {13}.
+attacker_wireMessage(committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)))).
+
+2. By 1, the attacker may know committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))).
+Using the function 2-proj-committeeApprovalRequest the attacker may obtain thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)).
+attacker_thresholdSignature(thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))).
+
+3. Using the function maliciousUpdateSerial the attacker may obtain maliciousUpdateSerial.
+attacker_serial(maliciousUpdateSerial).
+
+4. Using the function maliciousAdmissionSerial the attacker may obtain maliciousAdmissionSerial.
+attacker_serial(maliciousAdmissionSerial).
+
+5. Using the function pkChord the attacker may obtain pkChord.
+attacker_rootPublicKey(pkChord).
+
+6. The attacker initially knows skAdv[].
+attacker_skey(skAdv[]).
+
+7. By 6, the attacker may know skAdv[].
+Using the function pk the attacker may obtain pk(skAdv[]).
+attacker_pkey(pk(skAdv[])).
+
+8. Using the function Dadv the attacker may obtain Dadv.
+attacker_device(Dadv).
+
+9. Using the function C2 the attacker may obtain C2.
+attacker_device(C2).
+
+10. Using the function C1 the attacker may obtain C1.
+attacker_device(C1).
+
+11. Using the function e1 the attacker may obtain e1.
+attacker_epoch(e1).
+
+12. Using the function e0 the attacker may obtain e0.
+attacker_epoch(e0).
+
+13. Using the function pgbA the attacker may obtain pgbA.
+attacker_pgb(pgbA).
+
+14. Using the function tagCommittee the attacker may obtain tagCommittee.
+attacker_domainTag(tagCommittee).
+
+15. By 14, the attacker may know tagCommittee.
+By 13, the attacker may know pgbA.
+By 12, the attacker may know e0.
+By 11, the attacker may know e1.
+By 10, the attacker may know C1.
+By 9, the attacker may know C2.
+By 8, the attacker may know Dadv.
+By 8, the attacker may know Dadv.
+By 7, the attacker may know pk(skAdv[]).
+By 5, the attacker may know pkChord.
+By 4, the attacker may know maliciousAdmissionSerial.
+By 3, the attacker may know maliciousUpdateSerial.
+Using the function committeeProposal the attacker may obtain committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial).
+attacker_thresholdMessage(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)).
+
+16. By 15, the attacker may know committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial).
+By 2, the attacker may know thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)).
+Using the function committeeApprovalRequest the attacker may obtain committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))).
+attacker_wireMessage(committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)))).
+
+17. The message committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))) that the attacker may have by 16 may be received at input {14}.
+So the message aenc(sharePackage(pgbA,e1,Dadv,pkChord,share3(e1),maliciousUpdateSerial),pk(skAdv[])) may be sent to the attacker at output {26}.
+attacker_ciphertext(aenc(sharePackage(pgbA,e1,Dadv,pkChord,share3(e1),maliciousUpdateSerial),pk(skAdv[]))).
+
+18. The message aenc(sharePackage(pgbA,e1,Dadv,pkChord,share3(e1),maliciousUpdateSerial),pk(skAdv[])) that the attacker may have by 17 may be received at input {52}.
+So the message reachShareDadv[] may be sent to the attacker at output {58}.
+attacker_bitstring(reachShareDadv[]).
+
+19. By 18, attacker_bitstring(reachShareDadv[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reachShareDadv[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+event SetupComplete(pgbA,pkChord,pk(skCard)) at {1}
+
+event InitialCommitteeMember(C1,e0) at {2}
+
+event InitialCommitteeMember(C2,e0) at {3}
+
+event PGBLocked(pgbA) at {4}
+
+out(net, ~M) with ~M = reachSetup at {5}
+
+out(net, ~M_1) with ~M_1 = share1(e0) at {6}
+
+out(net, ~M_2) with ~M_2 = reachShare1Leak at {7}
+
+out(net, ~M_3) with ~M_3 = share2(e0) at {8}
+
+out(net, ~M_4) with ~M_4 = reachShare2Leak at {9}
+
+out(net, committeeApprovalRequest(committeeProposal(~M_5,~M_6,~M_7,~M_8,~M_9,~M_10,~M_11,~M_12,~M_13,~M_14,~M_15,~M_16),~M_17)) with ~M_5 = tagCommittee, ~M_6 = pgbA, ~M_7 = e0, ~M_8 = e1, ~M_9 = C1, ~M_10 = C2, ~M_11 = Dadv, ~M_12 = Dadv, ~M_13 = pk(skAdv), ~M_14 = pkChord, ~M_15 = maliciousAdmissionSerial, ~M_16 = maliciousUpdateSerial, ~M_17 = thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)) at {13}
+
+in(net, committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),~M_17)) with ~M_17 = thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)) at {14}
+
+event CommitteeApproved(e0,e1,Dadv,pk(skAdv),maliciousAdmissionSerial,maliciousUpdateSerial) at {18}
+
+event ReshareStarted(e0,e1,Dadv,pk(skAdv),maliciousAdmissionSerial,maliciousUpdateSerial) at {19}
+
+out(net, ~M_18) with ~M_18 = reachMaliciousApproval at {20}
+
+event SharePackageSent(C1,e1,pkChord,maliciousUpdateSerial) at {21}
+
+out(net, ~M_19) with ~M_19 = aenc(sharePackage(pgbA,e1,C1,pkChord,share1(e1),maliciousUpdateSerial),pk(skC1Device)) at {22}
+
+event SharePackageSent(C2,e1,pkChord,maliciousUpdateSerial) at {23}
+
+out(net, ~M_20) with ~M_20 = aenc(sharePackage(pgbA,e1,C2,pkChord,share2(e1),maliciousUpdateSerial),pk(skC2Device)) at {24}
+
+event SharePackageSent(Dadv,e1,pkChord,maliciousUpdateSerial) at {25}
+
+out(net, ~M_21) with ~M_21 = aenc(sharePackage(pgbA,e1,Dadv,pkChord,share3(e1),maliciousUpdateSerial),pk(skAdv)) at {26}
+
+in(net, ~M_21) with ~M_21 = aenc(sharePackage(pgbA,e1,Dadv,pkChord,share3(e1),maliciousUpdateSerial),pk(skAdv)) at {52}
+
+event ShareActivated(Dadv,e1,pkChord,maliciousUpdateSerial) at {56}
+
+out(net, ~M_22) with ~M_22 = share3(e1) at {57}
+
+out(net, ~M_23) with ~M_23 = reachShareDadv at {58}
+
+The attacker has the message ~M_23 = reachShareDadv.
+A trace has been found.
+RESULT not attacker_bitstring(reachShareDadv[]) is false.
+-- Query not attacker_bitstring(reachMaliciousCommittee[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 311 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 114 rules.
+Starting query not attacker_bitstring(reachMaliciousCommittee[])
+goal reachable: attacker_bitstring(reachMaliciousCommittee[])
+
+Derivation:
+
+1. The message committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))) may be sent to the attacker at output {13}.
+attacker_wireMessage(committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)))).
+
+2. By 1, the attacker may know committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))).
+Using the function 2-proj-committeeApprovalRequest the attacker may obtain thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)).
+attacker_thresholdSignature(thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))).
+
+3. Using the function maliciousUpdateSerial the attacker may obtain maliciousUpdateSerial.
+attacker_serial(maliciousUpdateSerial).
+
+4. Using the function maliciousAdmissionSerial the attacker may obtain maliciousAdmissionSerial.
+attacker_serial(maliciousAdmissionSerial).
+
+5. Using the function pkChord the attacker may obtain pkChord.
+attacker_rootPublicKey(pkChord).
+
+6. The attacker initially knows skAdv[].
+attacker_skey(skAdv[]).
+
+7. By 6, the attacker may know skAdv[].
+Using the function pk the attacker may obtain pk(skAdv[]).
+attacker_pkey(pk(skAdv[])).
+
+8. Using the function Dadv the attacker may obtain Dadv.
+attacker_device(Dadv).
+
+9. Using the function C2 the attacker may obtain C2.
+attacker_device(C2).
+
+10. Using the function C1 the attacker may obtain C1.
+attacker_device(C1).
+
+11. Using the function e1 the attacker may obtain e1.
+attacker_epoch(e1).
+
+12. Using the function e0 the attacker may obtain e0.
+attacker_epoch(e0).
+
+13. Using the function pgbA the attacker may obtain pgbA.
+attacker_pgb(pgbA).
+
+14. Using the function tagCommittee the attacker may obtain tagCommittee.
+attacker_domainTag(tagCommittee).
+
+15. By 14, the attacker may know tagCommittee.
+By 13, the attacker may know pgbA.
+By 12, the attacker may know e0.
+By 11, the attacker may know e1.
+By 10, the attacker may know C1.
+By 9, the attacker may know C2.
+By 8, the attacker may know Dadv.
+By 8, the attacker may know Dadv.
+By 7, the attacker may know pk(skAdv[]).
+By 5, the attacker may know pkChord.
+By 4, the attacker may know maliciousAdmissionSerial.
+By 3, the attacker may know maliciousUpdateSerial.
+Using the function committeeProposal the attacker may obtain committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial).
+attacker_thresholdMessage(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)).
+
+16. By 15, the attacker may know committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial).
+By 2, the attacker may know thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)).
+Using the function committeeApprovalRequest the attacker may obtain committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))).
+attacker_wireMessage(committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)))).
+
+17. The message committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))) that the attacker may have by 16 may be received at input {14}.
+So the message committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial) may be sent on channel reshareState[] at output {27}.
+mess_thresholdMessage(reshareState[],committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)).
+
+18. The message committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))) that the attacker may have by 16 may be received at input {14}.
+So the message aenc(sharePackage(pgbA,e1,C1,pkChord,share1(e1),maliciousUpdateSerial),pk(skC1Device[])) may be sent to the attacker at output {22}.
+attacker_ciphertext(aenc(sharePackage(pgbA,e1,C1,pkChord,share1(e1),maliciousUpdateSerial),pk(skC1Device[]))).
+
+19. The message aenc(sharePackage(pgbA,e1,C1,pkChord,share1(e1),maliciousUpdateSerial),pk(skC1Device[])) that the attacker may have by 18 may be received at input {33}.
+So the message maliciousUpdateSerial may be sent on channel activatedC1[] at output {39}.
+mess_serial(activatedC1[],maliciousUpdateSerial).
+
+20. The message committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))) that the attacker may have by 16 may be received at input {14}.
+So the message aenc(sharePackage(pgbA,e1,C2,pkChord,share2(e1),maliciousUpdateSerial),pk(skC2Device[])) may be sent to the attacker at output {24}.
+attacker_ciphertext(aenc(sharePackage(pgbA,e1,C2,pkChord,share2(e1),maliciousUpdateSerial),pk(skC2Device[]))).
+
+21. The message aenc(sharePackage(pgbA,e1,C2,pkChord,share2(e1),maliciousUpdateSerial),pk(skC2Device[])) that the attacker may have by 20 may be received at input {45}.
+So the message maliciousUpdateSerial may be sent on channel activatedC2[] at output {51}.
+mess_serial(activatedC2[],maliciousUpdateSerial).
+
+22. The message committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))) that the attacker may have by 16 may be received at input {14}.
+So the message aenc(sharePackage(pgbA,e1,Dadv,pkChord,share3(e1),maliciousUpdateSerial),pk(skAdv[])) may be sent to the attacker at output {26}.
+attacker_ciphertext(aenc(sharePackage(pgbA,e1,Dadv,pkChord,share3(e1),maliciousUpdateSerial),pk(skAdv[]))).
+
+23. The message aenc(sharePackage(pgbA,e1,Dadv,pkChord,share3(e1),maliciousUpdateSerial),pk(skAdv[])) that the attacker may have by 22 may be received at input {52}.
+So the message maliciousUpdateSerial may be sent on channel activatedDadv[] at output {59}.
+mess_serial(activatedDadv[],maliciousUpdateSerial).
+
+24. The message committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial) that may be sent on channel reshareState[] by 17 may be received at input {60}.
+The message maliciousUpdateSerial that may be sent on channel activatedC1[] by 19 may be received at input {61}.
+The message maliciousUpdateSerial that may be sent on channel activatedC2[] by 21 may be received at input {62}.
+The message maliciousUpdateSerial that may be sent on channel activatedDadv[] by 23 may be received at input {63}.
+So the message reachMaliciousCommittee[] may be sent to the attacker at output {65}.
+attacker_bitstring(reachMaliciousCommittee[]).
+
+25. By 24, attacker_bitstring(reachMaliciousCommittee[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reachMaliciousCommittee[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+event SetupComplete(pgbA,pkChord,pk(skCard)) at {1}
+
+event InitialCommitteeMember(C1,e0) at {2}
+
+event InitialCommitteeMember(C2,e0) at {3}
+
+event PGBLocked(pgbA) at {4}
+
+out(net, ~M) with ~M = reachSetup at {5}
+
+out(net, ~M_1) with ~M_1 = share1(e0) at {6}
+
+out(net, ~M_2) with ~M_2 = reachShare1Leak at {7}
+
+out(net, ~M_3) with ~M_3 = share2(e0) at {8}
+
+out(net, ~M_4) with ~M_4 = reachShare2Leak at {9}
+
+out(net, committeeApprovalRequest(committeeProposal(~M_5,~M_6,~M_7,~M_8,~M_9,~M_10,~M_11,~M_12,~M_13,~M_14,~M_15,~M_16),~M_17)) with ~M_5 = tagCommittee, ~M_6 = pgbA, ~M_7 = e0, ~M_8 = e1, ~M_9 = C1, ~M_10 = C2, ~M_11 = Dadv, ~M_12 = Dadv, ~M_13 = pk(skAdv), ~M_14 = pkChord, ~M_15 = maliciousAdmissionSerial, ~M_16 = maliciousUpdateSerial, ~M_17 = thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)) at {13}
+
+in(net, committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),~M_17)) with ~M_17 = thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)) at {14}
+
+event CommitteeApproved(e0,e1,Dadv,pk(skAdv),maliciousAdmissionSerial,maliciousUpdateSerial) at {18}
+
+event ReshareStarted(e0,e1,Dadv,pk(skAdv),maliciousAdmissionSerial,maliciousUpdateSerial) at {19}
+
+out(net, ~M_18) with ~M_18 = reachMaliciousApproval at {20}
+
+event SharePackageSent(C1,e1,pkChord,maliciousUpdateSerial) at {21}
+
+out(net, ~M_19) with ~M_19 = aenc(sharePackage(pgbA,e1,C1,pkChord,share1(e1),maliciousUpdateSerial),pk(skC1Device)) at {22}
+
+event SharePackageSent(C2,e1,pkChord,maliciousUpdateSerial) at {23}
+
+out(net, ~M_20) with ~M_20 = aenc(sharePackage(pgbA,e1,C2,pkChord,share2(e1),maliciousUpdateSerial),pk(skC2Device)) at {24}
+
+event SharePackageSent(Dadv,e1,pkChord,maliciousUpdateSerial) at {25}
+
+out(net, ~M_21) with ~M_21 = aenc(sharePackage(pgbA,e1,Dadv,pkChord,share3(e1),maliciousUpdateSerial),pk(skAdv)) at {26}
+
+in(net, ~M_19) with ~M_19 = aenc(sharePackage(pgbA,e1,C1,pkChord,share1(e1),maliciousUpdateSerial),pk(skC1Device)) at {33}
+
+event ShareActivated(C1,e1,pkChord,maliciousUpdateSerial) at {37}
+
+out(net, ~M_22) with ~M_22 = reachShareC1 at {38}
+
+in(net, ~M_20) with ~M_20 = aenc(sharePackage(pgbA,e1,C2,pkChord,share2(e1),maliciousUpdateSerial),pk(skC2Device)) at {45}
+
+event ShareActivated(C2,e1,pkChord,maliciousUpdateSerial) at {49}
+
+out(net, ~M_23) with ~M_23 = reachShareC2 at {50}
+
+in(net, ~M_21) with ~M_21 = aenc(sharePackage(pgbA,e1,Dadv,pkChord,share3(e1),maliciousUpdateSerial),pk(skAdv)) at {52}
+
+event ShareActivated(Dadv,e1,pkChord,maliciousUpdateSerial) at {56}
+
+out(net, ~M_24) with ~M_24 = share3(e1) at {57}
+
+out(net, ~M_25) with ~M_25 = reachShareDadv at {58}
+
+out(reshareState, committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)) at {27} received at {60}
+
+out(activatedC1, maliciousUpdateSerial) at {39} received at {61}
+
+out(activatedC2, maliciousUpdateSerial) at {51} received at {62}
+
+out(activatedDadv, maliciousUpdateSerial) at {59} received at {63}
+
+event CommitteeActivated(e1,pkChord,maliciousUpdateSerial) at {64}
+
+out(net, ~M_26) with ~M_26 = reachMaliciousCommittee at {65}
+
+event RootContinuityAccepted(e1,pkChord,pair13,maliciousUpdateSerial) at {68}
+
+out(net, ~M_27) with ~M_27 = reachRootContinuity at {69}
+
+The attacker has the message ~M_26 = reachMaliciousCommittee.
+A trace has been found.
+RESULT not attacker_bitstring(reachMaliciousCommittee[]) is false.
+-- Query not attacker_bitstring(reachRootContinuity[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 311 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 114 rules.
+Starting query not attacker_bitstring(reachRootContinuity[])
+goal reachable: attacker_bitstring(reachRootContinuity[])
+
+Derivation:
+
+1. The message committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))) may be sent to the attacker at output {13}.
+attacker_wireMessage(committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)))).
+
+2. By 1, the attacker may know committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))).
+Using the function 2-proj-committeeApprovalRequest the attacker may obtain thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)).
+attacker_thresholdSignature(thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))).
+
+3. Using the function maliciousUpdateSerial the attacker may obtain maliciousUpdateSerial.
+attacker_serial(maliciousUpdateSerial).
+
+4. Using the function maliciousAdmissionSerial the attacker may obtain maliciousAdmissionSerial.
+attacker_serial(maliciousAdmissionSerial).
+
+5. Using the function pkChord the attacker may obtain pkChord.
+attacker_rootPublicKey(pkChord).
+
+6. The attacker initially knows skAdv[].
+attacker_skey(skAdv[]).
+
+7. By 6, the attacker may know skAdv[].
+Using the function pk the attacker may obtain pk(skAdv[]).
+attacker_pkey(pk(skAdv[])).
+
+8. Using the function Dadv the attacker may obtain Dadv.
+attacker_device(Dadv).
+
+9. Using the function C2 the attacker may obtain C2.
+attacker_device(C2).
+
+10. Using the function C1 the attacker may obtain C1.
+attacker_device(C1).
+
+11. Using the function e1 the attacker may obtain e1.
+attacker_epoch(e1).
+
+12. Using the function e0 the attacker may obtain e0.
+attacker_epoch(e0).
+
+13. Using the function pgbA the attacker may obtain pgbA.
+attacker_pgb(pgbA).
+
+14. Using the function tagCommittee the attacker may obtain tagCommittee.
+attacker_domainTag(tagCommittee).
+
+15. By 14, the attacker may know tagCommittee.
+By 13, the attacker may know pgbA.
+By 12, the attacker may know e0.
+By 11, the attacker may know e1.
+By 10, the attacker may know C1.
+By 9, the attacker may know C2.
+By 8, the attacker may know Dadv.
+By 8, the attacker may know Dadv.
+By 7, the attacker may know pk(skAdv[]).
+By 5, the attacker may know pkChord.
+By 4, the attacker may know maliciousAdmissionSerial.
+By 3, the attacker may know maliciousUpdateSerial.
+Using the function committeeProposal the attacker may obtain committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial).
+attacker_thresholdMessage(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)).
+
+16. By 15, the attacker may know committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial).
+By 2, the attacker may know thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)).
+Using the function committeeApprovalRequest the attacker may obtain committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))).
+attacker_wireMessage(committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)))).
+
+17. The message committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))) that the attacker may have by 16 may be received at input {14}.
+So the message committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial) may be sent on channel reshareState[] at output {27}.
+mess_thresholdMessage(reshareState[],committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)).
+
+18. The message committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))) that the attacker may have by 16 may be received at input {14}.
+So the message aenc(sharePackage(pgbA,e1,C1,pkChord,share1(e1),maliciousUpdateSerial),pk(skC1Device[])) may be sent to the attacker at output {22}.
+attacker_ciphertext(aenc(sharePackage(pgbA,e1,C1,pkChord,share1(e1),maliciousUpdateSerial),pk(skC1Device[]))).
+
+19. The message aenc(sharePackage(pgbA,e1,C1,pkChord,share1(e1),maliciousUpdateSerial),pk(skC1Device[])) that the attacker may have by 18 may be received at input {33}.
+So the message maliciousUpdateSerial may be sent on channel activatedC1[] at output {39}.
+mess_serial(activatedC1[],maliciousUpdateSerial).
+
+20. The message committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))) that the attacker may have by 16 may be received at input {14}.
+So the message aenc(sharePackage(pgbA,e1,C2,pkChord,share2(e1),maliciousUpdateSerial),pk(skC2Device[])) may be sent to the attacker at output {24}.
+attacker_ciphertext(aenc(sharePackage(pgbA,e1,C2,pkChord,share2(e1),maliciousUpdateSerial),pk(skC2Device[]))).
+
+21. The message aenc(sharePackage(pgbA,e1,C2,pkChord,share2(e1),maliciousUpdateSerial),pk(skC2Device[])) that the attacker may have by 20 may be received at input {45}.
+So the message maliciousUpdateSerial may be sent on channel activatedC2[] at output {51}.
+mess_serial(activatedC2[],maliciousUpdateSerial).
+
+22. The message committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial))) that the attacker may have by 16 may be received at input {14}.
+So the message aenc(sharePackage(pgbA,e1,Dadv,pkChord,share3(e1),maliciousUpdateSerial),pk(skAdv[])) may be sent to the attacker at output {26}.
+attacker_ciphertext(aenc(sharePackage(pgbA,e1,Dadv,pkChord,share3(e1),maliciousUpdateSerial),pk(skAdv[]))).
+
+23. The message aenc(sharePackage(pgbA,e1,Dadv,pkChord,share3(e1),maliciousUpdateSerial),pk(skAdv[])) that the attacker may have by 22 may be received at input {52}.
+So the message maliciousUpdateSerial may be sent on channel activatedDadv[] at output {59}.
+mess_serial(activatedDadv[],maliciousUpdateSerial).
+
+24. The message committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv[]),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial) that may be sent on channel reshareState[] by 17 may be received at input {60}.
+The message maliciousUpdateSerial that may be sent on channel activatedC1[] by 19 may be received at input {61}.
+The message maliciousUpdateSerial that may be sent on channel activatedC2[] by 21 may be received at input {62}.
+The message maliciousUpdateSerial that may be sent on channel activatedDadv[] by 23 may be received at input {63}.
+So the message reachRootContinuity[] may be sent to the attacker at output {69}.
+attacker_bitstring(reachRootContinuity[]).
+
+25. By 24, attacker_bitstring(reachRootContinuity[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reachRootContinuity[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+event SetupComplete(pgbA,pkChord,pk(skCard)) at {1}
+
+event InitialCommitteeMember(C1,e0) at {2}
+
+event InitialCommitteeMember(C2,e0) at {3}
+
+event PGBLocked(pgbA) at {4}
+
+out(net, ~M) with ~M = reachSetup at {5}
+
+out(net, ~M_1) with ~M_1 = share1(e0) at {6}
+
+out(net, ~M_2) with ~M_2 = reachShare1Leak at {7}
+
+out(net, ~M_3) with ~M_3 = share2(e0) at {8}
+
+out(net, ~M_4) with ~M_4 = reachShare2Leak at {9}
+
+out(net, committeeApprovalRequest(committeeProposal(~M_5,~M_6,~M_7,~M_8,~M_9,~M_10,~M_11,~M_12,~M_13,~M_14,~M_15,~M_16),~M_17)) with ~M_5 = tagCommittee, ~M_6 = pgbA, ~M_7 = e0, ~M_8 = e1, ~M_9 = C1, ~M_10 = C2, ~M_11 = Dadv, ~M_12 = Dadv, ~M_13 = pk(skAdv), ~M_14 = pkChord, ~M_15 = maliciousAdmissionSerial, ~M_16 = maliciousUpdateSerial, ~M_17 = thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)) at {13}
+
+in(net, committeeApprovalRequest(committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial),~M_17)) with ~M_17 = thresholdSig12(e0,committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)) at {14}
+
+event CommitteeApproved(e0,e1,Dadv,pk(skAdv),maliciousAdmissionSerial,maliciousUpdateSerial) at {18}
+
+event ReshareStarted(e0,e1,Dadv,pk(skAdv),maliciousAdmissionSerial,maliciousUpdateSerial) at {19}
+
+out(net, ~M_18) with ~M_18 = reachMaliciousApproval at {20}
+
+event SharePackageSent(C1,e1,pkChord,maliciousUpdateSerial) at {21}
+
+out(net, ~M_19) with ~M_19 = aenc(sharePackage(pgbA,e1,C1,pkChord,share1(e1),maliciousUpdateSerial),pk(skC1Device)) at {22}
+
+event SharePackageSent(C2,e1,pkChord,maliciousUpdateSerial) at {23}
+
+out(net, ~M_20) with ~M_20 = aenc(sharePackage(pgbA,e1,C2,pkChord,share2(e1),maliciousUpdateSerial),pk(skC2Device)) at {24}
+
+event SharePackageSent(Dadv,e1,pkChord,maliciousUpdateSerial) at {25}
+
+out(net, ~M_21) with ~M_21 = aenc(sharePackage(pgbA,e1,Dadv,pkChord,share3(e1),maliciousUpdateSerial),pk(skAdv)) at {26}
+
+in(net, ~M_19) with ~M_19 = aenc(sharePackage(pgbA,e1,C1,pkChord,share1(e1),maliciousUpdateSerial),pk(skC1Device)) at {33}
+
+event ShareActivated(C1,e1,pkChord,maliciousUpdateSerial) at {37}
+
+out(net, ~M_22) with ~M_22 = reachShareC1 at {38}
+
+in(net, ~M_20) with ~M_20 = aenc(sharePackage(pgbA,e1,C2,pkChord,share2(e1),maliciousUpdateSerial),pk(skC2Device)) at {45}
+
+event ShareActivated(C2,e1,pkChord,maliciousUpdateSerial) at {49}
+
+out(net, ~M_23) with ~M_23 = reachShareC2 at {50}
+
+in(net, ~M_21) with ~M_21 = aenc(sharePackage(pgbA,e1,Dadv,pkChord,share3(e1),maliciousUpdateSerial),pk(skAdv)) at {52}
+
+event ShareActivated(Dadv,e1,pkChord,maliciousUpdateSerial) at {56}
+
+out(net, ~M_24) with ~M_24 = share3(e1) at {57}
+
+out(net, ~M_25) with ~M_25 = reachShareDadv at {58}
+
+out(reshareState, committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,Dadv,Dadv,pk(skAdv),pkChord,maliciousAdmissionSerial,maliciousUpdateSerial)) at {27} received at {60}
+
+out(activatedC1, maliciousUpdateSerial) at {39} received at {61}
+
+out(activatedC2, maliciousUpdateSerial) at {51} received at {62}
+
+out(activatedDadv, maliciousUpdateSerial) at {59} received at {63}
+
+event CommitteeActivated(e1,pkChord,maliciousUpdateSerial) at {64}
+
+out(net, ~M_26) with ~M_26 = reachMaliciousCommittee at {65}
+
+event RootContinuityAccepted(e1,pkChord,pair13,maliciousUpdateSerial) at {68}
+
+out(net, ~M_27) with ~M_27 = reachRootContinuity at {69}
+
+The attacker has the message ~M_27 = reachRootContinuity.
+A trace has been found.
+RESULT not attacker_bitstring(reachRootContinuity[]) is false.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query not attacker_skey(skCard[]) is true.
+
+Query not attacker_skey(skC1Device[]) is true.
+
+Query not attacker_skey(skC2Device[]) is true.
+
+Query not attacker_skey(skO1Device[]) is true.
+
+Query not attacker_thresholdShare(share1(e0)) is false.
+
+Query not attacker_thresholdShare(share2(e0)) is false.
+
+Query not attacker_thresholdShare(share3(e0)) is true.
+
+Query not attacker_thresholdShare(share1(e1)) is true.
+
+Query not attacker_thresholdShare(share2(e1)) is true.
+
+Query not attacker_thresholdShare(share3(e1)) is false.
+
+Query event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial)) ==> event(CommitteeVote(C1,e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial)) && event(CommitteeVote(C2,e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial)) is false.
+
+Query event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial)) ==> event(CertificationEligible(Dadv,pk(skAdv[]))) is false.
+
+Query event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,maliciousUpdateSerial)) ==> event(RegularMembershipAuthorized(G,Dadv,pk(skAdv[]),T,maliciousAdmissionSerial,NCompletion)) is false.
+
+Query event(ReshareStarted(E0,E1,D,PK,SAdmission,SUpdate)) ==> event(CommitteeApproved(E0,E1,D,PK,SAdmission,SUpdate)) is true.
+
+Query event(ShareActivated(Dadv,e1,pkChord,SUpdate)) ==> event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,SUpdate)) is true.
+
+Query event(ShareActivated(C1,e1,pkChord,SUpdate)) ==> event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,SUpdate)) is true.
+
+Query event(ShareActivated(C2,e1,pkChord,SUpdate)) ==> event(CommitteeApproved(e0,e1,Dadv,pk(skAdv[]),maliciousAdmissionSerial,SUpdate)) is true.
+
+Query event(CommitteeActivated(E,PKRoot,SUpdate)) ==> event(CommitteeApproved(e0,E,Dadv,pk(skAdv[]),maliciousAdmissionSerial,SUpdate)) && event(ShareActivated(C1,E,PKRoot,SUpdate)) && event(ShareActivated(C2,E,PKRoot,SUpdate)) && event(ShareActivated(Dadv,E,PKRoot,SUpdate)) is true.
+
+Query event(CommitteeActivated(E,PKRoot,SUpdate)) ==> PKRoot = pkChord is true.
+
+Query event(RootContinuityAccepted(E,PKRoot,P,SUpdate)) ==> event(CommitteeActivated(E,PKRoot,SUpdate)) && PKRoot = pkChord is true.
+
+Query not event(ShareActivated(C3,e1,pkChord,S)) is true.
+
+Query not event(ShareActivated(O1,E,pkChord,S)) is true.
+
+Query not attacker_bitstring(reachSetup[]) is false.
+
+Query not attacker_bitstring(reachShare1Leak[]) is false.
+
+Query not attacker_bitstring(reachShare2Leak[]) is false.
+
+Query not attacker_bitstring(reachMaliciousApproval[]) is false.
+
+Query not attacker_bitstring(reachShareC1[]) is false.
+
+Query not attacker_bitstring(reachShareC2[]) is false.
+
+Query not attacker_bitstring(reachShareDadv[]) is false.
+
+Query not attacker_bitstring(reachMaliciousCommittee[]) is false.
+
+Query not attacker_bitstring(reachRootContinuity[]) is false.
+
+--------------------------------------------------------------
+

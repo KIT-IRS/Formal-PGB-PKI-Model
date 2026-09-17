@@ -1,0 +1,317 @@
+Process 0 (that is, the initial process):
+(
+    {1}out(net, share1(e_pair12));
+    {2}out(net, share2(e_pair12))
+) | (
+    {3}let expectedMessage: thresholdMessage = m_pair12 in
+    {4}let expectedPair: signerPair = pair12 in
+    {5}let canary: bitstring = canary_pair12 in
+    {6}in(net, candidate: thresholdSignature);
+    {7}let =expectedPair = verifyThreshold(candidate,expectedMessage,pkChord) in
+    {8}out(net, canary)
+) | (
+    {9}out(net, share1(e_pair13));
+    {10}out(net, share3(e_pair13))
+) | (
+    {11}let expectedMessage_1: thresholdMessage = m_pair13 in
+    {12}let expectedPair_1: signerPair = pair13 in
+    {13}let canary_1: bitstring = canary_pair13 in
+    {14}in(net, candidate_1: thresholdSignature);
+    {15}let =expectedPair_1 = verifyThreshold(candidate_1,expectedMessage_1,pkChord) in
+    {16}out(net, canary_1)
+) | (
+    {17}out(net, share2(e_pair23));
+    {18}out(net, share3(e_pair23))
+) | (
+    {19}let expectedMessage_2: thresholdMessage = m_pair23 in
+    {20}let expectedPair_2: signerPair = pair23 in
+    {21}let canary_2: bitstring = canary_pair23 in
+    {22}in(net, candidate_2: thresholdSignature);
+    {23}let =expectedPair_2 = verifyThreshold(candidate_2,expectedMessage_2,pkChord) in
+    {24}out(net, canary_2)
+) | (
+    {25}in(net, candidate_3: thresholdSignature);
+    {26}let verifiedPair: signerPair = verifyThreshold(candidate_3,m_wrong_root_key,pkWrong) in
+    {27}out(net, canary_wrong_root_key)
+)
+
+--  Process 1 (that is, process 0, with let moved downwards):
+(
+    {1}out(net, share1(e_pair12));
+    {2}out(net, share2(e_pair12))
+) | (
+    {6}in(net, candidate: thresholdSignature);
+    {4}let expectedPair: signerPair = pair12 in
+    {3}let expectedMessage: thresholdMessage = m_pair12 in
+    {7}let =expectedPair = verifyThreshold(candidate,expectedMessage,pkChord) in
+    {5}let canary: bitstring = canary_pair12 in
+    {8}out(net, canary)
+) | (
+    {9}out(net, share1(e_pair13));
+    {10}out(net, share3(e_pair13))
+) | (
+    {14}in(net, candidate_1: thresholdSignature);
+    {12}let expectedPair_1: signerPair = pair13 in
+    {11}let expectedMessage_1: thresholdMessage = m_pair13 in
+    {15}let =expectedPair_1 = verifyThreshold(candidate_1,expectedMessage_1,pkChord) in
+    {13}let canary_1: bitstring = canary_pair13 in
+    {16}out(net, canary_1)
+) | (
+    {17}out(net, share2(e_pair23));
+    {18}out(net, share3(e_pair23))
+) | (
+    {22}in(net, candidate_2: thresholdSignature);
+    {20}let expectedPair_2: signerPair = pair23 in
+    {19}let expectedMessage_2: thresholdMessage = m_pair23 in
+    {23}let =expectedPair_2 = verifyThreshold(candidate_2,expectedMessage_2,pkChord) in
+    {21}let canary_2: bitstring = canary_pair23 in
+    {24}out(net, canary_2)
+) | (
+    {25}in(net, candidate_3: thresholdSignature);
+    {26}let verifiedPair: signerPair = verifyThreshold(candidate_3,m_wrong_root_key,pkWrong) in
+    {27}out(net, canary_wrong_root_key)
+)
+
+-- Query not attacker_bitstring(canary_pair12[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 226 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 26 rules.
+Starting query not attacker_bitstring(canary_pair12[])
+goal reachable: attacker_bitstring(canary_pair12[])
+
+Derivation:
+
+1. The message share2(e_pair12) may be sent to the attacker at output {2}.
+attacker_thresholdShare(share2(e_pair12)).
+
+2. Using the function m_pair12 the attacker may obtain m_pair12.
+attacker_thresholdMessage(m_pair12).
+
+3. By 2, the attacker may know m_pair12.
+By 1, the attacker may know share2(e_pair12).
+Using the function partialSign the attacker may obtain partialSign(m_pair12,share2(e_pair12)).
+attacker_partialSignature(partialSign(m_pair12,share2(e_pair12))).
+
+4. The message share1(e_pair12) may be sent to the attacker at output {1}.
+attacker_thresholdShare(share1(e_pair12)).
+
+5. By 2, the attacker may know m_pair12.
+By 4, the attacker may know share1(e_pair12).
+Using the function partialSign the attacker may obtain partialSign(m_pair12,share1(e_pair12)).
+attacker_partialSignature(partialSign(m_pair12,share1(e_pair12))).
+
+6. By 5, the attacker may know partialSign(m_pair12,share1(e_pair12)).
+By 3, the attacker may know partialSign(m_pair12,share2(e_pair12)).
+Using the function combine the attacker may obtain thresholdSig12(e_pair12,m_pair12).
+attacker_thresholdSignature(thresholdSig12(e_pair12,m_pair12)).
+
+7. The message thresholdSig12(e_pair12,m_pair12) that the attacker may have by 6 may be received at input {6}.
+So the message canary_pair12[] may be sent to the attacker at output {8}.
+attacker_bitstring(canary_pair12[]).
+
+8. By 7, attacker_bitstring(canary_pair12[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(canary_pair12[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(net, ~M) with ~M = share2(e_pair23) at {17}
+
+out(net, ~M_1) with ~M_1 = share3(e_pair23) at {18}
+
+out(net, ~M_2) with ~M_2 = share1(e_pair13) at {9}
+
+out(net, ~M_3) with ~M_3 = share3(e_pair13) at {10}
+
+out(net, ~M_4) with ~M_4 = share1(e_pair12) at {1}
+
+out(net, ~M_5) with ~M_5 = share2(e_pair12) at {2}
+
+in(net, combine(partialSign(m_pair12,~M_4),partialSign(m_pair12,~M_5))) with combine(partialSign(m_pair12,~M_4),partialSign(m_pair12,~M_5)) = thresholdSig12(e_pair12,m_pair12) at {6}
+
+out(net, ~M_6) with ~M_6 = canary_pair12 at {8}
+
+The attacker has the message ~M_6 = canary_pair12.
+A trace has been found.
+RESULT not attacker_bitstring(canary_pair12[]) is false.
+-- Query not attacker_bitstring(canary_pair13[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 226 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 26 rules.
+Starting query not attacker_bitstring(canary_pair13[])
+goal reachable: attacker_bitstring(canary_pair13[])
+
+Derivation:
+
+1. The message share3(e_pair13) may be sent to the attacker at output {10}.
+attacker_thresholdShare(share3(e_pair13)).
+
+2. Using the function m_pair13 the attacker may obtain m_pair13.
+attacker_thresholdMessage(m_pair13).
+
+3. By 2, the attacker may know m_pair13.
+By 1, the attacker may know share3(e_pair13).
+Using the function partialSign the attacker may obtain partialSign(m_pair13,share3(e_pair13)).
+attacker_partialSignature(partialSign(m_pair13,share3(e_pair13))).
+
+4. The message share1(e_pair13) may be sent to the attacker at output {9}.
+attacker_thresholdShare(share1(e_pair13)).
+
+5. By 2, the attacker may know m_pair13.
+By 4, the attacker may know share1(e_pair13).
+Using the function partialSign the attacker may obtain partialSign(m_pair13,share1(e_pair13)).
+attacker_partialSignature(partialSign(m_pair13,share1(e_pair13))).
+
+6. By 5, the attacker may know partialSign(m_pair13,share1(e_pair13)).
+By 3, the attacker may know partialSign(m_pair13,share3(e_pair13)).
+Using the function combine the attacker may obtain thresholdSig13(e_pair13,m_pair13).
+attacker_thresholdSignature(thresholdSig13(e_pair13,m_pair13)).
+
+7. The message thresholdSig13(e_pair13,m_pair13) that the attacker may have by 6 may be received at input {14}.
+So the message canary_pair13[] may be sent to the attacker at output {16}.
+attacker_bitstring(canary_pair13[]).
+
+8. By 7, attacker_bitstring(canary_pair13[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(canary_pair13[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(net, ~M) with ~M = share2(e_pair23) at {17}
+
+out(net, ~M_1) with ~M_1 = share3(e_pair23) at {18}
+
+out(net, ~M_2) with ~M_2 = share1(e_pair13) at {9}
+
+out(net, ~M_3) with ~M_3 = share3(e_pair13) at {10}
+
+out(net, ~M_4) with ~M_4 = share1(e_pair12) at {1}
+
+out(net, ~M_5) with ~M_5 = share2(e_pair12) at {2}
+
+in(net, combine(partialSign(m_pair13,~M_2),partialSign(m_pair13,~M_3))) with combine(partialSign(m_pair13,~M_2),partialSign(m_pair13,~M_3)) = thresholdSig13(e_pair13,m_pair13) at {14}
+
+out(net, ~M_6) with ~M_6 = canary_pair13 at {16}
+
+The attacker has the message ~M_6 = canary_pair13.
+A trace has been found.
+RESULT not attacker_bitstring(canary_pair13[]) is false.
+-- Query not attacker_bitstring(canary_pair23[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 226 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 26 rules.
+Starting query not attacker_bitstring(canary_pair23[])
+goal reachable: attacker_bitstring(canary_pair23[])
+
+Derivation:
+
+1. The message share3(e_pair23) may be sent to the attacker at output {18}.
+attacker_thresholdShare(share3(e_pair23)).
+
+2. Using the function m_pair23 the attacker may obtain m_pair23.
+attacker_thresholdMessage(m_pair23).
+
+3. By 2, the attacker may know m_pair23.
+By 1, the attacker may know share3(e_pair23).
+Using the function partialSign the attacker may obtain partialSign(m_pair23,share3(e_pair23)).
+attacker_partialSignature(partialSign(m_pair23,share3(e_pair23))).
+
+4. The message share2(e_pair23) may be sent to the attacker at output {17}.
+attacker_thresholdShare(share2(e_pair23)).
+
+5. By 2, the attacker may know m_pair23.
+By 4, the attacker may know share2(e_pair23).
+Using the function partialSign the attacker may obtain partialSign(m_pair23,share2(e_pair23)).
+attacker_partialSignature(partialSign(m_pair23,share2(e_pair23))).
+
+6. By 5, the attacker may know partialSign(m_pair23,share2(e_pair23)).
+By 3, the attacker may know partialSign(m_pair23,share3(e_pair23)).
+Using the function combine the attacker may obtain thresholdSig23(e_pair23,m_pair23).
+attacker_thresholdSignature(thresholdSig23(e_pair23,m_pair23)).
+
+7. The message thresholdSig23(e_pair23,m_pair23) that the attacker may have by 6 may be received at input {22}.
+So the message canary_pair23[] may be sent to the attacker at output {24}.
+attacker_bitstring(canary_pair23[]).
+
+8. By 7, attacker_bitstring(canary_pair23[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(canary_pair23[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(net, ~M) with ~M = share2(e_pair23) at {17}
+
+out(net, ~M_1) with ~M_1 = share3(e_pair23) at {18}
+
+out(net, ~M_2) with ~M_2 = share1(e_pair13) at {9}
+
+out(net, ~M_3) with ~M_3 = share3(e_pair13) at {10}
+
+out(net, ~M_4) with ~M_4 = share1(e_pair12) at {1}
+
+out(net, ~M_5) with ~M_5 = share2(e_pair12) at {2}
+
+in(net, combine(partialSign(m_pair23,~M),partialSign(m_pair23,~M_1))) with combine(partialSign(m_pair23,~M),partialSign(m_pair23,~M_1)) = thresholdSig23(e_pair23,m_pair23) at {22}
+
+out(net, ~M_6) with ~M_6 = canary_pair23 at {24}
+
+The attacker has the message ~M_6 = canary_pair23.
+A trace has been found.
+RESULT not attacker_bitstring(canary_pair23[]) is false.
+-- Query not attacker_bitstring(canary_wrong_root_key[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 226 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 26 rules.
+Starting query not attacker_bitstring(canary_wrong_root_key[])
+RESULT not attacker_bitstring(canary_wrong_root_key[]) is true.
+-- Query not attacker_thresholdShare(share3(e_pair12)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 226 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 26 rules.
+Starting query not attacker_thresholdShare(share3(e_pair12))
+RESULT not attacker_thresholdShare(share3(e_pair12)) is true.
+-- Query not attacker_thresholdShare(share2(e_pair13)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 226 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 26 rules.
+Starting query not attacker_thresholdShare(share2(e_pair13))
+RESULT not attacker_thresholdShare(share2(e_pair13)) is true.
+-- Query not attacker_thresholdShare(share1(e_pair23)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 226 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 26 rules.
+Starting query not attacker_thresholdShare(share1(e_pair23))
+RESULT not attacker_thresholdShare(share1(e_pair23)) is true.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query not attacker_bitstring(canary_pair12[]) is false.
+
+Query not attacker_bitstring(canary_pair13[]) is false.
+
+Query not attacker_bitstring(canary_pair23[]) is false.
+
+Query not attacker_bitstring(canary_wrong_root_key[]) is true.
+
+Query not attacker_thresholdShare(share3(e_pair12)) is true.
+
+Query not attacker_thresholdShare(share2(e_pair13)) is true.
+
+Query not attacker_thresholdShare(share1(e_pair23)) is true.
+
+--------------------------------------------------------------
+

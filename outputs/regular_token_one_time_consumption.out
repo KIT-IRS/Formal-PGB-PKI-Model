@@ -1,0 +1,794 @@
+Process 0 (that is, the initial process):
+(
+    {1}let body: protocolMessage = cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg),tokenSerial) in
+    {2}let token: admissionToken = makeCardToken(body,sign(body,skCard)) in
+    {3}event CardAuthorized(pgbA,Dreg,pk(skDreg),tokenSerial);
+    {4}out(tokenProvision, token);
+    {5}out(tokenProvision, token)
+) | (
+    {6}in(tokenProvision, token_1: admissionToken);
+    {7}out(net, tokenAdmissionAttempt(firstAttempt,Dreg,pk(skDreg),token_1,firstAdmissionSerial))
+) | (
+    {8}in(beginSecondAttempt, =tokenSerial);
+    {9}in(tokenProvision, token_2: admissionToken);
+    {10}out(net, tokenAdmissionAttempt(secondAttempt,Dreg,pk(skDreg),token_2,secondAdmissionSerial))
+) | (
+    {11}!
+    {12}in(net, challenge: wireMessage);
+    {13}let tokenConsumptionChallenge(attemptId: attempt,=pgbA,=Dreg,=pk(skDreg),=tokenSerial,admissionSerial: serial,=C1,verifierNonce: nonce) = challenge in
+    {14}let context: protocolMessage = tokenConsumptionContext(tagRegPoP,attemptId,pgbA,Dreg,pk(skDreg),tokenSerial,admissionSerial,C1,verifierNonce) in
+    {15}event TokenPoPProduced(attemptId,Dreg,pk(skDreg),tokenSerial,admissionSerial,verifierNonce);
+    {16}out(net, tokenConsumptionResponse(attemptId,Dreg,pk(skDreg),tokenSerial,admissionSerial,C1,verifierNonce,sign(context,skDreg)))
+) | (
+    {17}in(net, request1: wireMessage);
+    {18}let tokenAdmissionAttempt(=firstAttempt,=Dreg,=pk(skDreg),token1: admissionToken,=firstAdmissionSerial) = request1 in
+    {19}let =tokenSerial = validateCardToken(token1,pk(skCard),pgbA,Dreg,pk(skDreg)) in
+    {20}new nonce1: nonce;
+    {21}out(net, tokenConsumptionChallenge(firstAttempt,pgbA,Dreg,pk(skDreg),tokenSerial,firstAdmissionSerial,C1,nonce1));
+    {22}in(net, response1: wireMessage);
+    {23}let tokenConsumptionResponse(=firstAttempt,=Dreg,=pk(skDreg),=tokenSerial,=firstAdmissionSerial,=C1,=nonce1,signature1: signature) = response1 in
+    {24}let checked1: protocolMessage = checkSign(signature1,pk(skDreg)) in
+    {25}let expected1: protocolMessage = tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg),tokenSerial,firstAdmissionSerial,C1,nonce1) in
+    {26}if (checked1 = expected1) then
+    {27}event TokenPoPVerified(firstAttempt,Dreg,pk(skDreg),tokenSerial,firstAdmissionSerial,nonce1);
+    {28}event RegularTokenConsumed(tokenSerial,Dreg,pk(skDreg));
+    {29}event TokenAdmissionAccepted(firstAttempt,tokenSerial,Dreg,pk(skDreg),firstAdmissionSerial);
+    {30}out(net, reachFirstAccepted);
+    {31}out(beginSecondAttempt, tokenSerial);
+    {32}in(net, request2: wireMessage);
+    {33}let tokenAdmissionAttempt(=secondAttempt,=Dreg,=pk(skDreg),token2: admissionToken,=secondAdmissionSerial) = request2 in
+    {34}let =tokenSerial = validateCardToken(token2,pk(skCard),pgbA,Dreg,pk(skDreg)) in
+    {35}new nonce2: nonce;
+    {36}out(net, tokenConsumptionChallenge(secondAttempt,pgbA,Dreg,pk(skDreg),tokenSerial,secondAdmissionSerial,C1,nonce2));
+    {37}in(net, response2: wireMessage);
+    {38}let tokenConsumptionResponse(=secondAttempt,=Dreg,=pk(skDreg),=tokenSerial,=secondAdmissionSerial,=C1,=nonce2,signature2: signature) = response2 in
+    {39}let checked2: protocolMessage = checkSign(signature2,pk(skDreg)) in
+    {40}let expected2: protocolMessage = tokenConsumptionContext(tagRegPoP,secondAttempt,pgbA,Dreg,pk(skDreg),tokenSerial,secondAdmissionSerial,C1,nonce2) in
+    {41}if (checked2 = expected2) then
+    {42}event TokenPoPVerified(secondAttempt,Dreg,pk(skDreg),tokenSerial,secondAdmissionSerial,nonce2);
+    {43}out(net, reachSecondPoPVerified);
+    {44}event TokenReuseRejected(tokenSerial,Dreg,pk(skDreg),secondAdmissionSerial);
+    {45}out(net, reachReuseRejected)
+)
+
+--  Process 1 (that is, process 0, with let moved downwards):
+(
+    {3}event CardAuthorized(pgbA,Dreg,pk(skDreg),tokenSerial);
+    {1}let body: protocolMessage = cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg),tokenSerial) in
+    {2}let token: admissionToken = makeCardToken(body,sign(body,skCard)) in
+    {4}out(tokenProvision, token);
+    {5}out(tokenProvision, token)
+) | (
+    {6}in(tokenProvision, token_1: admissionToken);
+    {7}out(net, tokenAdmissionAttempt(firstAttempt,Dreg,pk(skDreg),token_1,firstAdmissionSerial))
+) | (
+    {8}in(beginSecondAttempt, =tokenSerial);
+    {9}in(tokenProvision, token_2: admissionToken);
+    {10}out(net, tokenAdmissionAttempt(secondAttempt,Dreg,pk(skDreg),token_2,secondAdmissionSerial))
+) | (
+    {11}!
+    {12}in(net, challenge: wireMessage);
+    {13}let tokenConsumptionChallenge(attemptId: attempt,=pgbA,=Dreg,=pk(skDreg),=tokenSerial,admissionSerial: serial,=C1,verifierNonce: nonce) = challenge in
+    {15}event TokenPoPProduced(attemptId,Dreg,pk(skDreg),tokenSerial,admissionSerial,verifierNonce);
+    {14}let context: protocolMessage = tokenConsumptionContext(tagRegPoP,attemptId,pgbA,Dreg,pk(skDreg),tokenSerial,admissionSerial,C1,verifierNonce) in
+    {16}out(net, tokenConsumptionResponse(attemptId,Dreg,pk(skDreg),tokenSerial,admissionSerial,C1,verifierNonce,sign(context,skDreg)))
+) | (
+    {17}in(net, request1: wireMessage);
+    {18}let tokenAdmissionAttempt(=firstAttempt,=Dreg,=pk(skDreg),token1: admissionToken,=firstAdmissionSerial) = request1 in
+    {19}let =tokenSerial = validateCardToken(token1,pk(skCard),pgbA,Dreg,pk(skDreg)) in
+    {20}new nonce1: nonce;
+    {21}out(net, tokenConsumptionChallenge(firstAttempt,pgbA,Dreg,pk(skDreg),tokenSerial,firstAdmissionSerial,C1,nonce1));
+    {22}in(net, response1: wireMessage);
+    {23}let tokenConsumptionResponse(=firstAttempt,=Dreg,=pk(skDreg),=tokenSerial,=firstAdmissionSerial,=C1,=nonce1,signature1: signature) = response1 in
+    {24}let checked1: protocolMessage = checkSign(signature1,pk(skDreg)) in
+    {25}let expected1: protocolMessage = tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg),tokenSerial,firstAdmissionSerial,C1,nonce1) in
+    {26}if (checked1 = expected1) then
+    {27}event TokenPoPVerified(firstAttempt,Dreg,pk(skDreg),tokenSerial,firstAdmissionSerial,nonce1);
+    {28}event RegularTokenConsumed(tokenSerial,Dreg,pk(skDreg));
+    {29}event TokenAdmissionAccepted(firstAttempt,tokenSerial,Dreg,pk(skDreg),firstAdmissionSerial);
+    {30}out(net, reachFirstAccepted);
+    {31}out(beginSecondAttempt, tokenSerial);
+    {32}in(net, request2: wireMessage);
+    {33}let tokenAdmissionAttempt(=secondAttempt,=Dreg,=pk(skDreg),token2: admissionToken,=secondAdmissionSerial) = request2 in
+    {34}let =tokenSerial = validateCardToken(token2,pk(skCard),pgbA,Dreg,pk(skDreg)) in
+    {35}new nonce2: nonce;
+    {36}out(net, tokenConsumptionChallenge(secondAttempt,pgbA,Dreg,pk(skDreg),tokenSerial,secondAdmissionSerial,C1,nonce2));
+    {37}in(net, response2: wireMessage);
+    {38}let tokenConsumptionResponse(=secondAttempt,=Dreg,=pk(skDreg),=tokenSerial,=secondAdmissionSerial,=C1,=nonce2,signature2: signature) = response2 in
+    {39}let checked2: protocolMessage = checkSign(signature2,pk(skDreg)) in
+    {40}let expected2: protocolMessage = tokenConsumptionContext(tagRegPoP,secondAttempt,pgbA,Dreg,pk(skDreg),tokenSerial,secondAdmissionSerial,C1,nonce2) in
+    {41}if (checked2 = expected2) then
+    {42}event TokenPoPVerified(secondAttempt,Dreg,pk(skDreg),tokenSerial,secondAdmissionSerial,nonce2);
+    {43}out(net, reachSecondPoPVerified);
+    {44}event TokenReuseRejected(tokenSerial,Dreg,pk(skDreg),secondAdmissionSerial);
+    {45}out(net, reachReuseRejected)
+)
+
+-- Query not attacker_skey(skCard[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (55 with conclusion selected). Queue: 263 rules.
+400 rules inserted. Base: 400 rules (162 with conclusion selected). Queue: 66 rules.
+Starting query not attacker_skey(skCard[])
+RESULT not attacker_skey(skCard[]) is true.
+-- Query not attacker_skey(skDreg[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (55 with conclusion selected). Queue: 263 rules.
+400 rules inserted. Base: 400 rules (162 with conclusion selected). Queue: 66 rules.
+Starting query not attacker_skey(skDreg[])
+RESULT not attacker_skey(skDreg[]) is true.
+-- Query event(TokenAdmissionAccepted(A,tokenSerial,Dreg,pk(skDreg[]),S)) ==> event(CardAuthorized(pgbA,Dreg,pk(skDreg[]),tokenSerial)) && event(TokenPoPVerified(A,Dreg,pk(skDreg[]),tokenSerial,S,N)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (55 with conclusion selected). Queue: 264 rules.
+400 rules inserted. Base: 400 rules (162 with conclusion selected). Queue: 67 rules.
+Starting query event(TokenAdmissionAccepted(A,tokenSerial,Dreg,pk(skDreg[]),S)) ==> event(CardAuthorized(pgbA,Dreg,pk(skDreg[]),tokenSerial)) && event(TokenPoPVerified(A,Dreg,pk(skDreg[]),tokenSerial,S,N))
+goal reachable: b-event(TokenPoPVerified(firstAttempt,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,nonce1_1)) && b-event(CardAuthorized(pgbA,Dreg,pk(skDreg[]),tokenSerial)) -> event(TokenAdmissionAccepted(firstAttempt,tokenSerial,Dreg,pk(skDreg[]),firstAdmissionSerial))
+Abbreviations:
+nonce1_1 = nonce1[request1 = tokenAdmissionAttempt(firstAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),firstAdmissionSerial)]
+RESULT event(TokenAdmissionAccepted(A,tokenSerial,Dreg,pk(skDreg[]),S)) ==> event(CardAuthorized(pgbA,Dreg,pk(skDreg[]),tokenSerial)) && event(TokenPoPVerified(A,Dreg,pk(skDreg[]),tokenSerial,S,N)) is true.
+-- Query not event(TokenAdmissionAccepted(secondAttempt,tokenSerial,Dreg,pk(skDreg[]),S)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (55 with conclusion selected). Queue: 264 rules.
+400 rules inserted. Base: 400 rules (162 with conclusion selected). Queue: 67 rules.
+Starting query not event(TokenAdmissionAccepted(secondAttempt,tokenSerial,Dreg,pk(skDreg[]),S))
+RESULT not event(TokenAdmissionAccepted(secondAttempt,tokenSerial,Dreg,pk(skDreg[]),S)) is true.
+-- Query event(TokenReuseRejected(tokenSerial,Dreg,pk(skDreg[]),S)) ==> event(RegularTokenConsumed(tokenSerial,Dreg,pk(skDreg[]))) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (55 with conclusion selected). Queue: 264 rules.
+400 rules inserted. Base: 400 rules (162 with conclusion selected). Queue: 67 rules.
+Starting query event(TokenReuseRejected(tokenSerial,Dreg,pk(skDreg[]),S)) ==> event(RegularTokenConsumed(tokenSerial,Dreg,pk(skDreg[])))
+goal reachable: b-event(RegularTokenConsumed(tokenSerial,Dreg,pk(skDreg[]))) -> event(TokenReuseRejected(tokenSerial,Dreg,pk(skDreg[]),secondAdmissionSerial))
+RESULT event(TokenReuseRejected(tokenSerial,Dreg,pk(skDreg[]),S)) ==> event(RegularTokenConsumed(tokenSerial,Dreg,pk(skDreg[]))) is true.
+-- Query not attacker_bitstring(reachFirstAccepted[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (55 with conclusion selected). Queue: 263 rules.
+400 rules inserted. Base: 400 rules (162 with conclusion selected). Queue: 66 rules.
+Starting query not attacker_bitstring(reachFirstAccepted[])
+goal reachable: attacker_bitstring(reachFirstAccepted[])
+
+Derivation:
+Abbreviations:
+nonce1_1 = nonce1[request1 = tokenAdmissionAttempt(firstAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),firstAdmissionSerial)]
+
+1. Using the function firstAdmissionSerial the attacker may obtain firstAdmissionSerial.
+attacker_serial(firstAdmissionSerial).
+
+2. The message makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])) may be sent on channel tokenProvision[] at output {4}.
+mess_admissionToken(tokenProvision[],makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[]))).
+
+3. The message makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])) that may be sent on channel tokenProvision[] by 2 may be received at input {6}.
+So the message tokenAdmissionAttempt(firstAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),firstAdmissionSerial) may be sent to the attacker at output {7}.
+attacker_wireMessage(tokenAdmissionAttempt(firstAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),firstAdmissionSerial)).
+
+4. By 3, the attacker may know tokenAdmissionAttempt(firstAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),firstAdmissionSerial).
+Using the function 4-proj-tokenAdmissionAttempt the attacker may obtain makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])).
+attacker_admissionToken(makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[]))).
+
+5. By 4, the attacker may know makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])).
+Using the function 2-proj-makeCardToken the attacker may obtain sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[]).
+attacker_signature(sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])).
+
+6. Using the function tokenSerial the attacker may obtain tokenSerial.
+attacker_serial(tokenSerial).
+
+7. By 3, the attacker may know tokenAdmissionAttempt(firstAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),firstAdmissionSerial).
+Using the function 3-proj-tokenAdmissionAttempt the attacker may obtain pk(skDreg[]).
+attacker_pkey(pk(skDreg[])).
+
+8. Using the function Dreg the attacker may obtain Dreg.
+attacker_device(Dreg).
+
+9. Using the function pgbA the attacker may obtain pgbA.
+attacker_pgb(pgbA).
+
+10. Using the function tagCardToken the attacker may obtain tagCardToken.
+attacker_domainTag(tagCardToken).
+
+11. By 10, the attacker may know tagCardToken.
+By 9, the attacker may know pgbA.
+By 8, the attacker may know Dreg.
+By 7, the attacker may know pk(skDreg[]).
+By 6, the attacker may know tokenSerial.
+Using the function cardTokenBody the attacker may obtain cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial).
+attacker_protocolMessage(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial)).
+
+12. By 11, the attacker may know cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial).
+By 5, the attacker may know sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[]).
+Using the function makeCardToken the attacker may obtain makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])).
+attacker_admissionToken(makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[]))).
+
+13. Using the function firstAttempt the attacker may obtain firstAttempt.
+attacker_attempt(firstAttempt).
+
+14. By 13, the attacker may know firstAttempt.
+By 8, the attacker may know Dreg.
+By 7, the attacker may know pk(skDreg[]).
+By 12, the attacker may know makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])).
+By 1, the attacker may know firstAdmissionSerial.
+Using the function tokenAdmissionAttempt the attacker may obtain tokenAdmissionAttempt(firstAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),firstAdmissionSerial).
+attacker_wireMessage(tokenAdmissionAttempt(firstAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),firstAdmissionSerial)).
+
+15. The message tokenAdmissionAttempt(firstAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),firstAdmissionSerial) that the attacker may have by 14 may be received at input {17}.
+So the message tokenConsumptionChallenge(firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1) may be sent to the attacker at output {21}.
+attacker_wireMessage(tokenConsumptionChallenge(firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1)).
+
+16. By 15, the attacker may know tokenConsumptionChallenge(firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1).
+Using the function 8-proj-tokenConsumptionChallenge the attacker may obtain nonce1_1.
+attacker_nonce(nonce1_1).
+
+17. Using the function C1 the attacker may obtain C1.
+attacker_device(C1).
+
+18. By 13, the attacker may know firstAttempt.
+By 9, the attacker may know pgbA.
+By 8, the attacker may know Dreg.
+By 7, the attacker may know pk(skDreg[]).
+By 6, the attacker may know tokenSerial.
+By 1, the attacker may know firstAdmissionSerial.
+By 17, the attacker may know C1.
+By 16, the attacker may know nonce1_1.
+Using the function tokenConsumptionChallenge the attacker may obtain tokenConsumptionChallenge(firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1).
+attacker_wireMessage(tokenConsumptionChallenge(firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1)).
+
+19. The message tokenConsumptionChallenge(firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1) that the attacker may have by 18 may be received at input {12}.
+So the message tokenConsumptionResponse(firstAttempt,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1,sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1),skDreg[])) may be sent to the attacker at output {16}.
+attacker_wireMessage(tokenConsumptionResponse(firstAttempt,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1,sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1),skDreg[]))).
+
+20. By 19, the attacker may know tokenConsumptionResponse(firstAttempt,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1,sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1),skDreg[])).
+Using the function 8-proj-tokenConsumptionResponse the attacker may obtain sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1),skDreg[]).
+attacker_signature(sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1),skDreg[])).
+
+21. By 13, the attacker may know firstAttempt.
+By 8, the attacker may know Dreg.
+By 7, the attacker may know pk(skDreg[]).
+By 6, the attacker may know tokenSerial.
+By 1, the attacker may know firstAdmissionSerial.
+By 17, the attacker may know C1.
+By 16, the attacker may know nonce1_1.
+By 20, the attacker may know sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1),skDreg[]).
+Using the function tokenConsumptionResponse the attacker may obtain tokenConsumptionResponse(firstAttempt,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1,sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1),skDreg[])).
+attacker_wireMessage(tokenConsumptionResponse(firstAttempt,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1,sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1),skDreg[]))).
+
+22. The message tokenAdmissionAttempt(firstAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),firstAdmissionSerial) that the attacker may have by 14 may be received at input {17}.
+The message tokenConsumptionResponse(firstAttempt,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1,sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1),skDreg[])) that the attacker may have by 21 may be received at input {22}.
+So the message reachFirstAccepted[] may be sent to the attacker at output {30}.
+attacker_bitstring(reachFirstAccepted[]).
+
+23. By 22, attacker_bitstring(reachFirstAccepted[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reachFirstAccepted[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+event CardAuthorized(pgbA,Dreg,pk(skDreg),tokenSerial) at {3}
+
+out(tokenProvision, makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg),tokenSerial),skCard))) at {4} received at {6}
+
+out(net, tokenAdmissionAttempt(~M,~M_1,~M_2,makeCardToken(cardTokenBody(~M_3,~M_4,~M_5,~M_6,~M_7),~M_8),~M_9)) with ~M = firstAttempt, ~M_1 = Dreg, ~M_2 = pk(skDreg), ~M_3 = tagCardToken, ~M_4 = pgbA, ~M_5 = Dreg, ~M_6 = pk(skDreg), ~M_7 = tokenSerial, ~M_8 = sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg),tokenSerial),skCard), ~M_9 = firstAdmissionSerial at {7}
+
+in(net, tokenAdmissionAttempt(firstAttempt,Dreg,~M_2,makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,~M_2,tokenSerial),~M_8),firstAdmissionSerial)) with ~M_2 = pk(skDreg), ~M_2 = pk(skDreg), ~M_8 = sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg),tokenSerial),skCard) at {17}
+
+new nonce1: nonce creating nonce1_2 at {20}
+
+out(net, tokenConsumptionChallenge(~M_10,~M_11,~M_12,~M_13,~M_14,~M_15,~M_16,~M_17)) with ~M_10 = firstAttempt, ~M_11 = pgbA, ~M_12 = Dreg, ~M_13 = pk(skDreg), ~M_14 = tokenSerial, ~M_15 = firstAdmissionSerial, ~M_16 = C1, ~M_17 = nonce1_2 at {21}
+
+in(net, tokenConsumptionChallenge(firstAttempt,pgbA,Dreg,~M_2,tokenSerial,firstAdmissionSerial,C1,~M_17)) with ~M_2 = pk(skDreg), ~M_17 = nonce1_2 at {12} in copy a
+
+event TokenPoPProduced(firstAttempt,Dreg,pk(skDreg),tokenSerial,firstAdmissionSerial,nonce1_2) at {15} in copy a
+
+out(net, tokenConsumptionResponse(~M_18,~M_19,~M_20,~M_21,~M_22,~M_23,~M_24,~M_25)) with ~M_18 = firstAttempt, ~M_19 = Dreg, ~M_20 = pk(skDreg), ~M_21 = tokenSerial, ~M_22 = firstAdmissionSerial, ~M_23 = C1, ~M_24 = nonce1_2, ~M_25 = sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg),tokenSerial,firstAdmissionSerial,C1,nonce1_2),skDreg) at {16} in copy a
+
+in(net, tokenConsumptionResponse(firstAttempt,Dreg,~M_2,tokenSerial,firstAdmissionSerial,C1,~M_17,~M_25)) with ~M_2 = pk(skDreg), ~M_17 = nonce1_2, ~M_25 = sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg),tokenSerial,firstAdmissionSerial,C1,nonce1_2),skDreg) at {22}
+
+event TokenPoPVerified(firstAttempt,Dreg,pk(skDreg),tokenSerial,firstAdmissionSerial,nonce1_2) at {27}
+
+event RegularTokenConsumed(tokenSerial,Dreg,pk(skDreg)) at {28}
+
+event TokenAdmissionAccepted(firstAttempt,tokenSerial,Dreg,pk(skDreg),firstAdmissionSerial) at {29}
+
+out(net, ~M_26) with ~M_26 = reachFirstAccepted at {30}
+
+The attacker has the message ~M_26 = reachFirstAccepted.
+A trace has been found.
+RESULT not attacker_bitstring(reachFirstAccepted[]) is false.
+-- Query not attacker_bitstring(reachSecondPoPVerified[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (55 with conclusion selected). Queue: 263 rules.
+400 rules inserted. Base: 400 rules (162 with conclusion selected). Queue: 66 rules.
+Starting query not attacker_bitstring(reachSecondPoPVerified[])
+goal reachable: attacker_bitstring(reachSecondPoPVerified[])
+
+Derivation:
+Abbreviations:
+nonce1_1 = nonce1[request1 = tokenAdmissionAttempt(firstAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),firstAdmissionSerial)]
+nonce2_1 = nonce2[request2 = tokenAdmissionAttempt(secondAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),secondAdmissionSerial),response1 = tokenConsumptionResponse(firstAttempt,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1,sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1),skDreg[])),request1 = tokenAdmissionAttempt(firstAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),firstAdmissionSerial)]
+
+1. Using the function firstAdmissionSerial the attacker may obtain firstAdmissionSerial.
+attacker_serial(firstAdmissionSerial).
+
+2. The message makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])) may be sent on channel tokenProvision[] at output {4}.
+mess_admissionToken(tokenProvision[],makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[]))).
+
+3. The message makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])) that may be sent on channel tokenProvision[] by 2 may be received at input {6}.
+So the message tokenAdmissionAttempt(firstAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),firstAdmissionSerial) may be sent to the attacker at output {7}.
+attacker_wireMessage(tokenAdmissionAttempt(firstAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),firstAdmissionSerial)).
+
+4. By 3, the attacker may know tokenAdmissionAttempt(firstAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),firstAdmissionSerial).
+Using the function 4-proj-tokenAdmissionAttempt the attacker may obtain makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])).
+attacker_admissionToken(makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[]))).
+
+5. By 4, the attacker may know makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])).
+Using the function 2-proj-makeCardToken the attacker may obtain sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[]).
+attacker_signature(sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])).
+
+6. Using the function tokenSerial the attacker may obtain tokenSerial.
+attacker_serial(tokenSerial).
+
+7. By 3, the attacker may know tokenAdmissionAttempt(firstAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),firstAdmissionSerial).
+Using the function 3-proj-tokenAdmissionAttempt the attacker may obtain pk(skDreg[]).
+attacker_pkey(pk(skDreg[])).
+
+8. Using the function Dreg the attacker may obtain Dreg.
+attacker_device(Dreg).
+
+9. Using the function pgbA the attacker may obtain pgbA.
+attacker_pgb(pgbA).
+
+10. Using the function tagCardToken the attacker may obtain tagCardToken.
+attacker_domainTag(tagCardToken).
+
+11. By 10, the attacker may know tagCardToken.
+By 9, the attacker may know pgbA.
+By 8, the attacker may know Dreg.
+By 7, the attacker may know pk(skDreg[]).
+By 6, the attacker may know tokenSerial.
+Using the function cardTokenBody the attacker may obtain cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial).
+attacker_protocolMessage(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial)).
+
+12. By 11, the attacker may know cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial).
+By 5, the attacker may know sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[]).
+Using the function makeCardToken the attacker may obtain makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])).
+attacker_admissionToken(makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[]))).
+
+13. Using the function firstAttempt the attacker may obtain firstAttempt.
+attacker_attempt(firstAttempt).
+
+14. By 13, the attacker may know firstAttempt.
+By 8, the attacker may know Dreg.
+By 7, the attacker may know pk(skDreg[]).
+By 12, the attacker may know makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])).
+By 1, the attacker may know firstAdmissionSerial.
+Using the function tokenAdmissionAttempt the attacker may obtain tokenAdmissionAttempt(firstAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),firstAdmissionSerial).
+attacker_wireMessage(tokenAdmissionAttempt(firstAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),firstAdmissionSerial)).
+
+15. The message tokenAdmissionAttempt(firstAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),firstAdmissionSerial) that the attacker may have by 14 may be received at input {17}.
+So the message tokenConsumptionChallenge(firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1) may be sent to the attacker at output {21}.
+attacker_wireMessage(tokenConsumptionChallenge(firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1)).
+
+16. By 15, the attacker may know tokenConsumptionChallenge(firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1).
+Using the function 8-proj-tokenConsumptionChallenge the attacker may obtain nonce1_1.
+attacker_nonce(nonce1_1).
+
+17. Using the function C1 the attacker may obtain C1.
+attacker_device(C1).
+
+18. By 13, the attacker may know firstAttempt.
+By 9, the attacker may know pgbA.
+By 8, the attacker may know Dreg.
+By 7, the attacker may know pk(skDreg[]).
+By 6, the attacker may know tokenSerial.
+By 1, the attacker may know firstAdmissionSerial.
+By 17, the attacker may know C1.
+By 16, the attacker may know nonce1_1.
+Using the function tokenConsumptionChallenge the attacker may obtain tokenConsumptionChallenge(firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1).
+attacker_wireMessage(tokenConsumptionChallenge(firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1)).
+
+19. The message tokenConsumptionChallenge(firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1) that the attacker may have by 18 may be received at input {12}.
+So the message tokenConsumptionResponse(firstAttempt,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1,sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1),skDreg[])) may be sent to the attacker at output {16}.
+attacker_wireMessage(tokenConsumptionResponse(firstAttempt,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1,sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1),skDreg[]))).
+
+20. By 19, the attacker may know tokenConsumptionResponse(firstAttempt,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1,sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1),skDreg[])).
+Using the function 8-proj-tokenConsumptionResponse the attacker may obtain sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1),skDreg[]).
+attacker_signature(sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1),skDreg[])).
+
+21. By 13, the attacker may know firstAttempt.
+By 8, the attacker may know Dreg.
+By 7, the attacker may know pk(skDreg[]).
+By 6, the attacker may know tokenSerial.
+By 1, the attacker may know firstAdmissionSerial.
+By 17, the attacker may know C1.
+By 16, the attacker may know nonce1_1.
+By 20, the attacker may know sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1),skDreg[]).
+Using the function tokenConsumptionResponse the attacker may obtain tokenConsumptionResponse(firstAttempt,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1,sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1),skDreg[])).
+attacker_wireMessage(tokenConsumptionResponse(firstAttempt,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1,sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1),skDreg[]))).
+
+22. Using the function secondAdmissionSerial the attacker may obtain secondAdmissionSerial.
+attacker_serial(secondAdmissionSerial).
+
+23. Using the function secondAttempt the attacker may obtain secondAttempt.
+attacker_attempt(secondAttempt).
+
+24. By 23, the attacker may know secondAttempt.
+By 8, the attacker may know Dreg.
+By 7, the attacker may know pk(skDreg[]).
+By 12, the attacker may know makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])).
+By 22, the attacker may know secondAdmissionSerial.
+Using the function tokenAdmissionAttempt the attacker may obtain tokenAdmissionAttempt(secondAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),secondAdmissionSerial).
+attacker_wireMessage(tokenAdmissionAttempt(secondAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),secondAdmissionSerial)).
+
+25. The message tokenAdmissionAttempt(firstAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),firstAdmissionSerial) that the attacker may have by 14 may be received at input {17}.
+The message tokenConsumptionResponse(firstAttempt,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1,sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1),skDreg[])) that the attacker may have by 21 may be received at input {22}.
+The message tokenAdmissionAttempt(secondAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),secondAdmissionSerial) that the attacker may have by 24 may be received at input {32}.
+So the message tokenConsumptionChallenge(secondAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1) may be sent to the attacker at output {36}.
+attacker_wireMessage(tokenConsumptionChallenge(secondAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1)).
+
+26. By 25, the attacker may know tokenConsumptionChallenge(secondAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1).
+Using the function 8-proj-tokenConsumptionChallenge the attacker may obtain nonce2_1.
+attacker_nonce(nonce2_1).
+
+27. By 23, the attacker may know secondAttempt.
+By 9, the attacker may know pgbA.
+By 8, the attacker may know Dreg.
+By 7, the attacker may know pk(skDreg[]).
+By 6, the attacker may know tokenSerial.
+By 22, the attacker may know secondAdmissionSerial.
+By 17, the attacker may know C1.
+By 26, the attacker may know nonce2_1.
+Using the function tokenConsumptionChallenge the attacker may obtain tokenConsumptionChallenge(secondAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1).
+attacker_wireMessage(tokenConsumptionChallenge(secondAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1)).
+
+28. The message tokenConsumptionChallenge(secondAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1) that the attacker may have by 27 may be received at input {12}.
+So the message tokenConsumptionResponse(secondAttempt,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1,sign(tokenConsumptionContext(tagRegPoP,secondAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1),skDreg[])) may be sent to the attacker at output {16}.
+attacker_wireMessage(tokenConsumptionResponse(secondAttempt,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1,sign(tokenConsumptionContext(tagRegPoP,secondAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1),skDreg[]))).
+
+29. By 28, the attacker may know tokenConsumptionResponse(secondAttempt,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1,sign(tokenConsumptionContext(tagRegPoP,secondAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1),skDreg[])).
+Using the function 8-proj-tokenConsumptionResponse the attacker may obtain sign(tokenConsumptionContext(tagRegPoP,secondAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1),skDreg[]).
+attacker_signature(sign(tokenConsumptionContext(tagRegPoP,secondAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1),skDreg[])).
+
+30. By 23, the attacker may know secondAttempt.
+By 8, the attacker may know Dreg.
+By 7, the attacker may know pk(skDreg[]).
+By 6, the attacker may know tokenSerial.
+By 22, the attacker may know secondAdmissionSerial.
+By 17, the attacker may know C1.
+By 26, the attacker may know nonce2_1.
+By 29, the attacker may know sign(tokenConsumptionContext(tagRegPoP,secondAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1),skDreg[]).
+Using the function tokenConsumptionResponse the attacker may obtain tokenConsumptionResponse(secondAttempt,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1,sign(tokenConsumptionContext(tagRegPoP,secondAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1),skDreg[])).
+attacker_wireMessage(tokenConsumptionResponse(secondAttempt,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1,sign(tokenConsumptionContext(tagRegPoP,secondAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1),skDreg[]))).
+
+31. The message tokenAdmissionAttempt(firstAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),firstAdmissionSerial) that the attacker may have by 14 may be received at input {17}.
+The message tokenConsumptionResponse(firstAttempt,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1,sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1),skDreg[])) that the attacker may have by 21 may be received at input {22}.
+The message tokenAdmissionAttempt(secondAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),secondAdmissionSerial) that the attacker may have by 24 may be received at input {32}.
+The message tokenConsumptionResponse(secondAttempt,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1,sign(tokenConsumptionContext(tagRegPoP,secondAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1),skDreg[])) that the attacker may have by 30 may be received at input {37}.
+So the message reachSecondPoPVerified[] may be sent to the attacker at output {43}.
+attacker_bitstring(reachSecondPoPVerified[]).
+
+32. By 31, attacker_bitstring(reachSecondPoPVerified[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reachSecondPoPVerified[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+event CardAuthorized(pgbA,Dreg,pk(skDreg),tokenSerial) at {3}
+
+out(tokenProvision, makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg),tokenSerial),skCard))) at {4} received at {6}
+
+out(net, tokenAdmissionAttempt(~M,~M_1,~M_2,makeCardToken(cardTokenBody(~M_3,~M_4,~M_5,~M_6,~M_7),~M_8),~M_9)) with ~M = firstAttempt, ~M_1 = Dreg, ~M_2 = pk(skDreg), ~M_3 = tagCardToken, ~M_4 = pgbA, ~M_5 = Dreg, ~M_6 = pk(skDreg), ~M_7 = tokenSerial, ~M_8 = sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg),tokenSerial),skCard), ~M_9 = firstAdmissionSerial at {7}
+
+in(net, tokenAdmissionAttempt(firstAttempt,Dreg,~M_2,makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,~M_2,tokenSerial),~M_8),firstAdmissionSerial)) with ~M_2 = pk(skDreg), ~M_2 = pk(skDreg), ~M_8 = sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg),tokenSerial),skCard) at {17}
+
+new nonce1: nonce creating nonce1_2 at {20}
+
+out(net, tokenConsumptionChallenge(~M_10,~M_11,~M_12,~M_13,~M_14,~M_15,~M_16,~M_17)) with ~M_10 = firstAttempt, ~M_11 = pgbA, ~M_12 = Dreg, ~M_13 = pk(skDreg), ~M_14 = tokenSerial, ~M_15 = firstAdmissionSerial, ~M_16 = C1, ~M_17 = nonce1_2 at {21}
+
+in(net, tokenConsumptionChallenge(firstAttempt,pgbA,Dreg,~M_2,tokenSerial,firstAdmissionSerial,C1,~M_17)) with ~M_2 = pk(skDreg), ~M_17 = nonce1_2 at {12} in copy a
+
+event TokenPoPProduced(firstAttempt,Dreg,pk(skDreg),tokenSerial,firstAdmissionSerial,nonce1_2) at {15} in copy a
+
+out(net, tokenConsumptionResponse(~M_18,~M_19,~M_20,~M_21,~M_22,~M_23,~M_24,~M_25)) with ~M_18 = firstAttempt, ~M_19 = Dreg, ~M_20 = pk(skDreg), ~M_21 = tokenSerial, ~M_22 = firstAdmissionSerial, ~M_23 = C1, ~M_24 = nonce1_2, ~M_25 = sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg),tokenSerial,firstAdmissionSerial,C1,nonce1_2),skDreg) at {16} in copy a
+
+in(net, tokenConsumptionResponse(firstAttempt,Dreg,~M_2,tokenSerial,firstAdmissionSerial,C1,~M_17,~M_25)) with ~M_2 = pk(skDreg), ~M_17 = nonce1_2, ~M_25 = sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg),tokenSerial,firstAdmissionSerial,C1,nonce1_2),skDreg) at {22}
+
+event TokenPoPVerified(firstAttempt,Dreg,pk(skDreg),tokenSerial,firstAdmissionSerial,nonce1_2) at {27}
+
+event RegularTokenConsumed(tokenSerial,Dreg,pk(skDreg)) at {28}
+
+event TokenAdmissionAccepted(firstAttempt,tokenSerial,Dreg,pk(skDreg),firstAdmissionSerial) at {29}
+
+out(net, ~M_26) with ~M_26 = reachFirstAccepted at {30}
+
+out(beginSecondAttempt, tokenSerial) at {31} received at {8}
+
+in(net, tokenAdmissionAttempt(secondAttempt,Dreg,~M_2,makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,~M_2,tokenSerial),~M_8),secondAdmissionSerial)) with ~M_2 = pk(skDreg), ~M_2 = pk(skDreg), ~M_8 = sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg),tokenSerial),skCard) at {32}
+
+new nonce2: nonce creating nonce2_2 at {35}
+
+out(net, tokenConsumptionChallenge(~M_27,~M_28,~M_29,~M_30,~M_31,~M_32,~M_33,~M_34)) with ~M_27 = secondAttempt, ~M_28 = pgbA, ~M_29 = Dreg, ~M_30 = pk(skDreg), ~M_31 = tokenSerial, ~M_32 = secondAdmissionSerial, ~M_33 = C1, ~M_34 = nonce2_2 at {36}
+
+in(net, tokenConsumptionChallenge(secondAttempt,pgbA,Dreg,~M_2,tokenSerial,secondAdmissionSerial,C1,~M_34)) with ~M_2 = pk(skDreg), ~M_34 = nonce2_2 at {12} in copy a_1
+
+event TokenPoPProduced(secondAttempt,Dreg,pk(skDreg),tokenSerial,secondAdmissionSerial,nonce2_2) at {15} in copy a_1
+
+out(net, tokenConsumptionResponse(~M_35,~M_36,~M_37,~M_38,~M_39,~M_40,~M_41,~M_42)) with ~M_35 = secondAttempt, ~M_36 = Dreg, ~M_37 = pk(skDreg), ~M_38 = tokenSerial, ~M_39 = secondAdmissionSerial, ~M_40 = C1, ~M_41 = nonce2_2, ~M_42 = sign(tokenConsumptionContext(tagRegPoP,secondAttempt,pgbA,Dreg,pk(skDreg),tokenSerial,secondAdmissionSerial,C1,nonce2_2),skDreg) at {16} in copy a_1
+
+in(net, tokenConsumptionResponse(secondAttempt,Dreg,~M_2,tokenSerial,secondAdmissionSerial,C1,~M_34,~M_42)) with ~M_2 = pk(skDreg), ~M_34 = nonce2_2, ~M_42 = sign(tokenConsumptionContext(tagRegPoP,secondAttempt,pgbA,Dreg,pk(skDreg),tokenSerial,secondAdmissionSerial,C1,nonce2_2),skDreg) at {37}
+
+event TokenPoPVerified(secondAttempt,Dreg,pk(skDreg),tokenSerial,secondAdmissionSerial,nonce2_2) at {42}
+
+out(net, ~M_43) with ~M_43 = reachSecondPoPVerified at {43}
+
+event TokenReuseRejected(tokenSerial,Dreg,pk(skDreg),secondAdmissionSerial) at {44}
+
+out(net, ~M_44) with ~M_44 = reachReuseRejected at {45}
+
+The attacker has the message ~M_43 = reachSecondPoPVerified.
+A trace has been found.
+RESULT not attacker_bitstring(reachSecondPoPVerified[]) is false.
+-- Query not attacker_bitstring(reachReuseRejected[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (55 with conclusion selected). Queue: 263 rules.
+400 rules inserted. Base: 400 rules (162 with conclusion selected). Queue: 66 rules.
+Starting query not attacker_bitstring(reachReuseRejected[])
+goal reachable: attacker_bitstring(reachReuseRejected[])
+
+Derivation:
+Abbreviations:
+nonce1_1 = nonce1[request1 = tokenAdmissionAttempt(firstAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),firstAdmissionSerial)]
+nonce2_1 = nonce2[request2 = tokenAdmissionAttempt(secondAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),secondAdmissionSerial),response1 = tokenConsumptionResponse(firstAttempt,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1,sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1),skDreg[])),request1 = tokenAdmissionAttempt(firstAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),firstAdmissionSerial)]
+
+1. Using the function firstAdmissionSerial the attacker may obtain firstAdmissionSerial.
+attacker_serial(firstAdmissionSerial).
+
+2. The message makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])) may be sent on channel tokenProvision[] at output {4}.
+mess_admissionToken(tokenProvision[],makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[]))).
+
+3. The message makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])) that may be sent on channel tokenProvision[] by 2 may be received at input {6}.
+So the message tokenAdmissionAttempt(firstAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),firstAdmissionSerial) may be sent to the attacker at output {7}.
+attacker_wireMessage(tokenAdmissionAttempt(firstAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),firstAdmissionSerial)).
+
+4. By 3, the attacker may know tokenAdmissionAttempt(firstAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),firstAdmissionSerial).
+Using the function 4-proj-tokenAdmissionAttempt the attacker may obtain makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])).
+attacker_admissionToken(makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[]))).
+
+5. By 4, the attacker may know makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])).
+Using the function 2-proj-makeCardToken the attacker may obtain sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[]).
+attacker_signature(sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])).
+
+6. Using the function tokenSerial the attacker may obtain tokenSerial.
+attacker_serial(tokenSerial).
+
+7. By 3, the attacker may know tokenAdmissionAttempt(firstAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),firstAdmissionSerial).
+Using the function 3-proj-tokenAdmissionAttempt the attacker may obtain pk(skDreg[]).
+attacker_pkey(pk(skDreg[])).
+
+8. Using the function Dreg the attacker may obtain Dreg.
+attacker_device(Dreg).
+
+9. Using the function pgbA the attacker may obtain pgbA.
+attacker_pgb(pgbA).
+
+10. Using the function tagCardToken the attacker may obtain tagCardToken.
+attacker_domainTag(tagCardToken).
+
+11. By 10, the attacker may know tagCardToken.
+By 9, the attacker may know pgbA.
+By 8, the attacker may know Dreg.
+By 7, the attacker may know pk(skDreg[]).
+By 6, the attacker may know tokenSerial.
+Using the function cardTokenBody the attacker may obtain cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial).
+attacker_protocolMessage(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial)).
+
+12. By 11, the attacker may know cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial).
+By 5, the attacker may know sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[]).
+Using the function makeCardToken the attacker may obtain makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])).
+attacker_admissionToken(makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[]))).
+
+13. Using the function firstAttempt the attacker may obtain firstAttempt.
+attacker_attempt(firstAttempt).
+
+14. By 13, the attacker may know firstAttempt.
+By 8, the attacker may know Dreg.
+By 7, the attacker may know pk(skDreg[]).
+By 12, the attacker may know makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])).
+By 1, the attacker may know firstAdmissionSerial.
+Using the function tokenAdmissionAttempt the attacker may obtain tokenAdmissionAttempt(firstAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),firstAdmissionSerial).
+attacker_wireMessage(tokenAdmissionAttempt(firstAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),firstAdmissionSerial)).
+
+15. The message tokenAdmissionAttempt(firstAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),firstAdmissionSerial) that the attacker may have by 14 may be received at input {17}.
+So the message tokenConsumptionChallenge(firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1) may be sent to the attacker at output {21}.
+attacker_wireMessage(tokenConsumptionChallenge(firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1)).
+
+16. By 15, the attacker may know tokenConsumptionChallenge(firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1).
+Using the function 8-proj-tokenConsumptionChallenge the attacker may obtain nonce1_1.
+attacker_nonce(nonce1_1).
+
+17. Using the function C1 the attacker may obtain C1.
+attacker_device(C1).
+
+18. By 13, the attacker may know firstAttempt.
+By 9, the attacker may know pgbA.
+By 8, the attacker may know Dreg.
+By 7, the attacker may know pk(skDreg[]).
+By 6, the attacker may know tokenSerial.
+By 1, the attacker may know firstAdmissionSerial.
+By 17, the attacker may know C1.
+By 16, the attacker may know nonce1_1.
+Using the function tokenConsumptionChallenge the attacker may obtain tokenConsumptionChallenge(firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1).
+attacker_wireMessage(tokenConsumptionChallenge(firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1)).
+
+19. The message tokenConsumptionChallenge(firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1) that the attacker may have by 18 may be received at input {12}.
+So the message tokenConsumptionResponse(firstAttempt,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1,sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1),skDreg[])) may be sent to the attacker at output {16}.
+attacker_wireMessage(tokenConsumptionResponse(firstAttempt,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1,sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1),skDreg[]))).
+
+20. By 19, the attacker may know tokenConsumptionResponse(firstAttempt,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1,sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1),skDreg[])).
+Using the function 8-proj-tokenConsumptionResponse the attacker may obtain sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1),skDreg[]).
+attacker_signature(sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1),skDreg[])).
+
+21. By 13, the attacker may know firstAttempt.
+By 8, the attacker may know Dreg.
+By 7, the attacker may know pk(skDreg[]).
+By 6, the attacker may know tokenSerial.
+By 1, the attacker may know firstAdmissionSerial.
+By 17, the attacker may know C1.
+By 16, the attacker may know nonce1_1.
+By 20, the attacker may know sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1),skDreg[]).
+Using the function tokenConsumptionResponse the attacker may obtain tokenConsumptionResponse(firstAttempt,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1,sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1),skDreg[])).
+attacker_wireMessage(tokenConsumptionResponse(firstAttempt,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1,sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1),skDreg[]))).
+
+22. Using the function secondAdmissionSerial the attacker may obtain secondAdmissionSerial.
+attacker_serial(secondAdmissionSerial).
+
+23. Using the function secondAttempt the attacker may obtain secondAttempt.
+attacker_attempt(secondAttempt).
+
+24. By 23, the attacker may know secondAttempt.
+By 8, the attacker may know Dreg.
+By 7, the attacker may know pk(skDreg[]).
+By 12, the attacker may know makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])).
+By 22, the attacker may know secondAdmissionSerial.
+Using the function tokenAdmissionAttempt the attacker may obtain tokenAdmissionAttempt(secondAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),secondAdmissionSerial).
+attacker_wireMessage(tokenAdmissionAttempt(secondAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),secondAdmissionSerial)).
+
+25. The message tokenAdmissionAttempt(firstAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),firstAdmissionSerial) that the attacker may have by 14 may be received at input {17}.
+The message tokenConsumptionResponse(firstAttempt,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1,sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1),skDreg[])) that the attacker may have by 21 may be received at input {22}.
+The message tokenAdmissionAttempt(secondAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),secondAdmissionSerial) that the attacker may have by 24 may be received at input {32}.
+So the message tokenConsumptionChallenge(secondAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1) may be sent to the attacker at output {36}.
+attacker_wireMessage(tokenConsumptionChallenge(secondAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1)).
+
+26. By 25, the attacker may know tokenConsumptionChallenge(secondAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1).
+Using the function 8-proj-tokenConsumptionChallenge the attacker may obtain nonce2_1.
+attacker_nonce(nonce2_1).
+
+27. By 23, the attacker may know secondAttempt.
+By 9, the attacker may know pgbA.
+By 8, the attacker may know Dreg.
+By 7, the attacker may know pk(skDreg[]).
+By 6, the attacker may know tokenSerial.
+By 22, the attacker may know secondAdmissionSerial.
+By 17, the attacker may know C1.
+By 26, the attacker may know nonce2_1.
+Using the function tokenConsumptionChallenge the attacker may obtain tokenConsumptionChallenge(secondAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1).
+attacker_wireMessage(tokenConsumptionChallenge(secondAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1)).
+
+28. The message tokenConsumptionChallenge(secondAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1) that the attacker may have by 27 may be received at input {12}.
+So the message tokenConsumptionResponse(secondAttempt,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1,sign(tokenConsumptionContext(tagRegPoP,secondAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1),skDreg[])) may be sent to the attacker at output {16}.
+attacker_wireMessage(tokenConsumptionResponse(secondAttempt,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1,sign(tokenConsumptionContext(tagRegPoP,secondAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1),skDreg[]))).
+
+29. By 28, the attacker may know tokenConsumptionResponse(secondAttempt,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1,sign(tokenConsumptionContext(tagRegPoP,secondAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1),skDreg[])).
+Using the function 8-proj-tokenConsumptionResponse the attacker may obtain sign(tokenConsumptionContext(tagRegPoP,secondAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1),skDreg[]).
+attacker_signature(sign(tokenConsumptionContext(tagRegPoP,secondAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1),skDreg[])).
+
+30. By 23, the attacker may know secondAttempt.
+By 8, the attacker may know Dreg.
+By 7, the attacker may know pk(skDreg[]).
+By 6, the attacker may know tokenSerial.
+By 22, the attacker may know secondAdmissionSerial.
+By 17, the attacker may know C1.
+By 26, the attacker may know nonce2_1.
+By 29, the attacker may know sign(tokenConsumptionContext(tagRegPoP,secondAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1),skDreg[]).
+Using the function tokenConsumptionResponse the attacker may obtain tokenConsumptionResponse(secondAttempt,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1,sign(tokenConsumptionContext(tagRegPoP,secondAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1),skDreg[])).
+attacker_wireMessage(tokenConsumptionResponse(secondAttempt,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1,sign(tokenConsumptionContext(tagRegPoP,secondAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1),skDreg[]))).
+
+31. The message tokenAdmissionAttempt(firstAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),firstAdmissionSerial) that the attacker may have by 14 may be received at input {17}.
+The message tokenConsumptionResponse(firstAttempt,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1,sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,firstAdmissionSerial,C1,nonce1_1),skDreg[])) that the attacker may have by 21 may be received at input {22}.
+The message tokenAdmissionAttempt(secondAttempt,Dreg,pk(skDreg[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg[]),tokenSerial),skCard[])),secondAdmissionSerial) that the attacker may have by 24 may be received at input {32}.
+The message tokenConsumptionResponse(secondAttempt,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1,sign(tokenConsumptionContext(tagRegPoP,secondAttempt,pgbA,Dreg,pk(skDreg[]),tokenSerial,secondAdmissionSerial,C1,nonce2_1),skDreg[])) that the attacker may have by 30 may be received at input {37}.
+So the message reachReuseRejected[] may be sent to the attacker at output {45}.
+attacker_bitstring(reachReuseRejected[]).
+
+32. By 31, attacker_bitstring(reachReuseRejected[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reachReuseRejected[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+event CardAuthorized(pgbA,Dreg,pk(skDreg),tokenSerial) at {3}
+
+out(tokenProvision, makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg),tokenSerial),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg),tokenSerial),skCard))) at {4} received at {6}
+
+out(net, tokenAdmissionAttempt(~M,~M_1,~M_2,makeCardToken(cardTokenBody(~M_3,~M_4,~M_5,~M_6,~M_7),~M_8),~M_9)) with ~M = firstAttempt, ~M_1 = Dreg, ~M_2 = pk(skDreg), ~M_3 = tagCardToken, ~M_4 = pgbA, ~M_5 = Dreg, ~M_6 = pk(skDreg), ~M_7 = tokenSerial, ~M_8 = sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg),tokenSerial),skCard), ~M_9 = firstAdmissionSerial at {7}
+
+in(net, tokenAdmissionAttempt(firstAttempt,Dreg,~M_2,makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,~M_2,tokenSerial),~M_8),firstAdmissionSerial)) with ~M_2 = pk(skDreg), ~M_2 = pk(skDreg), ~M_8 = sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg),tokenSerial),skCard) at {17}
+
+new nonce1: nonce creating nonce1_2 at {20}
+
+out(net, tokenConsumptionChallenge(~M_10,~M_11,~M_12,~M_13,~M_14,~M_15,~M_16,~M_17)) with ~M_10 = firstAttempt, ~M_11 = pgbA, ~M_12 = Dreg, ~M_13 = pk(skDreg), ~M_14 = tokenSerial, ~M_15 = firstAdmissionSerial, ~M_16 = C1, ~M_17 = nonce1_2 at {21}
+
+in(net, tokenConsumptionChallenge(firstAttempt,pgbA,Dreg,~M_2,tokenSerial,firstAdmissionSerial,C1,~M_17)) with ~M_2 = pk(skDreg), ~M_17 = nonce1_2 at {12} in copy a
+
+event TokenPoPProduced(firstAttempt,Dreg,pk(skDreg),tokenSerial,firstAdmissionSerial,nonce1_2) at {15} in copy a
+
+out(net, tokenConsumptionResponse(~M_18,~M_19,~M_20,~M_21,~M_22,~M_23,~M_24,~M_25)) with ~M_18 = firstAttempt, ~M_19 = Dreg, ~M_20 = pk(skDreg), ~M_21 = tokenSerial, ~M_22 = firstAdmissionSerial, ~M_23 = C1, ~M_24 = nonce1_2, ~M_25 = sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg),tokenSerial,firstAdmissionSerial,C1,nonce1_2),skDreg) at {16} in copy a
+
+in(net, tokenConsumptionResponse(firstAttempt,Dreg,~M_2,tokenSerial,firstAdmissionSerial,C1,~M_17,~M_25)) with ~M_2 = pk(skDreg), ~M_17 = nonce1_2, ~M_25 = sign(tokenConsumptionContext(tagRegPoP,firstAttempt,pgbA,Dreg,pk(skDreg),tokenSerial,firstAdmissionSerial,C1,nonce1_2),skDreg) at {22}
+
+event TokenPoPVerified(firstAttempt,Dreg,pk(skDreg),tokenSerial,firstAdmissionSerial,nonce1_2) at {27}
+
+event RegularTokenConsumed(tokenSerial,Dreg,pk(skDreg)) at {28}
+
+event TokenAdmissionAccepted(firstAttempt,tokenSerial,Dreg,pk(skDreg),firstAdmissionSerial) at {29}
+
+out(net, ~M_26) with ~M_26 = reachFirstAccepted at {30}
+
+out(beginSecondAttempt, tokenSerial) at {31} received at {8}
+
+in(net, tokenAdmissionAttempt(secondAttempt,Dreg,~M_2,makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,~M_2,tokenSerial),~M_8),secondAdmissionSerial)) with ~M_2 = pk(skDreg), ~M_2 = pk(skDreg), ~M_8 = sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDreg),tokenSerial),skCard) at {32}
+
+new nonce2: nonce creating nonce2_2 at {35}
+
+out(net, tokenConsumptionChallenge(~M_27,~M_28,~M_29,~M_30,~M_31,~M_32,~M_33,~M_34)) with ~M_27 = secondAttempt, ~M_28 = pgbA, ~M_29 = Dreg, ~M_30 = pk(skDreg), ~M_31 = tokenSerial, ~M_32 = secondAdmissionSerial, ~M_33 = C1, ~M_34 = nonce2_2 at {36}
+
+in(net, tokenConsumptionChallenge(secondAttempt,pgbA,Dreg,~M_2,tokenSerial,secondAdmissionSerial,C1,~M_34)) with ~M_2 = pk(skDreg), ~M_34 = nonce2_2 at {12} in copy a_1
+
+event TokenPoPProduced(secondAttempt,Dreg,pk(skDreg),tokenSerial,secondAdmissionSerial,nonce2_2) at {15} in copy a_1
+
+out(net, tokenConsumptionResponse(~M_35,~M_36,~M_37,~M_38,~M_39,~M_40,~M_41,~M_42)) with ~M_35 = secondAttempt, ~M_36 = Dreg, ~M_37 = pk(skDreg), ~M_38 = tokenSerial, ~M_39 = secondAdmissionSerial, ~M_40 = C1, ~M_41 = nonce2_2, ~M_42 = sign(tokenConsumptionContext(tagRegPoP,secondAttempt,pgbA,Dreg,pk(skDreg),tokenSerial,secondAdmissionSerial,C1,nonce2_2),skDreg) at {16} in copy a_1
+
+in(net, tokenConsumptionResponse(secondAttempt,Dreg,~M_2,tokenSerial,secondAdmissionSerial,C1,~M_34,~M_42)) with ~M_2 = pk(skDreg), ~M_34 = nonce2_2, ~M_42 = sign(tokenConsumptionContext(tagRegPoP,secondAttempt,pgbA,Dreg,pk(skDreg),tokenSerial,secondAdmissionSerial,C1,nonce2_2),skDreg) at {37}
+
+event TokenPoPVerified(secondAttempt,Dreg,pk(skDreg),tokenSerial,secondAdmissionSerial,nonce2_2) at {42}
+
+out(net, ~M_43) with ~M_43 = reachSecondPoPVerified at {43}
+
+event TokenReuseRejected(tokenSerial,Dreg,pk(skDreg),secondAdmissionSerial) at {44}
+
+out(net, ~M_44) with ~M_44 = reachReuseRejected at {45}
+
+The attacker has the message ~M_44 = reachReuseRejected.
+A trace has been found.
+RESULT not attacker_bitstring(reachReuseRejected[]) is false.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query not attacker_skey(skCard[]) is true.
+
+Query not attacker_skey(skDreg[]) is true.
+
+Query event(TokenAdmissionAccepted(A,tokenSerial,Dreg,pk(skDreg[]),S)) ==> event(CardAuthorized(pgbA,Dreg,pk(skDreg[]),tokenSerial)) && event(TokenPoPVerified(A,Dreg,pk(skDreg[]),tokenSerial,S,N)) is true.
+
+Query not event(TokenAdmissionAccepted(secondAttempt,tokenSerial,Dreg,pk(skDreg[]),S)) is true.
+
+Query event(TokenReuseRejected(tokenSerial,Dreg,pk(skDreg[]),S)) ==> event(RegularTokenConsumed(tokenSerial,Dreg,pk(skDreg[]))) is true.
+
+Query not attacker_bitstring(reachFirstAccepted[]) is false.
+
+Query not attacker_bitstring(reachSecondPoPVerified[]) is false.
+
+Query not attacker_bitstring(reachReuseRejected[]) is false.
+
+--------------------------------------------------------------
+

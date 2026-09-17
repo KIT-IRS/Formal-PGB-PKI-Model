@@ -1,0 +1,2786 @@
+Process 0 (that is, the initial process):
+{1}let cardAnchor: pkey = pk(skCard) in
+{2}let bodyC1: thresholdMessage = regularLDevIDBody(tagRegularLDevID,pgbA,C1,pk(skC1Device),regularMember,initialSerialC1,initialSerialC1) in
+{3}let bodyC2: thresholdMessage = regularLDevIDBody(tagRegularLDevID,pgbA,C2,pk(skC2Device),regularMember,initialSerialC2,initialSerialC2) in
+{4}let bodyC3: thresholdMessage = regularLDevIDBody(tagRegularLDevID,pgbA,C3,pk(skC3Device),regularMember,initialSerialC3,initialSerialC3) in
+{5}let bodyO1: thresholdMessage = regularLDevIDBody(tagRegularLDevID,pgbA,O1,pk(skO1Device),regularMember,initialSerialO1,initialSerialO1) in
+{6}let credentialC1: certificate = makeRegularCertificate(bodyC1,thresholdSig12(e0,bodyC1)) in
+{7}let credentialC2: certificate = makeRegularCertificate(bodyC2,thresholdSig12(e0,bodyC2)) in
+{8}let credentialC3: certificate = makeRegularCertificate(bodyC3,thresholdSig12(e0,bodyC3)) in
+{9}let credentialO1: certificate = makeRegularCertificate(bodyO1,thresholdSig12(e0,bodyO1)) in
+{10}event InitialRegularMember(C1,pk(skC1Device));
+{11}event InitialRegularMember(C2,pk(skC2Device));
+{12}event InitialRegularMember(C3,pk(skC3Device));
+{13}event InitialRegularMember(O1,pk(skO1Device));
+{14}event InitialCommitteeMember(C1,e0);
+{15}event InitialCommitteeMember(C2,e0);
+{16}event InitialCommitteeMember(C3,e0);
+{17}event SetupComplete(pgbA,pkChord,cardAnchor);
+{18}event PGBLocked(pgbA);
+{19}event ShareCompromised(C1,e0);
+{20}out(net, share1(e0));
+{21}out(net, reachShare1Leak);
+{22}event ShareCompromised(C2,e0);
+{23}out(net, share2(e0));
+{24}out(net, reachShare2Leak);
+{25}out(net, cardAnchor);
+{26}out(net, pkChord);
+{27}out(net, pk(skC1Device));
+{28}out(net, pk(skC2Device));
+{29}out(net, pk(skC3Device));
+{30}out(net, pk(skO1Device));
+{31}out(net, pk(skAdv));
+{32}out(net, credentialC1);
+{33}out(net, credentialC2);
+{34}out(net, credentialC3);
+{35}out(net, credentialO1);
+{36}out(net, reachSetup);
+(
+    {37}new tokenSerial: serial;
+    {38}let tokenBody: protocolMessage = cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice),tokenSerial) in
+    {39}event CardAuthorized(pgbA,Dreg,pk(skDregDevice),tokenSerial);
+    {40}let token: admissionToken = makeCardToken(tokenBody,sign(tokenBody,skCard)) in
+    {41}out(cardProvision, token)
+) | (
+    {42}in(cardProvision, token_1: admissionToken);
+    {43}new lookupId: routeid;
+    {44}event OverlayLookupRequested(Dreg,admissionService,lookupId);
+    {45}out(net, route(lookupId,Dreg,admissionService,O1,admissionInit(Dreg,pk(skDregDevice),token_1)))
+) | (
+    {46}!
+    {47}in(net, envelope: routeEnvelope);
+    {48}let route(routeId: routeid,source: device,=admissionService,=O1,payload: wireMessage) = envelope in
+    {49}let admissionInit(subject: device,subjectKey: pkey,token_2: admissionToken) = payload in
+    {50}event OverlayForwarded(O1,source,C1,admissionService,routeId);
+    {51}out(net, reachRepresentativeOverlayForwarding);
+    {52}out(net, route(routeId,source,admissionService,C1,payload))
+) | (
+    {53}!
+    {54}in(net, envelope_1: routeEnvelope);
+    {55}let route(routeId_1: routeid,source_1: device,=admissionService,=O1,payload_1: wireMessage) = envelope_1 in
+    {56}let signerRequest(target: device,subject_1: device,subjectKey_1: pkey,token_3: admissionToken,admissionSerial: serial) = payload_1 in
+    {57}event OverlayForwarded(O1,source_1,target,admissionService,routeId_1);
+    {58}out(net, route(routeId_1,source_1,admissionService,target,payload_1))
+) | (
+    {59}let destination: device = C1 in
+    {60}!
+    {61}in(net, envelope_2: routeEnvelope);
+    {62}let route(routeId_2: routeid,source_2: device,serviceTag: service,=destination,payload_2: wireMessage) = envelope_2 in
+    {63}event OverlayDelivered(destination,serviceTag,routeId_2);
+    {64}out(net, payload_2)
+) | (
+    {65}let destination_1: device = C2 in
+    {66}!
+    {67}in(net, envelope_3: routeEnvelope);
+    {68}let route(routeId_3: routeid,source_3: device,serviceTag_1: service,=destination_1,payload_3: wireMessage) = envelope_3 in
+    {69}event OverlayDelivered(destination_1,serviceTag_1,routeId_3);
+    {70}out(net, payload_3)
+) | (
+    {71}let destination_2: device = C3 in
+    {72}!
+    {73}in(net, envelope_4: routeEnvelope);
+    {74}let route(routeId_4: routeid,source_4: device,serviceTag_2: service,=destination_2,payload_4: wireMessage) = envelope_4 in
+    {75}event OverlayDelivered(destination_2,serviceTag_2,routeId_4);
+    {76}out(net, payload_4)
+) | (
+    {77}!
+    {78}in(net, initialization: wireMessage);
+    {79}let admissionInit(subject_2: device,subjectKey_2: pkey,token_4: admissionToken) = initialization in
+    {80}new admissionSerial_1: serial;
+    {81}event RegularAdmissionStarted(subject_2,subjectKey_2,admissionSerial_1);
+    {82}out(net, signerRequest(C1,subject_2,subjectKey_2,token_4,admissionSerial_1));
+    {83}new routeToC2: routeid;
+    {84}event OverlayLookupRequested(C1,admissionService,routeToC2);
+    {85}out(net, route(routeToC2,C1,admissionService,O1,signerRequest(C2,subject_2,subjectKey_2,token_4,admissionSerial_1)));
+    {86}new routeToC3: routeid;
+    {87}event OverlayLookupRequested(C1,admissionService,routeToC3);
+    {88}out(net, route(routeToC3,C1,admissionService,O1,signerRequest(C3,subject_2,subjectKey_2,token_4,admissionSerial_1)))
+) | (
+    {89}let signerId: device = C1 in
+    {90}let signerShare: thresholdShare = share1(e0) in
+    {91}!
+    {92}in(net, request: wireMessage);
+    {93}let signerRequest(=signerId,subject_3: device,subjectKey_3: pkey,token_5: admissionToken,admissionSerial_2: serial) = request in
+    {94}new verifierNonce: nonce;
+    {95}out(net, signerChallenge(pgbA,subject_3,subjectKey_3,admissionSerial_2,signerId,verifierNonce));
+    {96}in(net, response: wireMessage);
+    {97}let regularPoPResponse(=signerId,=subject_3,=subjectKey_3,=admissionSerial_2,=verifierNonce,popSignature: signature) = response in
+    {98}let tokenSerial_1: serial = validateCardToken(token_5,cardAnchor,pgbA,subject_3,subjectKey_3) in
+    {99}let checkedContext: protocolMessage = checkSign(popSignature,subjectKey_3) in
+    {100}let expectedContext: protocolMessage = regularPoPContext(tagRegPoP,pgbA,subject_3,subjectKey_3,admissionSerial_2,signerId,verifierNonce) in
+    {101}if (checkedContext = expectedContext) then
+    {102}event RegularSignerPoPVerified(signerId,subject_3,subjectKey_3,admissionSerial_2,e0,verifierNonce);
+    {103}event SignerValidated(signerId,subject_3,subjectKey_3,tokenSerial_1,admissionSerial_2,e0,verifierNonce);
+    {104}let certificateBody: thresholdMessage = regularLDevIDBody(tagRegularLDevID,pgbA,subject_3,subjectKey_3,regularMember,tokenSerial_1,admissionSerial_2) in
+    {105}event PartialIssued(signerId,subject_3,subjectKey_3,admissionSerial_2,e0);
+    {106}out(net, partialResponse(signerId,subject_3,subjectKey_3,tokenSerial_1,admissionSerial_2,partialSign(certificateBody,signerShare)))
+) | (
+    {107}let signerId_1: device = C2 in
+    {108}let signerShare_1: thresholdShare = share2(e0) in
+    {109}!
+    {110}in(net, request_1: wireMessage);
+    {111}let signerRequest(=signerId_1,subject_4: device,subjectKey_4: pkey,token_6: admissionToken,admissionSerial_3: serial) = request_1 in
+    {112}new verifierNonce_1: nonce;
+    {113}out(net, signerChallenge(pgbA,subject_4,subjectKey_4,admissionSerial_3,signerId_1,verifierNonce_1));
+    {114}in(net, response_1: wireMessage);
+    {115}let regularPoPResponse(=signerId_1,=subject_4,=subjectKey_4,=admissionSerial_3,=verifierNonce_1,popSignature_1: signature) = response_1 in
+    {116}let tokenSerial_2: serial = validateCardToken(token_6,cardAnchor,pgbA,subject_4,subjectKey_4) in
+    {117}let checkedContext_1: protocolMessage = checkSign(popSignature_1,subjectKey_4) in
+    {118}let expectedContext_1: protocolMessage = regularPoPContext(tagRegPoP,pgbA,subject_4,subjectKey_4,admissionSerial_3,signerId_1,verifierNonce_1) in
+    {119}if (checkedContext_1 = expectedContext_1) then
+    {120}event RegularSignerPoPVerified(signerId_1,subject_4,subjectKey_4,admissionSerial_3,e0,verifierNonce_1);
+    {121}event SignerValidated(signerId_1,subject_4,subjectKey_4,tokenSerial_2,admissionSerial_3,e0,verifierNonce_1);
+    {122}let certificateBody_1: thresholdMessage = regularLDevIDBody(tagRegularLDevID,pgbA,subject_4,subjectKey_4,regularMember,tokenSerial_2,admissionSerial_3) in
+    {123}event PartialIssued(signerId_1,subject_4,subjectKey_4,admissionSerial_3,e0);
+    {124}out(net, partialResponse(signerId_1,subject_4,subjectKey_4,tokenSerial_2,admissionSerial_3,partialSign(certificateBody_1,signerShare_1)))
+) | (
+    {125}let signerId_2: device = C3 in
+    {126}let signerShare_2: thresholdShare = share3(e0) in
+    {127}!
+    {128}in(net, request_2: wireMessage);
+    {129}let signerRequest(=signerId_2,subject_5: device,subjectKey_5: pkey,token_7: admissionToken,admissionSerial_4: serial) = request_2 in
+    {130}new verifierNonce_2: nonce;
+    {131}out(net, signerChallenge(pgbA,subject_5,subjectKey_5,admissionSerial_4,signerId_2,verifierNonce_2));
+    {132}in(net, response_2: wireMessage);
+    {133}let regularPoPResponse(=signerId_2,=subject_5,=subjectKey_5,=admissionSerial_4,=verifierNonce_2,popSignature_2: signature) = response_2 in
+    {134}let tokenSerial_3: serial = validateCardToken(token_7,cardAnchor,pgbA,subject_5,subjectKey_5) in
+    {135}let checkedContext_2: protocolMessage = checkSign(popSignature_2,subjectKey_5) in
+    {136}let expectedContext_2: protocolMessage = regularPoPContext(tagRegPoP,pgbA,subject_5,subjectKey_5,admissionSerial_4,signerId_2,verifierNonce_2) in
+    {137}if (checkedContext_2 = expectedContext_2) then
+    {138}event RegularSignerPoPVerified(signerId_2,subject_5,subjectKey_5,admissionSerial_4,e0,verifierNonce_2);
+    {139}event SignerValidated(signerId_2,subject_5,subjectKey_5,tokenSerial_3,admissionSerial_4,e0,verifierNonce_2);
+    {140}let certificateBody_2: thresholdMessage = regularLDevIDBody(tagRegularLDevID,pgbA,subject_5,subjectKey_5,regularMember,tokenSerial_3,admissionSerial_4) in
+    {141}event PartialIssued(signerId_2,subject_5,subjectKey_5,admissionSerial_4,e0);
+    {142}out(net, partialResponse(signerId_2,subject_5,subjectKey_5,tokenSerial_3,admissionSerial_4,partialSign(certificateBody_2,signerShare_2)))
+) | (
+    {143}!
+    {144}in(net, challenge: wireMessage);
+    {145}let signerChallenge(challengePgb: pgb,subject_6: device,subjectKey_6: pkey,admissionSerial_5: serial,verifier: device,verifierNonce_3: nonce) = challenge in
+    {146}if (challengePgb = pgbA) then
+    {147}if (subject_6 = Dreg) then
+    {148}if (subjectKey_6 = pk(skDregDevice)) then
+    {149}let proofContext: protocolMessage = regularPoPContext(tagRegPoP,pgbA,Dreg,pk(skDregDevice),admissionSerial_5,verifier,verifierNonce_3) in
+    {150}event RegularPoPProduced(Dreg,pk(skDregDevice),verifier,admissionSerial_5,verifierNonce_3);
+    {151}out(net, regularPoPResponse(verifier,Dreg,pk(skDregDevice),admissionSerial_5,verifierNonce_3,sign(proofContext,skDregDevice)))
+) | (
+    {152}let firstSigner: device = C1 in
+    {153}let secondSigner: device = C2 in
+    {154}!
+    {155}in(net, firstMessage: wireMessage);
+    {156}let partialResponse(=firstSigner,subject_7: device,subjectKey_7: pkey,tokenSerial_4: serial,admissionSerial_6: serial,firstPartial: partialSignature) = firstMessage in
+    {157}in(net, secondMessage: wireMessage);
+    {158}let partialResponse(=secondSigner,=subject_7,=subjectKey_7,=tokenSerial_4,=admissionSerial_6,secondPartial: partialSignature) = secondMessage in
+    {159}let certificateBody_3: thresholdMessage = regularLDevIDBody(tagRegularLDevID,pgbA,subject_7,subjectKey_7,regularMember,tokenSerial_4,admissionSerial_6) in
+    {160}let rootSignature: thresholdSignature = combine(firstPartial,secondPartial) in
+    {161}let credential: certificate = makeRegularCertificate(certificateBody_3,rootSignature) in
+    {162}let verifiedPair: signerPair = verifyThreshold(rootSignature,certificateBody_3,pkChord) in
+    {163}new completionNonce: nonce;
+    {164}out(net, credential);
+    {165}if (verifiedPair = pair12) then
+    (
+        {166}event RegularCredentialAccepted12(firstSigner,subject_7,subjectKey_7,tokenSerial_4,admissionSerial_6,completionNonce);
+        {167}event RegularMembershipAuthorized(firstSigner,subject_7,subjectKey_7,tokenSerial_4,admissionSerial_6,completionNonce);
+        {168}if (subject_7 = Dreg) then
+        (
+            {169}if (subjectKey_7 = pk(skDregDevice)) then
+            {170}out(net, reachHonestDregPair12MembershipAuthorized)
+        )
+        else
+            {171}if (subject_7 = Dadv) then
+            {172}event UnauthorizedRegularMembershipAuthorized(firstSigner,Dadv,subjectKey_7,admissionSerial_6,completionNonce);
+            {173}if (subjectKey_7 = pk(skAdv)) then
+            {174}out(net, reachUnauthorizedDadvMembershipAuthorized)
+    )
+    else
+        {175}if (verifiedPair = pair13) then
+        (
+            {176}event RegularCredentialAccepted13(firstSigner,subject_7,subjectKey_7,tokenSerial_4,admissionSerial_6,completionNonce);
+            {177}event RegularMembershipAuthorized(firstSigner,subject_7,subjectKey_7,tokenSerial_4,admissionSerial_6,completionNonce);
+            {178}if (subject_7 = Dreg) then
+            (
+                {179}if (subjectKey_7 = pk(skDregDevice)) then
+                {180}out(net, reachHonestDregPair13MembershipAuthorized)
+            )
+            else
+                {181}if (subject_7 = Dadv) then
+                {182}event UnauthorizedRegularMembershipAuthorized(firstSigner,Dadv,subjectKey_7,admissionSerial_6,completionNonce);
+                {183}if (subjectKey_7 = pk(skAdv)) then
+                {184}out(net, reachUnauthorizedDadvMembershipAuthorized)
+        )
+        else
+            {185}if (verifiedPair = pair23) then
+            {186}event RegularCredentialAccepted23(firstSigner,subject_7,subjectKey_7,tokenSerial_4,admissionSerial_6,completionNonce);
+            {187}event RegularMembershipAuthorized(firstSigner,subject_7,subjectKey_7,tokenSerial_4,admissionSerial_6,completionNonce);
+            {188}if (subject_7 = Dreg) then
+            (
+                {189}if (subjectKey_7 = pk(skDregDevice)) then
+                {190}out(net, reachHonestDregPair23MembershipAuthorized)
+            )
+            else
+                {191}if (subject_7 = Dadv) then
+                {192}event UnauthorizedRegularMembershipAuthorized(firstSigner,Dadv,subjectKey_7,admissionSerial_6,completionNonce);
+                {193}if (subjectKey_7 = pk(skAdv)) then
+                {194}out(net, reachUnauthorizedDadvMembershipAuthorized)
+) | (
+    {195}let firstSigner_1: device = C1 in
+    {196}let secondSigner_1: device = C3 in
+    {197}!
+    {198}in(net, firstMessage_1: wireMessage);
+    {199}let partialResponse(=firstSigner_1,subject_8: device,subjectKey_8: pkey,tokenSerial_5: serial,admissionSerial_7: serial,firstPartial_1: partialSignature) = firstMessage_1 in
+    {200}in(net, secondMessage_1: wireMessage);
+    {201}let partialResponse(=secondSigner_1,=subject_8,=subjectKey_8,=tokenSerial_5,=admissionSerial_7,secondPartial_1: partialSignature) = secondMessage_1 in
+    {202}let certificateBody_4: thresholdMessage = regularLDevIDBody(tagRegularLDevID,pgbA,subject_8,subjectKey_8,regularMember,tokenSerial_5,admissionSerial_7) in
+    {203}let rootSignature_1: thresholdSignature = combine(firstPartial_1,secondPartial_1) in
+    {204}let credential_1: certificate = makeRegularCertificate(certificateBody_4,rootSignature_1) in
+    {205}let verifiedPair_1: signerPair = verifyThreshold(rootSignature_1,certificateBody_4,pkChord) in
+    {206}new completionNonce_1: nonce;
+    {207}out(net, credential_1);
+    {208}if (verifiedPair_1 = pair12) then
+    (
+        {209}event RegularCredentialAccepted12(firstSigner_1,subject_8,subjectKey_8,tokenSerial_5,admissionSerial_7,completionNonce_1);
+        {210}event RegularMembershipAuthorized(firstSigner_1,subject_8,subjectKey_8,tokenSerial_5,admissionSerial_7,completionNonce_1);
+        {211}if (subject_8 = Dreg) then
+        (
+            {212}if (subjectKey_8 = pk(skDregDevice)) then
+            {213}out(net, reachHonestDregPair12MembershipAuthorized)
+        )
+        else
+            {214}if (subject_8 = Dadv) then
+            {215}event UnauthorizedRegularMembershipAuthorized(firstSigner_1,Dadv,subjectKey_8,admissionSerial_7,completionNonce_1);
+            {216}if (subjectKey_8 = pk(skAdv)) then
+            {217}out(net, reachUnauthorizedDadvMembershipAuthorized)
+    )
+    else
+        {218}if (verifiedPair_1 = pair13) then
+        (
+            {219}event RegularCredentialAccepted13(firstSigner_1,subject_8,subjectKey_8,tokenSerial_5,admissionSerial_7,completionNonce_1);
+            {220}event RegularMembershipAuthorized(firstSigner_1,subject_8,subjectKey_8,tokenSerial_5,admissionSerial_7,completionNonce_1);
+            {221}if (subject_8 = Dreg) then
+            (
+                {222}if (subjectKey_8 = pk(skDregDevice)) then
+                {223}out(net, reachHonestDregPair13MembershipAuthorized)
+            )
+            else
+                {224}if (subject_8 = Dadv) then
+                {225}event UnauthorizedRegularMembershipAuthorized(firstSigner_1,Dadv,subjectKey_8,admissionSerial_7,completionNonce_1);
+                {226}if (subjectKey_8 = pk(skAdv)) then
+                {227}out(net, reachUnauthorizedDadvMembershipAuthorized)
+        )
+        else
+            {228}if (verifiedPair_1 = pair23) then
+            {229}event RegularCredentialAccepted23(firstSigner_1,subject_8,subjectKey_8,tokenSerial_5,admissionSerial_7,completionNonce_1);
+            {230}event RegularMembershipAuthorized(firstSigner_1,subject_8,subjectKey_8,tokenSerial_5,admissionSerial_7,completionNonce_1);
+            {231}if (subject_8 = Dreg) then
+            (
+                {232}if (subjectKey_8 = pk(skDregDevice)) then
+                {233}out(net, reachHonestDregPair23MembershipAuthorized)
+            )
+            else
+                {234}if (subject_8 = Dadv) then
+                {235}event UnauthorizedRegularMembershipAuthorized(firstSigner_1,Dadv,subjectKey_8,admissionSerial_7,completionNonce_1);
+                {236}if (subjectKey_8 = pk(skAdv)) then
+                {237}out(net, reachUnauthorizedDadvMembershipAuthorized)
+) | (
+    {238}let firstSigner_2: device = C2 in
+    {239}let secondSigner_2: device = C3 in
+    {240}!
+    {241}in(net, firstMessage_2: wireMessage);
+    {242}let partialResponse(=firstSigner_2,subject_9: device,subjectKey_9: pkey,tokenSerial_6: serial,admissionSerial_8: serial,firstPartial_2: partialSignature) = firstMessage_2 in
+    {243}in(net, secondMessage_2: wireMessage);
+    {244}let partialResponse(=secondSigner_2,=subject_9,=subjectKey_9,=tokenSerial_6,=admissionSerial_8,secondPartial_2: partialSignature) = secondMessage_2 in
+    {245}let certificateBody_5: thresholdMessage = regularLDevIDBody(tagRegularLDevID,pgbA,subject_9,subjectKey_9,regularMember,tokenSerial_6,admissionSerial_8) in
+    {246}let rootSignature_2: thresholdSignature = combine(firstPartial_2,secondPartial_2) in
+    {247}let credential_2: certificate = makeRegularCertificate(certificateBody_5,rootSignature_2) in
+    {248}let verifiedPair_2: signerPair = verifyThreshold(rootSignature_2,certificateBody_5,pkChord) in
+    {249}new completionNonce_2: nonce;
+    {250}out(net, credential_2);
+    {251}if (verifiedPair_2 = pair12) then
+    (
+        {252}event RegularCredentialAccepted12(firstSigner_2,subject_9,subjectKey_9,tokenSerial_6,admissionSerial_8,completionNonce_2);
+        {253}event RegularMembershipAuthorized(firstSigner_2,subject_9,subjectKey_9,tokenSerial_6,admissionSerial_8,completionNonce_2);
+        {254}if (subject_9 = Dreg) then
+        (
+            {255}if (subjectKey_9 = pk(skDregDevice)) then
+            {256}out(net, reachHonestDregPair12MembershipAuthorized)
+        )
+        else
+            {257}if (subject_9 = Dadv) then
+            {258}event UnauthorizedRegularMembershipAuthorized(firstSigner_2,Dadv,subjectKey_9,admissionSerial_8,completionNonce_2);
+            {259}if (subjectKey_9 = pk(skAdv)) then
+            {260}out(net, reachUnauthorizedDadvMembershipAuthorized)
+    )
+    else
+        {261}if (verifiedPair_2 = pair13) then
+        (
+            {262}event RegularCredentialAccepted13(firstSigner_2,subject_9,subjectKey_9,tokenSerial_6,admissionSerial_8,completionNonce_2);
+            {263}event RegularMembershipAuthorized(firstSigner_2,subject_9,subjectKey_9,tokenSerial_6,admissionSerial_8,completionNonce_2);
+            {264}if (subject_9 = Dreg) then
+            (
+                {265}if (subjectKey_9 = pk(skDregDevice)) then
+                {266}out(net, reachHonestDregPair13MembershipAuthorized)
+            )
+            else
+                {267}if (subject_9 = Dadv) then
+                {268}event UnauthorizedRegularMembershipAuthorized(firstSigner_2,Dadv,subjectKey_9,admissionSerial_8,completionNonce_2);
+                {269}if (subjectKey_9 = pk(skAdv)) then
+                {270}out(net, reachUnauthorizedDadvMembershipAuthorized)
+        )
+        else
+            {271}if (verifiedPair_2 = pair23) then
+            {272}event RegularCredentialAccepted23(firstSigner_2,subject_9,subjectKey_9,tokenSerial_6,admissionSerial_8,completionNonce_2);
+            {273}event RegularMembershipAuthorized(firstSigner_2,subject_9,subjectKey_9,tokenSerial_6,admissionSerial_8,completionNonce_2);
+            {274}if (subject_9 = Dreg) then
+            (
+                {275}if (subjectKey_9 = pk(skDregDevice)) then
+                {276}out(net, reachHonestDregPair23MembershipAuthorized)
+            )
+            else
+                {277}if (subject_9 = Dadv) then
+                {278}event UnauthorizedRegularMembershipAuthorized(firstSigner_2,Dadv,subjectKey_9,admissionSerial_8,completionNonce_2);
+                {279}if (subjectKey_9 = pk(skAdv)) then
+                {280}out(net, reachUnauthorizedDadvMembershipAuthorized)
+)
+
+--  Process 1 (that is, process 0, with let moved downwards):
+{10}event InitialRegularMember(C1,pk(skC1Device));
+{11}event InitialRegularMember(C2,pk(skC2Device));
+{12}event InitialRegularMember(C3,pk(skC3Device));
+{13}event InitialRegularMember(O1,pk(skO1Device));
+{14}event InitialCommitteeMember(C1,e0);
+{15}event InitialCommitteeMember(C2,e0);
+{16}event InitialCommitteeMember(C3,e0);
+{1}let cardAnchor: pkey = pk(skCard) in
+{17}event SetupComplete(pgbA,pkChord,cardAnchor);
+{18}event PGBLocked(pgbA);
+{19}event ShareCompromised(C1,e0);
+{20}out(net, share1(e0));
+{21}out(net, reachShare1Leak);
+{22}event ShareCompromised(C2,e0);
+{23}out(net, share2(e0));
+{24}out(net, reachShare2Leak);
+{25}out(net, cardAnchor);
+{26}out(net, pkChord);
+{27}out(net, pk(skC1Device));
+{28}out(net, pk(skC2Device));
+{29}out(net, pk(skC3Device));
+{30}out(net, pk(skO1Device));
+{31}out(net, pk(skAdv));
+{2}let bodyC1: thresholdMessage = regularLDevIDBody(tagRegularLDevID,pgbA,C1,pk(skC1Device),regularMember,initialSerialC1,initialSerialC1) in
+{6}let credentialC1: certificate = makeRegularCertificate(bodyC1,thresholdSig12(e0,bodyC1)) in
+{32}out(net, credentialC1);
+{3}let bodyC2: thresholdMessage = regularLDevIDBody(tagRegularLDevID,pgbA,C2,pk(skC2Device),regularMember,initialSerialC2,initialSerialC2) in
+{7}let credentialC2: certificate = makeRegularCertificate(bodyC2,thresholdSig12(e0,bodyC2)) in
+{33}out(net, credentialC2);
+{4}let bodyC3: thresholdMessage = regularLDevIDBody(tagRegularLDevID,pgbA,C3,pk(skC3Device),regularMember,initialSerialC3,initialSerialC3) in
+{8}let credentialC3: certificate = makeRegularCertificate(bodyC3,thresholdSig12(e0,bodyC3)) in
+{34}out(net, credentialC3);
+{5}let bodyO1: thresholdMessage = regularLDevIDBody(tagRegularLDevID,pgbA,O1,pk(skO1Device),regularMember,initialSerialO1,initialSerialO1) in
+{9}let credentialO1: certificate = makeRegularCertificate(bodyO1,thresholdSig12(e0,bodyO1)) in
+{35}out(net, credentialO1);
+{36}out(net, reachSetup);
+(
+    {37}new tokenSerial: serial;
+    {39}event CardAuthorized(pgbA,Dreg,pk(skDregDevice),tokenSerial);
+    {38}let tokenBody: protocolMessage = cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice),tokenSerial) in
+    {40}let token: admissionToken = makeCardToken(tokenBody,sign(tokenBody,skCard)) in
+    {41}out(cardProvision, token)
+) | (
+    {42}in(cardProvision, token_1: admissionToken);
+    {43}new lookupId: routeid;
+    {44}event OverlayLookupRequested(Dreg,admissionService,lookupId);
+    {45}out(net, route(lookupId,Dreg,admissionService,O1,admissionInit(Dreg,pk(skDregDevice),token_1)))
+) | (
+    {46}!
+    {47}in(net, envelope: routeEnvelope);
+    {48}let route(routeId: routeid,source: device,=admissionService,=O1,payload: wireMessage) = envelope in
+    {49}let admissionInit(subject: device,subjectKey: pkey,token_2: admissionToken) = payload in
+    {50}event OverlayForwarded(O1,source,C1,admissionService,routeId);
+    {51}out(net, reachRepresentativeOverlayForwarding);
+    {52}out(net, route(routeId,source,admissionService,C1,payload))
+) | (
+    {53}!
+    {54}in(net, envelope_1: routeEnvelope);
+    {55}let route(routeId_1: routeid,source_1: device,=admissionService,=O1,payload_1: wireMessage) = envelope_1 in
+    {56}let signerRequest(target: device,subject_1: device,subjectKey_1: pkey,token_3: admissionToken,admissionSerial: serial) = payload_1 in
+    {57}event OverlayForwarded(O1,source_1,target,admissionService,routeId_1);
+    {58}out(net, route(routeId_1,source_1,admissionService,target,payload_1))
+) | (
+    {60}!
+    {61}in(net, envelope_2: routeEnvelope);
+    {59}let destination: device = C1 in
+    {62}let route(routeId_2: routeid,source_2: device,serviceTag: service,=destination,payload_2: wireMessage) = envelope_2 in
+    {63}event OverlayDelivered(destination,serviceTag,routeId_2);
+    {64}out(net, payload_2)
+) | (
+    {66}!
+    {67}in(net, envelope_3: routeEnvelope);
+    {65}let destination_1: device = C2 in
+    {68}let route(routeId_3: routeid,source_3: device,serviceTag_1: service,=destination_1,payload_3: wireMessage) = envelope_3 in
+    {69}event OverlayDelivered(destination_1,serviceTag_1,routeId_3);
+    {70}out(net, payload_3)
+) | (
+    {72}!
+    {73}in(net, envelope_4: routeEnvelope);
+    {71}let destination_2: device = C3 in
+    {74}let route(routeId_4: routeid,source_4: device,serviceTag_2: service,=destination_2,payload_4: wireMessage) = envelope_4 in
+    {75}event OverlayDelivered(destination_2,serviceTag_2,routeId_4);
+    {76}out(net, payload_4)
+) | (
+    {77}!
+    {78}in(net, initialization: wireMessage);
+    {79}let admissionInit(subject_2: device,subjectKey_2: pkey,token_4: admissionToken) = initialization in
+    {80}new admissionSerial_1: serial;
+    {81}event RegularAdmissionStarted(subject_2,subjectKey_2,admissionSerial_1);
+    {82}out(net, signerRequest(C1,subject_2,subjectKey_2,token_4,admissionSerial_1));
+    {83}new routeToC2: routeid;
+    {84}event OverlayLookupRequested(C1,admissionService,routeToC2);
+    {85}out(net, route(routeToC2,C1,admissionService,O1,signerRequest(C2,subject_2,subjectKey_2,token_4,admissionSerial_1)));
+    {86}new routeToC3: routeid;
+    {87}event OverlayLookupRequested(C1,admissionService,routeToC3);
+    {88}out(net, route(routeToC3,C1,admissionService,O1,signerRequest(C3,subject_2,subjectKey_2,token_4,admissionSerial_1)))
+) | (
+    {91}!
+    {92}in(net, request: wireMessage);
+    {89}let signerId: device = C1 in
+    {93}let signerRequest(=signerId,subject_3: device,subjectKey_3: pkey,token_5: admissionToken,admissionSerial_2: serial) = request in
+    {94}new verifierNonce: nonce;
+    {95}out(net, signerChallenge(pgbA,subject_3,subjectKey_3,admissionSerial_2,signerId,verifierNonce));
+    {96}in(net, response: wireMessage);
+    {97}let regularPoPResponse(=signerId,=subject_3,=subjectKey_3,=admissionSerial_2,=verifierNonce,popSignature: signature) = response in
+    {98}let tokenSerial_1: serial = validateCardToken(token_5,cardAnchor,pgbA,subject_3,subjectKey_3) in
+    {99}let checkedContext: protocolMessage = checkSign(popSignature,subjectKey_3) in
+    {100}let expectedContext: protocolMessage = regularPoPContext(tagRegPoP,pgbA,subject_3,subjectKey_3,admissionSerial_2,signerId,verifierNonce) in
+    {101}if (checkedContext = expectedContext) then
+    {102}event RegularSignerPoPVerified(signerId,subject_3,subjectKey_3,admissionSerial_2,e0,verifierNonce);
+    {103}event SignerValidated(signerId,subject_3,subjectKey_3,tokenSerial_1,admissionSerial_2,e0,verifierNonce);
+    {105}event PartialIssued(signerId,subject_3,subjectKey_3,admissionSerial_2,e0);
+    {104}let certificateBody: thresholdMessage = regularLDevIDBody(tagRegularLDevID,pgbA,subject_3,subjectKey_3,regularMember,tokenSerial_1,admissionSerial_2) in
+    {90}let signerShare: thresholdShare = share1(e0) in
+    {106}out(net, partialResponse(signerId,subject_3,subjectKey_3,tokenSerial_1,admissionSerial_2,partialSign(certificateBody,signerShare)))
+) | (
+    {109}!
+    {110}in(net, request_1: wireMessage);
+    {107}let signerId_1: device = C2 in
+    {111}let signerRequest(=signerId_1,subject_4: device,subjectKey_4: pkey,token_6: admissionToken,admissionSerial_3: serial) = request_1 in
+    {112}new verifierNonce_1: nonce;
+    {113}out(net, signerChallenge(pgbA,subject_4,subjectKey_4,admissionSerial_3,signerId_1,verifierNonce_1));
+    {114}in(net, response_1: wireMessage);
+    {115}let regularPoPResponse(=signerId_1,=subject_4,=subjectKey_4,=admissionSerial_3,=verifierNonce_1,popSignature_1: signature) = response_1 in
+    {116}let tokenSerial_2: serial = validateCardToken(token_6,cardAnchor,pgbA,subject_4,subjectKey_4) in
+    {117}let checkedContext_1: protocolMessage = checkSign(popSignature_1,subjectKey_4) in
+    {118}let expectedContext_1: protocolMessage = regularPoPContext(tagRegPoP,pgbA,subject_4,subjectKey_4,admissionSerial_3,signerId_1,verifierNonce_1) in
+    {119}if (checkedContext_1 = expectedContext_1) then
+    {120}event RegularSignerPoPVerified(signerId_1,subject_4,subjectKey_4,admissionSerial_3,e0,verifierNonce_1);
+    {121}event SignerValidated(signerId_1,subject_4,subjectKey_4,tokenSerial_2,admissionSerial_3,e0,verifierNonce_1);
+    {123}event PartialIssued(signerId_1,subject_4,subjectKey_4,admissionSerial_3,e0);
+    {122}let certificateBody_1: thresholdMessage = regularLDevIDBody(tagRegularLDevID,pgbA,subject_4,subjectKey_4,regularMember,tokenSerial_2,admissionSerial_3) in
+    {108}let signerShare_1: thresholdShare = share2(e0) in
+    {124}out(net, partialResponse(signerId_1,subject_4,subjectKey_4,tokenSerial_2,admissionSerial_3,partialSign(certificateBody_1,signerShare_1)))
+) | (
+    {127}!
+    {128}in(net, request_2: wireMessage);
+    {125}let signerId_2: device = C3 in
+    {129}let signerRequest(=signerId_2,subject_5: device,subjectKey_5: pkey,token_7: admissionToken,admissionSerial_4: serial) = request_2 in
+    {130}new verifierNonce_2: nonce;
+    {131}out(net, signerChallenge(pgbA,subject_5,subjectKey_5,admissionSerial_4,signerId_2,verifierNonce_2));
+    {132}in(net, response_2: wireMessage);
+    {133}let regularPoPResponse(=signerId_2,=subject_5,=subjectKey_5,=admissionSerial_4,=verifierNonce_2,popSignature_2: signature) = response_2 in
+    {134}let tokenSerial_3: serial = validateCardToken(token_7,cardAnchor,pgbA,subject_5,subjectKey_5) in
+    {135}let checkedContext_2: protocolMessage = checkSign(popSignature_2,subjectKey_5) in
+    {136}let expectedContext_2: protocolMessage = regularPoPContext(tagRegPoP,pgbA,subject_5,subjectKey_5,admissionSerial_4,signerId_2,verifierNonce_2) in
+    {137}if (checkedContext_2 = expectedContext_2) then
+    {138}event RegularSignerPoPVerified(signerId_2,subject_5,subjectKey_5,admissionSerial_4,e0,verifierNonce_2);
+    {139}event SignerValidated(signerId_2,subject_5,subjectKey_5,tokenSerial_3,admissionSerial_4,e0,verifierNonce_2);
+    {141}event PartialIssued(signerId_2,subject_5,subjectKey_5,admissionSerial_4,e0);
+    {140}let certificateBody_2: thresholdMessage = regularLDevIDBody(tagRegularLDevID,pgbA,subject_5,subjectKey_5,regularMember,tokenSerial_3,admissionSerial_4) in
+    {126}let signerShare_2: thresholdShare = share3(e0) in
+    {142}out(net, partialResponse(signerId_2,subject_5,subjectKey_5,tokenSerial_3,admissionSerial_4,partialSign(certificateBody_2,signerShare_2)))
+) | (
+    {143}!
+    {144}in(net, challenge: wireMessage);
+    {145}let signerChallenge(challengePgb: pgb,subject_6: device,subjectKey_6: pkey,admissionSerial_5: serial,verifier: device,verifierNonce_3: nonce) = challenge in
+    {146}if (challengePgb = pgbA) then
+    {147}if (subject_6 = Dreg) then
+    {148}if (subjectKey_6 = pk(skDregDevice)) then
+    {150}event RegularPoPProduced(Dreg,pk(skDregDevice),verifier,admissionSerial_5,verifierNonce_3);
+    {149}let proofContext: protocolMessage = regularPoPContext(tagRegPoP,pgbA,Dreg,pk(skDregDevice),admissionSerial_5,verifier,verifierNonce_3) in
+    {151}out(net, regularPoPResponse(verifier,Dreg,pk(skDregDevice),admissionSerial_5,verifierNonce_3,sign(proofContext,skDregDevice)))
+) | (
+    {154}!
+    {155}in(net, firstMessage: wireMessage);
+    {152}let firstSigner: device = C1 in
+    {156}let partialResponse(=firstSigner,subject_7: device,subjectKey_7: pkey,tokenSerial_4: serial,admissionSerial_6: serial,firstPartial: partialSignature) = firstMessage in
+    {157}in(net, secondMessage: wireMessage);
+    {153}let secondSigner: device = C2 in
+    {158}let partialResponse(=secondSigner,=subject_7,=subjectKey_7,=tokenSerial_4,=admissionSerial_6,secondPartial: partialSignature) = secondMessage in
+    {160}let rootSignature: thresholdSignature = combine(firstPartial,secondPartial) in
+    {159}let certificateBody_3: thresholdMessage = regularLDevIDBody(tagRegularLDevID,pgbA,subject_7,subjectKey_7,regularMember,tokenSerial_4,admissionSerial_6) in
+    {162}let verifiedPair: signerPair = verifyThreshold(rootSignature,certificateBody_3,pkChord) in
+    {163}new completionNonce: nonce;
+    {161}let credential: certificate = makeRegularCertificate(certificateBody_3,rootSignature) in
+    {164}out(net, credential);
+    {165}if (verifiedPair = pair12) then
+    (
+        {166}event RegularCredentialAccepted12(firstSigner,subject_7,subjectKey_7,tokenSerial_4,admissionSerial_6,completionNonce);
+        {167}event RegularMembershipAuthorized(firstSigner,subject_7,subjectKey_7,tokenSerial_4,admissionSerial_6,completionNonce);
+        {168}if (subject_7 = Dreg) then
+        (
+            {169}if (subjectKey_7 = pk(skDregDevice)) then
+            {170}out(net, reachHonestDregPair12MembershipAuthorized)
+        )
+        else
+            {171}if (subject_7 = Dadv) then
+            {172}event UnauthorizedRegularMembershipAuthorized(firstSigner,Dadv,subjectKey_7,admissionSerial_6,completionNonce);
+            {173}if (subjectKey_7 = pk(skAdv)) then
+            {174}out(net, reachUnauthorizedDadvMembershipAuthorized)
+    )
+    else
+        {175}if (verifiedPair = pair13) then
+        (
+            {176}event RegularCredentialAccepted13(firstSigner,subject_7,subjectKey_7,tokenSerial_4,admissionSerial_6,completionNonce);
+            {177}event RegularMembershipAuthorized(firstSigner,subject_7,subjectKey_7,tokenSerial_4,admissionSerial_6,completionNonce);
+            {178}if (subject_7 = Dreg) then
+            (
+                {179}if (subjectKey_7 = pk(skDregDevice)) then
+                {180}out(net, reachHonestDregPair13MembershipAuthorized)
+            )
+            else
+                {181}if (subject_7 = Dadv) then
+                {182}event UnauthorizedRegularMembershipAuthorized(firstSigner,Dadv,subjectKey_7,admissionSerial_6,completionNonce);
+                {183}if (subjectKey_7 = pk(skAdv)) then
+                {184}out(net, reachUnauthorizedDadvMembershipAuthorized)
+        )
+        else
+            {185}if (verifiedPair = pair23) then
+            {186}event RegularCredentialAccepted23(firstSigner,subject_7,subjectKey_7,tokenSerial_4,admissionSerial_6,completionNonce);
+            {187}event RegularMembershipAuthorized(firstSigner,subject_7,subjectKey_7,tokenSerial_4,admissionSerial_6,completionNonce);
+            {188}if (subject_7 = Dreg) then
+            (
+                {189}if (subjectKey_7 = pk(skDregDevice)) then
+                {190}out(net, reachHonestDregPair23MembershipAuthorized)
+            )
+            else
+                {191}if (subject_7 = Dadv) then
+                {192}event UnauthorizedRegularMembershipAuthorized(firstSigner,Dadv,subjectKey_7,admissionSerial_6,completionNonce);
+                {193}if (subjectKey_7 = pk(skAdv)) then
+                {194}out(net, reachUnauthorizedDadvMembershipAuthorized)
+) | (
+    {197}!
+    {198}in(net, firstMessage_1: wireMessage);
+    {195}let firstSigner_1: device = C1 in
+    {199}let partialResponse(=firstSigner_1,subject_8: device,subjectKey_8: pkey,tokenSerial_5: serial,admissionSerial_7: serial,firstPartial_1: partialSignature) = firstMessage_1 in
+    {200}in(net, secondMessage_1: wireMessage);
+    {196}let secondSigner_1: device = C3 in
+    {201}let partialResponse(=secondSigner_1,=subject_8,=subjectKey_8,=tokenSerial_5,=admissionSerial_7,secondPartial_1: partialSignature) = secondMessage_1 in
+    {203}let rootSignature_1: thresholdSignature = combine(firstPartial_1,secondPartial_1) in
+    {202}let certificateBody_4: thresholdMessage = regularLDevIDBody(tagRegularLDevID,pgbA,subject_8,subjectKey_8,regularMember,tokenSerial_5,admissionSerial_7) in
+    {205}let verifiedPair_1: signerPair = verifyThreshold(rootSignature_1,certificateBody_4,pkChord) in
+    {206}new completionNonce_1: nonce;
+    {204}let credential_1: certificate = makeRegularCertificate(certificateBody_4,rootSignature_1) in
+    {207}out(net, credential_1);
+    {208}if (verifiedPair_1 = pair12) then
+    (
+        {209}event RegularCredentialAccepted12(firstSigner_1,subject_8,subjectKey_8,tokenSerial_5,admissionSerial_7,completionNonce_1);
+        {210}event RegularMembershipAuthorized(firstSigner_1,subject_8,subjectKey_8,tokenSerial_5,admissionSerial_7,completionNonce_1);
+        {211}if (subject_8 = Dreg) then
+        (
+            {212}if (subjectKey_8 = pk(skDregDevice)) then
+            {213}out(net, reachHonestDregPair12MembershipAuthorized)
+        )
+        else
+            {214}if (subject_8 = Dadv) then
+            {215}event UnauthorizedRegularMembershipAuthorized(firstSigner_1,Dadv,subjectKey_8,admissionSerial_7,completionNonce_1);
+            {216}if (subjectKey_8 = pk(skAdv)) then
+            {217}out(net, reachUnauthorizedDadvMembershipAuthorized)
+    )
+    else
+        {218}if (verifiedPair_1 = pair13) then
+        (
+            {219}event RegularCredentialAccepted13(firstSigner_1,subject_8,subjectKey_8,tokenSerial_5,admissionSerial_7,completionNonce_1);
+            {220}event RegularMembershipAuthorized(firstSigner_1,subject_8,subjectKey_8,tokenSerial_5,admissionSerial_7,completionNonce_1);
+            {221}if (subject_8 = Dreg) then
+            (
+                {222}if (subjectKey_8 = pk(skDregDevice)) then
+                {223}out(net, reachHonestDregPair13MembershipAuthorized)
+            )
+            else
+                {224}if (subject_8 = Dadv) then
+                {225}event UnauthorizedRegularMembershipAuthorized(firstSigner_1,Dadv,subjectKey_8,admissionSerial_7,completionNonce_1);
+                {226}if (subjectKey_8 = pk(skAdv)) then
+                {227}out(net, reachUnauthorizedDadvMembershipAuthorized)
+        )
+        else
+            {228}if (verifiedPair_1 = pair23) then
+            {229}event RegularCredentialAccepted23(firstSigner_1,subject_8,subjectKey_8,tokenSerial_5,admissionSerial_7,completionNonce_1);
+            {230}event RegularMembershipAuthorized(firstSigner_1,subject_8,subjectKey_8,tokenSerial_5,admissionSerial_7,completionNonce_1);
+            {231}if (subject_8 = Dreg) then
+            (
+                {232}if (subjectKey_8 = pk(skDregDevice)) then
+                {233}out(net, reachHonestDregPair23MembershipAuthorized)
+            )
+            else
+                {234}if (subject_8 = Dadv) then
+                {235}event UnauthorizedRegularMembershipAuthorized(firstSigner_1,Dadv,subjectKey_8,admissionSerial_7,completionNonce_1);
+                {236}if (subjectKey_8 = pk(skAdv)) then
+                {237}out(net, reachUnauthorizedDadvMembershipAuthorized)
+) | (
+    {240}!
+    {241}in(net, firstMessage_2: wireMessage);
+    {238}let firstSigner_2: device = C2 in
+    {242}let partialResponse(=firstSigner_2,subject_9: device,subjectKey_9: pkey,tokenSerial_6: serial,admissionSerial_8: serial,firstPartial_2: partialSignature) = firstMessage_2 in
+    {243}in(net, secondMessage_2: wireMessage);
+    {239}let secondSigner_2: device = C3 in
+    {244}let partialResponse(=secondSigner_2,=subject_9,=subjectKey_9,=tokenSerial_6,=admissionSerial_8,secondPartial_2: partialSignature) = secondMessage_2 in
+    {246}let rootSignature_2: thresholdSignature = combine(firstPartial_2,secondPartial_2) in
+    {245}let certificateBody_5: thresholdMessage = regularLDevIDBody(tagRegularLDevID,pgbA,subject_9,subjectKey_9,regularMember,tokenSerial_6,admissionSerial_8) in
+    {248}let verifiedPair_2: signerPair = verifyThreshold(rootSignature_2,certificateBody_5,pkChord) in
+    {249}new completionNonce_2: nonce;
+    {247}let credential_2: certificate = makeRegularCertificate(certificateBody_5,rootSignature_2) in
+    {250}out(net, credential_2);
+    {251}if (verifiedPair_2 = pair12) then
+    (
+        {252}event RegularCredentialAccepted12(firstSigner_2,subject_9,subjectKey_9,tokenSerial_6,admissionSerial_8,completionNonce_2);
+        {253}event RegularMembershipAuthorized(firstSigner_2,subject_9,subjectKey_9,tokenSerial_6,admissionSerial_8,completionNonce_2);
+        {254}if (subject_9 = Dreg) then
+        (
+            {255}if (subjectKey_9 = pk(skDregDevice)) then
+            {256}out(net, reachHonestDregPair12MembershipAuthorized)
+        )
+        else
+            {257}if (subject_9 = Dadv) then
+            {258}event UnauthorizedRegularMembershipAuthorized(firstSigner_2,Dadv,subjectKey_9,admissionSerial_8,completionNonce_2);
+            {259}if (subjectKey_9 = pk(skAdv)) then
+            {260}out(net, reachUnauthorizedDadvMembershipAuthorized)
+    )
+    else
+        {261}if (verifiedPair_2 = pair13) then
+        (
+            {262}event RegularCredentialAccepted13(firstSigner_2,subject_9,subjectKey_9,tokenSerial_6,admissionSerial_8,completionNonce_2);
+            {263}event RegularMembershipAuthorized(firstSigner_2,subject_9,subjectKey_9,tokenSerial_6,admissionSerial_8,completionNonce_2);
+            {264}if (subject_9 = Dreg) then
+            (
+                {265}if (subjectKey_9 = pk(skDregDevice)) then
+                {266}out(net, reachHonestDregPair13MembershipAuthorized)
+            )
+            else
+                {267}if (subject_9 = Dadv) then
+                {268}event UnauthorizedRegularMembershipAuthorized(firstSigner_2,Dadv,subjectKey_9,admissionSerial_8,completionNonce_2);
+                {269}if (subjectKey_9 = pk(skAdv)) then
+                {270}out(net, reachUnauthorizedDadvMembershipAuthorized)
+        )
+        else
+            {271}if (verifiedPair_2 = pair23) then
+            {272}event RegularCredentialAccepted23(firstSigner_2,subject_9,subjectKey_9,tokenSerial_6,admissionSerial_8,completionNonce_2);
+            {273}event RegularMembershipAuthorized(firstSigner_2,subject_9,subjectKey_9,tokenSerial_6,admissionSerial_8,completionNonce_2);
+            {274}if (subject_9 = Dreg) then
+            (
+                {275}if (subjectKey_9 = pk(skDregDevice)) then
+                {276}out(net, reachHonestDregPair23MembershipAuthorized)
+            )
+            else
+                {277}if (subject_9 = Dadv) then
+                {278}event UnauthorizedRegularMembershipAuthorized(firstSigner_2,Dadv,subjectKey_9,admissionSerial_8,completionNonce_2);
+                {279}if (subjectKey_9 = pk(skAdv)) then
+                {280}out(net, reachUnauthorizedDadvMembershipAuthorized)
+)
+
+-- Query not attacker_skey(skCard[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 258 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 58 rules.
+Starting query not attacker_skey(skCard[])
+RESULT not attacker_skey(skCard[]) is true.
+-- Query not attacker_skey(skC1Device[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 258 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 58 rules.
+Starting query not attacker_skey(skC1Device[])
+RESULT not attacker_skey(skC1Device[]) is true.
+-- Query not attacker_skey(skC2Device[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 258 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 58 rules.
+Starting query not attacker_skey(skC2Device[])
+RESULT not attacker_skey(skC2Device[]) is true.
+-- Query not attacker_skey(skC3Device[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 258 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 58 rules.
+Starting query not attacker_skey(skC3Device[])
+RESULT not attacker_skey(skC3Device[]) is true.
+-- Query not attacker_skey(skO1Device[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 258 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 58 rules.
+Starting query not attacker_skey(skO1Device[])
+RESULT not attacker_skey(skO1Device[]) is true.
+-- Query not attacker_skey(skDregDevice[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 258 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 58 rules.
+Starting query not attacker_skey(skDregDevice[])
+RESULT not attacker_skey(skDregDevice[]) is true.
+-- Query not attacker_thresholdShare(share1(e0)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 258 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 58 rules.
+Starting query not attacker_thresholdShare(share1(e0))
+goal reachable: attacker_thresholdShare(share1(e0))
+
+Derivation:
+
+1. The message share1(e0) may be sent to the attacker at output {20}.
+attacker_thresholdShare(share1(e0)).
+
+2. By 1, attacker_thresholdShare(share1(e0)).
+The goal is reached, represented in the following fact:
+attacker_thresholdShare(share1(e0)).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+event InitialRegularMember(C1,pk(skC1Device)) at {10}
+
+event InitialRegularMember(C2,pk(skC2Device)) at {11}
+
+event InitialRegularMember(C3,pk(skC3Device)) at {12}
+
+event InitialRegularMember(O1,pk(skO1Device)) at {13}
+
+event InitialCommitteeMember(C1,e0) at {14}
+
+event InitialCommitteeMember(C2,e0) at {15}
+
+event InitialCommitteeMember(C3,e0) at {16}
+
+event SetupComplete(pgbA,pkChord,pk(skCard)) at {17}
+
+event PGBLocked(pgbA) at {18}
+
+event ShareCompromised(C1,e0) at {19}
+
+out(net, ~M) with ~M = share1(e0) at {20}
+
+out(net, ~M_1) with ~M_1 = reachShare1Leak at {21}
+
+event ShareCompromised(C2,e0) at {22}
+
+out(net, ~M_2) with ~M_2 = share2(e0) at {23}
+
+out(net, ~M_3) with ~M_3 = reachShare2Leak at {24}
+
+out(net, ~M_4) with ~M_4 = pk(skCard) at {25}
+
+out(net, ~M_5) with ~M_5 = pkChord at {26}
+
+out(net, ~M_6) with ~M_6 = pk(skC1Device) at {27}
+
+out(net, ~M_7) with ~M_7 = pk(skC2Device) at {28}
+
+out(net, ~M_8) with ~M_8 = pk(skC3Device) at {29}
+
+out(net, ~M_9) with ~M_9 = pk(skO1Device) at {30}
+
+out(net, ~M_10) with ~M_10 = pk(skAdv) at {31}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_11,~M_12,~M_13,~M_14,~M_15,~M_16,~M_17),~M_18)) with ~M_11 = tagRegularLDevID, ~M_12 = pgbA, ~M_13 = C1, ~M_14 = pk(skC1Device), ~M_15 = regularMember, ~M_16 = initialSerialC1, ~M_17 = initialSerialC1, ~M_18 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,C1,pk(skC1Device),regularMember,initialSerialC1,initialSerialC1)) at {32}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_19,~M_20,~M_21,~M_22,~M_23,~M_24,~M_25),~M_26)) with ~M_19 = tagRegularLDevID, ~M_20 = pgbA, ~M_21 = C2, ~M_22 = pk(skC2Device), ~M_23 = regularMember, ~M_24 = initialSerialC2, ~M_25 = initialSerialC2, ~M_26 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,C2,pk(skC2Device),regularMember,initialSerialC2,initialSerialC2)) at {33}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_27,~M_28,~M_29,~M_30,~M_31,~M_32,~M_33),~M_34)) with ~M_27 = tagRegularLDevID, ~M_28 = pgbA, ~M_29 = C3, ~M_30 = pk(skC3Device), ~M_31 = regularMember, ~M_32 = initialSerialC3, ~M_33 = initialSerialC3, ~M_34 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,C3,pk(skC3Device),regularMember,initialSerialC3,initialSerialC3)) at {34}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_35,~M_36,~M_37,~M_38,~M_39,~M_40,~M_41),~M_42)) with ~M_35 = tagRegularLDevID, ~M_36 = pgbA, ~M_37 = O1, ~M_38 = pk(skO1Device), ~M_39 = regularMember, ~M_40 = initialSerialO1, ~M_41 = initialSerialO1, ~M_42 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,O1,pk(skO1Device),regularMember,initialSerialO1,initialSerialO1)) at {35}
+
+out(net, ~M_43) with ~M_43 = reachSetup at {36}
+
+new tokenSerial: serial creating tokenSerial_7 at {37}
+
+event CardAuthorized(pgbA,Dreg,pk(skDregDevice),tokenSerial_7) at {39}
+
+The attacker has the message ~M = share1(e0).
+A trace has been found.
+RESULT not attacker_thresholdShare(share1(e0)) is false.
+-- Query not attacker_thresholdShare(share2(e0)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 258 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 58 rules.
+Starting query not attacker_thresholdShare(share2(e0))
+goal reachable: attacker_thresholdShare(share2(e0))
+
+Derivation:
+
+1. The message share2(e0) may be sent to the attacker at output {23}.
+attacker_thresholdShare(share2(e0)).
+
+2. By 1, attacker_thresholdShare(share2(e0)).
+The goal is reached, represented in the following fact:
+attacker_thresholdShare(share2(e0)).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+event InitialRegularMember(C1,pk(skC1Device)) at {10}
+
+event InitialRegularMember(C2,pk(skC2Device)) at {11}
+
+event InitialRegularMember(C3,pk(skC3Device)) at {12}
+
+event InitialRegularMember(O1,pk(skO1Device)) at {13}
+
+event InitialCommitteeMember(C1,e0) at {14}
+
+event InitialCommitteeMember(C2,e0) at {15}
+
+event InitialCommitteeMember(C3,e0) at {16}
+
+event SetupComplete(pgbA,pkChord,pk(skCard)) at {17}
+
+event PGBLocked(pgbA) at {18}
+
+event ShareCompromised(C1,e0) at {19}
+
+out(net, ~M) with ~M = share1(e0) at {20}
+
+out(net, ~M_1) with ~M_1 = reachShare1Leak at {21}
+
+event ShareCompromised(C2,e0) at {22}
+
+out(net, ~M_2) with ~M_2 = share2(e0) at {23}
+
+out(net, ~M_3) with ~M_3 = reachShare2Leak at {24}
+
+out(net, ~M_4) with ~M_4 = pk(skCard) at {25}
+
+out(net, ~M_5) with ~M_5 = pkChord at {26}
+
+out(net, ~M_6) with ~M_6 = pk(skC1Device) at {27}
+
+out(net, ~M_7) with ~M_7 = pk(skC2Device) at {28}
+
+out(net, ~M_8) with ~M_8 = pk(skC3Device) at {29}
+
+out(net, ~M_9) with ~M_9 = pk(skO1Device) at {30}
+
+out(net, ~M_10) with ~M_10 = pk(skAdv) at {31}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_11,~M_12,~M_13,~M_14,~M_15,~M_16,~M_17),~M_18)) with ~M_11 = tagRegularLDevID, ~M_12 = pgbA, ~M_13 = C1, ~M_14 = pk(skC1Device), ~M_15 = regularMember, ~M_16 = initialSerialC1, ~M_17 = initialSerialC1, ~M_18 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,C1,pk(skC1Device),regularMember,initialSerialC1,initialSerialC1)) at {32}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_19,~M_20,~M_21,~M_22,~M_23,~M_24,~M_25),~M_26)) with ~M_19 = tagRegularLDevID, ~M_20 = pgbA, ~M_21 = C2, ~M_22 = pk(skC2Device), ~M_23 = regularMember, ~M_24 = initialSerialC2, ~M_25 = initialSerialC2, ~M_26 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,C2,pk(skC2Device),regularMember,initialSerialC2,initialSerialC2)) at {33}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_27,~M_28,~M_29,~M_30,~M_31,~M_32,~M_33),~M_34)) with ~M_27 = tagRegularLDevID, ~M_28 = pgbA, ~M_29 = C3, ~M_30 = pk(skC3Device), ~M_31 = regularMember, ~M_32 = initialSerialC3, ~M_33 = initialSerialC3, ~M_34 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,C3,pk(skC3Device),regularMember,initialSerialC3,initialSerialC3)) at {34}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_35,~M_36,~M_37,~M_38,~M_39,~M_40,~M_41),~M_42)) with ~M_35 = tagRegularLDevID, ~M_36 = pgbA, ~M_37 = O1, ~M_38 = pk(skO1Device), ~M_39 = regularMember, ~M_40 = initialSerialO1, ~M_41 = initialSerialO1, ~M_42 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,O1,pk(skO1Device),regularMember,initialSerialO1,initialSerialO1)) at {35}
+
+out(net, ~M_43) with ~M_43 = reachSetup at {36}
+
+new tokenSerial: serial creating tokenSerial_7 at {37}
+
+event CardAuthorized(pgbA,Dreg,pk(skDregDevice),tokenSerial_7) at {39}
+
+The attacker has the message ~M_2 = share2(e0).
+A trace has been found.
+RESULT not attacker_thresholdShare(share2(e0)) is false.
+-- Query not attacker_thresholdShare(share3(e0)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 258 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 58 rules.
+Starting query not attacker_thresholdShare(share3(e0))
+RESULT not attacker_thresholdShare(share3(e0)) is true.
+-- Query event(RegularMembershipAuthorized(G,D,PK,T,S,NJ)) ==> event(CardAuthorized(pgbA,D,PK,T)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 267 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 67 rules.
+600 rules inserted. Base: 528 rules (247 with conclusion selected). Queue: 10 rules.
+Starting query event(RegularMembershipAuthorized(G,D,PK,T,S,NJ)) ==> event(CardAuthorized(pgbA,D,PK,T))
+goal reachable: attacker_device(D) && attacker_pkey(PK) && attacker_serial(T) && attacker_serial(S) -> event(RegularMembershipAuthorized(C1,D,PK,T,S,completionNonce_3))
+Abbreviations:
+completionNonce_3 = completionNonce_1[secondMessage_1 = partialResponse(C3,D,PK,T,S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share2(e0))),firstMessage_1 = partialResponse(C1,D,PK,T,S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share1(e0))),!1 = @sid]
+
+Derivation:
+Abbreviations:
+completionNonce_3 = completionNonce_1[secondMessage_1 = partialResponse(C3,D,PK,T,S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share2(e0))),firstMessage_1 = partialResponse(C1,D,PK,T,S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share1(e0))),!1 = @sid]
+
+1. The message share1(e0) may be sent to the attacker at output {20}.
+attacker_thresholdShare(share1(e0)).
+
+2. We assume as hypothesis that
+attacker_serial(S).
+
+3. We assume as hypothesis that
+attacker_serial(T).
+
+4. Using the function regularMember the attacker may obtain regularMember.
+attacker_role(regularMember).
+
+5. We assume as hypothesis that
+attacker_pkey(PK).
+
+6. We assume as hypothesis that
+attacker_device(D).
+
+7. Using the function pgbA the attacker may obtain pgbA.
+attacker_pgb(pgbA).
+
+8. Using the function tagRegularLDevID the attacker may obtain tagRegularLDevID.
+attacker_domainTag(tagRegularLDevID).
+
+9. By 8, the attacker may know tagRegularLDevID.
+By 7, the attacker may know pgbA.
+By 6, the attacker may know D.
+By 5, the attacker may know PK.
+By 4, the attacker may know regularMember.
+By 3, the attacker may know T.
+By 2, the attacker may know S.
+Using the function regularLDevIDBody the attacker may obtain regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S).
+attacker_thresholdMessage(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S)).
+
+10. By 9, the attacker may know regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S).
+By 1, the attacker may know share1(e0).
+Using the function partialSign the attacker may obtain partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share1(e0)).
+attacker_partialSignature(partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share1(e0))).
+
+11. Using the function C1 the attacker may obtain C1.
+attacker_device(C1).
+
+12. By 11, the attacker may know C1.
+By 6, the attacker may know D.
+By 5, the attacker may know PK.
+By 3, the attacker may know T.
+By 2, the attacker may know S.
+By 10, the attacker may know partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share1(e0)).
+Using the function partialResponse the attacker may obtain partialResponse(C1,D,PK,T,S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share1(e0))).
+attacker_wireMessage(partialResponse(C1,D,PK,T,S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share1(e0)))).
+
+13. The message share2(e0) may be sent to the attacker at output {23}.
+attacker_thresholdShare(share2(e0)).
+
+14. By 9, the attacker may know regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S).
+By 13, the attacker may know share2(e0).
+Using the function partialSign the attacker may obtain partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share2(e0)).
+attacker_partialSignature(partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share2(e0))).
+
+15. Using the function C3 the attacker may obtain C3.
+attacker_device(C3).
+
+16. By 15, the attacker may know C3.
+By 6, the attacker may know D.
+By 5, the attacker may know PK.
+By 3, the attacker may know T.
+By 2, the attacker may know S.
+By 14, the attacker may know partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share2(e0)).
+Using the function partialResponse the attacker may obtain partialResponse(C3,D,PK,T,S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share2(e0))).
+attacker_wireMessage(partialResponse(C3,D,PK,T,S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share2(e0)))).
+
+17. The message partialResponse(C1,D,PK,T,S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share1(e0))) that the attacker may have by 12 may be received at input {198}.
+The message partialResponse(C3,D,PK,T,S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share2(e0))) that the attacker may have by 16 may be received at input {200}.
+So event RegularMembershipAuthorized(C1,D,PK,T,S,completionNonce_3) may be executed at {210}.
+event(RegularMembershipAuthorized(C1,D,PK,T,S,completionNonce_3)).
+
+18. By 17, event(RegularMembershipAuthorized(C1,D,PK,T,S,completionNonce_3)).
+The goal is reached, represented in the following fact:
+event(RegularMembershipAuthorized(C1,D,PK,T,S,completionNonce_3)).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+event InitialRegularMember(C1,pk(skC1Device)) at {10}
+
+event InitialRegularMember(C2,pk(skC2Device)) at {11}
+
+event InitialRegularMember(C3,pk(skC3Device)) at {12}
+
+event InitialRegularMember(O1,pk(skO1Device)) at {13}
+
+event InitialCommitteeMember(C1,e0) at {14}
+
+event InitialCommitteeMember(C2,e0) at {15}
+
+event InitialCommitteeMember(C3,e0) at {16}
+
+event SetupComplete(pgbA,pkChord,pk(skCard)) at {17}
+
+event PGBLocked(pgbA) at {18}
+
+event ShareCompromised(C1,e0) at {19}
+
+out(net, ~M) with ~M = share1(e0) at {20}
+
+out(net, ~M_1) with ~M_1 = reachShare1Leak at {21}
+
+event ShareCompromised(C2,e0) at {22}
+
+out(net, ~M_2) with ~M_2 = share2(e0) at {23}
+
+out(net, ~M_3) with ~M_3 = reachShare2Leak at {24}
+
+out(net, ~M_4) with ~M_4 = pk(skCard) at {25}
+
+out(net, ~M_5) with ~M_5 = pkChord at {26}
+
+out(net, ~M_6) with ~M_6 = pk(skC1Device) at {27}
+
+out(net, ~M_7) with ~M_7 = pk(skC2Device) at {28}
+
+out(net, ~M_8) with ~M_8 = pk(skC3Device) at {29}
+
+out(net, ~M_9) with ~M_9 = pk(skO1Device) at {30}
+
+out(net, ~M_10) with ~M_10 = pk(skAdv) at {31}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_11,~M_12,~M_13,~M_14,~M_15,~M_16,~M_17),~M_18)) with ~M_11 = tagRegularLDevID, ~M_12 = pgbA, ~M_13 = C1, ~M_14 = pk(skC1Device), ~M_15 = regularMember, ~M_16 = initialSerialC1, ~M_17 = initialSerialC1, ~M_18 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,C1,pk(skC1Device),regularMember,initialSerialC1,initialSerialC1)) at {32}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_19,~M_20,~M_21,~M_22,~M_23,~M_24,~M_25),~M_26)) with ~M_19 = tagRegularLDevID, ~M_20 = pgbA, ~M_21 = C2, ~M_22 = pk(skC2Device), ~M_23 = regularMember, ~M_24 = initialSerialC2, ~M_25 = initialSerialC2, ~M_26 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,C2,pk(skC2Device),regularMember,initialSerialC2,initialSerialC2)) at {33}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_27,~M_28,~M_29,~M_30,~M_31,~M_32,~M_33),~M_34)) with ~M_27 = tagRegularLDevID, ~M_28 = pgbA, ~M_29 = C3, ~M_30 = pk(skC3Device), ~M_31 = regularMember, ~M_32 = initialSerialC3, ~M_33 = initialSerialC3, ~M_34 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,C3,pk(skC3Device),regularMember,initialSerialC3,initialSerialC3)) at {34}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_35,~M_36,~M_37,~M_38,~M_39,~M_40,~M_41),~M_42)) with ~M_35 = tagRegularLDevID, ~M_36 = pgbA, ~M_37 = O1, ~M_38 = pk(skO1Device), ~M_39 = regularMember, ~M_40 = initialSerialO1, ~M_41 = initialSerialO1, ~M_42 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,O1,pk(skO1Device),regularMember,initialSerialO1,initialSerialO1)) at {35}
+
+out(net, ~M_43) with ~M_43 = reachSetup at {36}
+
+new tokenSerial: serial creating tokenSerial_7 at {37}
+
+in(net, partialResponse(C1,a,a_1,a_2,a_3,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,a,a_1,regularMember,a_2,a_3),~M))) with partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,a,a_1,regularMember,a_2,a_3),~M) = partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,a,a_1,regularMember,a_2,a_3),share1(e0)) at {198} in copy a_4
+
+in(net, partialResponse(C3,a,a_1,a_2,a_3,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,a,a_1,regularMember,a_2,a_3),~M_2))) with partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,a,a_1,regularMember,a_2,a_3),~M_2) = partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,a,a_1,regularMember,a_2,a_3),share2(e0)) at {200} in copy a_4
+
+new completionNonce_1: nonce creating completionNonce_4 at {206} in copy a_4
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_44,~M_45,~M_46,~M_47,~M_48,~M_49,~M_50),~M_51)) with ~M_44 = tagRegularLDevID, ~M_45 = pgbA, ~M_46 = a, ~M_47 = a_1, ~M_48 = regularMember, ~M_49 = a_2, ~M_50 = a_3, ~M_51 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,a,a_1,regularMember,a_2,a_3)) at {207} in copy a_4
+
+event RegularCredentialAccepted12(C1,a,a_1,a_2,a_3,completionNonce_4) at {209} in copy a_4
+
+event RegularMembershipAuthorized(C1,a,a_1,a_2,a_3,completionNonce_4) at {210} in copy a_4 (goal)
+
+The event RegularMembershipAuthorized(C1,a,a_1,a_2,a_3,completionNonce_4) is executed at {210} in copy a_4.
+A trace has been found.
+RESULT event(RegularMembershipAuthorized(G,D,PK,T,S,NJ)) ==> event(CardAuthorized(pgbA,D,PK,T)) is false.
+-- Query event(RegularCredentialAccepted12(G,D,PK,T,S,NJ)) ==> event(CardAuthorized(pgbA,D,PK,T)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 261 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 61 rules.
+Starting query event(RegularCredentialAccepted12(G,D,PK,T,S,NJ)) ==> event(CardAuthorized(pgbA,D,PK,T))
+goal reachable: attacker_device(D) && attacker_pkey(PK) && attacker_serial(T) && attacker_serial(S) -> event(RegularCredentialAccepted12(C1,D,PK,T,S,completionNonce_3))
+Abbreviations:
+completionNonce_3 = completionNonce_1[secondMessage_1 = partialResponse(C3,D,PK,T,S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share2(e0))),firstMessage_1 = partialResponse(C1,D,PK,T,S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share1(e0))),!1 = @sid]
+
+Derivation:
+Abbreviations:
+completionNonce_3 = completionNonce_1[secondMessage_1 = partialResponse(C3,D,PK,T,S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share2(e0))),firstMessage_1 = partialResponse(C1,D,PK,T,S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share1(e0))),!1 = @sid]
+
+1. The message share1(e0) may be sent to the attacker at output {20}.
+attacker_thresholdShare(share1(e0)).
+
+2. We assume as hypothesis that
+attacker_serial(S).
+
+3. We assume as hypothesis that
+attacker_serial(T).
+
+4. Using the function regularMember the attacker may obtain regularMember.
+attacker_role(regularMember).
+
+5. We assume as hypothesis that
+attacker_pkey(PK).
+
+6. We assume as hypothesis that
+attacker_device(D).
+
+7. Using the function pgbA the attacker may obtain pgbA.
+attacker_pgb(pgbA).
+
+8. Using the function tagRegularLDevID the attacker may obtain tagRegularLDevID.
+attacker_domainTag(tagRegularLDevID).
+
+9. By 8, the attacker may know tagRegularLDevID.
+By 7, the attacker may know pgbA.
+By 6, the attacker may know D.
+By 5, the attacker may know PK.
+By 4, the attacker may know regularMember.
+By 3, the attacker may know T.
+By 2, the attacker may know S.
+Using the function regularLDevIDBody the attacker may obtain regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S).
+attacker_thresholdMessage(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S)).
+
+10. By 9, the attacker may know regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S).
+By 1, the attacker may know share1(e0).
+Using the function partialSign the attacker may obtain partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share1(e0)).
+attacker_partialSignature(partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share1(e0))).
+
+11. Using the function C1 the attacker may obtain C1.
+attacker_device(C1).
+
+12. By 11, the attacker may know C1.
+By 6, the attacker may know D.
+By 5, the attacker may know PK.
+By 3, the attacker may know T.
+By 2, the attacker may know S.
+By 10, the attacker may know partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share1(e0)).
+Using the function partialResponse the attacker may obtain partialResponse(C1,D,PK,T,S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share1(e0))).
+attacker_wireMessage(partialResponse(C1,D,PK,T,S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share1(e0)))).
+
+13. The message share2(e0) may be sent to the attacker at output {23}.
+attacker_thresholdShare(share2(e0)).
+
+14. By 9, the attacker may know regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S).
+By 13, the attacker may know share2(e0).
+Using the function partialSign the attacker may obtain partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share2(e0)).
+attacker_partialSignature(partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share2(e0))).
+
+15. Using the function C3 the attacker may obtain C3.
+attacker_device(C3).
+
+16. By 15, the attacker may know C3.
+By 6, the attacker may know D.
+By 5, the attacker may know PK.
+By 3, the attacker may know T.
+By 2, the attacker may know S.
+By 14, the attacker may know partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share2(e0)).
+Using the function partialResponse the attacker may obtain partialResponse(C3,D,PK,T,S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share2(e0))).
+attacker_wireMessage(partialResponse(C3,D,PK,T,S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share2(e0)))).
+
+17. The message partialResponse(C1,D,PK,T,S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share1(e0))) that the attacker may have by 12 may be received at input {198}.
+The message partialResponse(C3,D,PK,T,S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share2(e0))) that the attacker may have by 16 may be received at input {200}.
+So event RegularCredentialAccepted12(C1,D,PK,T,S,completionNonce_3) may be executed at {209}.
+event(RegularCredentialAccepted12(C1,D,PK,T,S,completionNonce_3)).
+
+18. By 17, event(RegularCredentialAccepted12(C1,D,PK,T,S,completionNonce_3)).
+The goal is reached, represented in the following fact:
+event(RegularCredentialAccepted12(C1,D,PK,T,S,completionNonce_3)).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+event InitialRegularMember(C1,pk(skC1Device)) at {10}
+
+event InitialRegularMember(C2,pk(skC2Device)) at {11}
+
+event InitialRegularMember(C3,pk(skC3Device)) at {12}
+
+event InitialRegularMember(O1,pk(skO1Device)) at {13}
+
+event InitialCommitteeMember(C1,e0) at {14}
+
+event InitialCommitteeMember(C2,e0) at {15}
+
+event InitialCommitteeMember(C3,e0) at {16}
+
+event SetupComplete(pgbA,pkChord,pk(skCard)) at {17}
+
+event PGBLocked(pgbA) at {18}
+
+event ShareCompromised(C1,e0) at {19}
+
+out(net, ~M) with ~M = share1(e0) at {20}
+
+out(net, ~M_1) with ~M_1 = reachShare1Leak at {21}
+
+event ShareCompromised(C2,e0) at {22}
+
+out(net, ~M_2) with ~M_2 = share2(e0) at {23}
+
+out(net, ~M_3) with ~M_3 = reachShare2Leak at {24}
+
+out(net, ~M_4) with ~M_4 = pk(skCard) at {25}
+
+out(net, ~M_5) with ~M_5 = pkChord at {26}
+
+out(net, ~M_6) with ~M_6 = pk(skC1Device) at {27}
+
+out(net, ~M_7) with ~M_7 = pk(skC2Device) at {28}
+
+out(net, ~M_8) with ~M_8 = pk(skC3Device) at {29}
+
+out(net, ~M_9) with ~M_9 = pk(skO1Device) at {30}
+
+out(net, ~M_10) with ~M_10 = pk(skAdv) at {31}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_11,~M_12,~M_13,~M_14,~M_15,~M_16,~M_17),~M_18)) with ~M_11 = tagRegularLDevID, ~M_12 = pgbA, ~M_13 = C1, ~M_14 = pk(skC1Device), ~M_15 = regularMember, ~M_16 = initialSerialC1, ~M_17 = initialSerialC1, ~M_18 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,C1,pk(skC1Device),regularMember,initialSerialC1,initialSerialC1)) at {32}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_19,~M_20,~M_21,~M_22,~M_23,~M_24,~M_25),~M_26)) with ~M_19 = tagRegularLDevID, ~M_20 = pgbA, ~M_21 = C2, ~M_22 = pk(skC2Device), ~M_23 = regularMember, ~M_24 = initialSerialC2, ~M_25 = initialSerialC2, ~M_26 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,C2,pk(skC2Device),regularMember,initialSerialC2,initialSerialC2)) at {33}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_27,~M_28,~M_29,~M_30,~M_31,~M_32,~M_33),~M_34)) with ~M_27 = tagRegularLDevID, ~M_28 = pgbA, ~M_29 = C3, ~M_30 = pk(skC3Device), ~M_31 = regularMember, ~M_32 = initialSerialC3, ~M_33 = initialSerialC3, ~M_34 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,C3,pk(skC3Device),regularMember,initialSerialC3,initialSerialC3)) at {34}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_35,~M_36,~M_37,~M_38,~M_39,~M_40,~M_41),~M_42)) with ~M_35 = tagRegularLDevID, ~M_36 = pgbA, ~M_37 = O1, ~M_38 = pk(skO1Device), ~M_39 = regularMember, ~M_40 = initialSerialO1, ~M_41 = initialSerialO1, ~M_42 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,O1,pk(skO1Device),regularMember,initialSerialO1,initialSerialO1)) at {35}
+
+out(net, ~M_43) with ~M_43 = reachSetup at {36}
+
+new tokenSerial: serial creating tokenSerial_7 at {37}
+
+in(net, partialResponse(C1,a,a_1,a_2,a_3,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,a,a_1,regularMember,a_2,a_3),~M))) with partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,a,a_1,regularMember,a_2,a_3),~M) = partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,a,a_1,regularMember,a_2,a_3),share1(e0)) at {198} in copy a_4
+
+in(net, partialResponse(C3,a,a_1,a_2,a_3,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,a,a_1,regularMember,a_2,a_3),~M_2))) with partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,a,a_1,regularMember,a_2,a_3),~M_2) = partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,a,a_1,regularMember,a_2,a_3),share2(e0)) at {200} in copy a_4
+
+new completionNonce_1: nonce creating completionNonce_4 at {206} in copy a_4
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_44,~M_45,~M_46,~M_47,~M_48,~M_49,~M_50),~M_51)) with ~M_44 = tagRegularLDevID, ~M_45 = pgbA, ~M_46 = a, ~M_47 = a_1, ~M_48 = regularMember, ~M_49 = a_2, ~M_50 = a_3, ~M_51 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,a,a_1,regularMember,a_2,a_3)) at {207} in copy a_4
+
+event RegularCredentialAccepted12(C1,a,a_1,a_2,a_3,completionNonce_4) at {209} in copy a_4 (goal)
+
+The event RegularCredentialAccepted12(C1,a,a_1,a_2,a_3,completionNonce_4) is executed at {209} in copy a_4.
+A trace has been found.
+RESULT event(RegularCredentialAccepted12(G,D,PK,T,S,NJ)) ==> event(CardAuthorized(pgbA,D,PK,T)) is false.
+-- Query event(RegularCredentialAccepted13(G,D,PK,T,S,NJ)) ==> event(CardAuthorized(pgbA,D,PK,T)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 261 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 61 rules.
+Starting query event(RegularCredentialAccepted13(G,D,PK,T,S,NJ)) ==> event(CardAuthorized(pgbA,D,PK,T))
+goal reachable: b-event(CardAuthorized(pgbA,Dreg,pk(skDregDevice[]),tokenSerial[])) && attacker_serial(S) -> event(RegularCredentialAccepted13(C1,Dreg,pk(skDregDevice[]),tokenSerial[],S,completionNonce_3))
+Abbreviations:
+completionNonce_3 = completionNonce_1[secondMessage_1 = partialResponse(C3,Dreg,pk(skDregDevice[]),tokenSerial[],S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],S),share3(e0))),firstMessage_1 = partialResponse(C1,Dreg,pk(skDregDevice[]),tokenSerial[],S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],S),share1(e0))),!1 = @sid]
+goal reachable: b-event(CardAuthorized(pgbA,Dreg,pk(skDregDevice[]),tokenSerial[])) && attacker_serial(S) -> event(RegularCredentialAccepted13(C1,Dreg,pk(skDregDevice[]),tokenSerial[],S,completionNonce_3))
+Abbreviations:
+completionNonce_3 = completionNonce[secondMessage = partialResponse(C2,Dreg,pk(skDregDevice[]),tokenSerial[],S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],S),share3(e0))),firstMessage = partialResponse(C1,Dreg,pk(skDregDevice[]),tokenSerial[],S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],S),share1(e0))),!1 = @sid]
+goal reachable: b-event(CardAuthorized(pgbA,Dreg,pk(skDregDevice[]),tokenSerial[])) && attacker_serial(S) -> event(RegularCredentialAccepted13(C2,Dreg,pk(skDregDevice[]),tokenSerial[],S,completionNonce_3))
+Abbreviations:
+completionNonce_3 = completionNonce_2[secondMessage_2 = partialResponse(C3,Dreg,pk(skDregDevice[]),tokenSerial[],S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],S),share3(e0))),firstMessage_2 = partialResponse(C2,Dreg,pk(skDregDevice[]),tokenSerial[],S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],S),share1(e0))),!1 = @sid]
+RESULT event(RegularCredentialAccepted13(G,D,PK,T,S,NJ)) ==> event(CardAuthorized(pgbA,D,PK,T)) is true.
+-- Query event(RegularCredentialAccepted23(G,D,PK,T,S,NJ)) ==> event(CardAuthorized(pgbA,D,PK,T)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 261 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 61 rules.
+Starting query event(RegularCredentialAccepted23(G,D,PK,T,S,NJ)) ==> event(CardAuthorized(pgbA,D,PK,T))
+goal reachable: b-event(CardAuthorized(pgbA,Dreg,pk(skDregDevice[]),tokenSerial[])) && attacker_serial(S) -> event(RegularCredentialAccepted23(C1,Dreg,pk(skDregDevice[]),tokenSerial[],S,completionNonce_3))
+Abbreviations:
+completionNonce_3 = completionNonce_1[secondMessage_1 = partialResponse(C3,Dreg,pk(skDregDevice[]),tokenSerial[],S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],S),share3(e0))),firstMessage_1 = partialResponse(C1,Dreg,pk(skDregDevice[]),tokenSerial[],S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],S),share2(e0))),!1 = @sid]
+goal reachable: b-event(CardAuthorized(pgbA,Dreg,pk(skDregDevice[]),tokenSerial[])) && attacker_serial(S) -> event(RegularCredentialAccepted23(C1,Dreg,pk(skDregDevice[]),tokenSerial[],S,completionNonce_3))
+Abbreviations:
+completionNonce_3 = completionNonce[secondMessage = partialResponse(C2,Dreg,pk(skDregDevice[]),tokenSerial[],S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],S),share3(e0))),firstMessage = partialResponse(C1,Dreg,pk(skDregDevice[]),tokenSerial[],S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],S),share2(e0))),!1 = @sid]
+goal reachable: b-event(CardAuthorized(pgbA,Dreg,pk(skDregDevice[]),tokenSerial[])) && attacker_serial(S) -> event(RegularCredentialAccepted23(C2,Dreg,pk(skDregDevice[]),tokenSerial[],S,completionNonce_3))
+Abbreviations:
+completionNonce_3 = completionNonce_2[secondMessage_2 = partialResponse(C3,Dreg,pk(skDregDevice[]),tokenSerial[],S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],S),share3(e0))),firstMessage_2 = partialResponse(C2,Dreg,pk(skDregDevice[]),tokenSerial[],S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],S),share2(e0))),!1 = @sid]
+RESULT event(RegularCredentialAccepted23(G,D,PK,T,S,NJ)) ==> event(CardAuthorized(pgbA,D,PK,T)) is true.
+-- Query event(RegularMembershipAuthorized(G,D,PK,T,S,NJ)) ==> event(PGBLocked(pgbA)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 267 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 67 rules.
+600 rules inserted. Base: 510 rules (247 with conclusion selected). Queue: 10 rules.
+Starting query event(RegularMembershipAuthorized(G,D,PK,T,S,NJ)) ==> event(PGBLocked(pgbA))
+goal reachable: attacker_device(D) && attacker_pkey(PK) && attacker_serial(T) && attacker_serial(S) && b-event(PGBLocked(pgbA)) -> event(RegularMembershipAuthorized(C1,D,PK,T,S,completionNonce_3))
+Abbreviations:
+completionNonce_3 = completionNonce_1[secondMessage_1 = partialResponse(C3,D,PK,T,S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share2(e0))),firstMessage_1 = partialResponse(C1,D,PK,T,S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share1(e0))),!1 = @sid]
+goal reachable: attacker_device(D) && attacker_pkey(PK) && attacker_serial(T) && attacker_serial(S) && b-event(PGBLocked(pgbA)) -> event(RegularMembershipAuthorized(C1,D,PK,T,S,completionNonce_3))
+Abbreviations:
+completionNonce_3 = completionNonce[secondMessage = partialResponse(C2,D,PK,T,S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share2(e0))),firstMessage = partialResponse(C1,D,PK,T,S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share1(e0))),!1 = @sid]
+goal reachable: attacker_serial(S) && b-event(PGBLocked(pgbA)) -> event(RegularMembershipAuthorized(C1,Dreg,pk(skDregDevice[]),tokenSerial[],S,completionNonce_3))
+Abbreviations:
+completionNonce_3 = completionNonce_1[secondMessage_1 = partialResponse(C3,Dreg,pk(skDregDevice[]),tokenSerial[],S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],S),share3(e0))),firstMessage_1 = partialResponse(C1,Dreg,pk(skDregDevice[]),tokenSerial[],S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],S),share1(e0))),!1 = @sid]
+goal reachable: attacker_serial(S) && b-event(PGBLocked(pgbA)) -> event(RegularMembershipAuthorized(C1,Dreg,pk(skDregDevice[]),tokenSerial[],S,completionNonce_3))
+Abbreviations:
+completionNonce_3 = completionNonce_1[secondMessage_1 = partialResponse(C3,Dreg,pk(skDregDevice[]),tokenSerial[],S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],S),share3(e0))),firstMessage_1 = partialResponse(C1,Dreg,pk(skDregDevice[]),tokenSerial[],S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],S),share2(e0))),!1 = @sid]
+goal reachable: attacker_serial(S) && b-event(PGBLocked(pgbA)) -> event(RegularMembershipAuthorized(C1,Dreg,pk(skDregDevice[]),tokenSerial[],S,completionNonce_3))
+Abbreviations:
+completionNonce_3 = completionNonce[secondMessage = partialResponse(C2,Dreg,pk(skDregDevice[]),tokenSerial[],S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],S),share3(e0))),firstMessage = partialResponse(C1,Dreg,pk(skDregDevice[]),tokenSerial[],S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],S),share1(e0))),!1 = @sid]
+goal reachable: attacker_serial(S) && b-event(PGBLocked(pgbA)) -> event(RegularMembershipAuthorized(C1,Dreg,pk(skDregDevice[]),tokenSerial[],S,completionNonce_3))
+Abbreviations:
+completionNonce_3 = completionNonce[secondMessage = partialResponse(C2,Dreg,pk(skDregDevice[]),tokenSerial[],S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],S),share3(e0))),firstMessage = partialResponse(C1,Dreg,pk(skDregDevice[]),tokenSerial[],S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],S),share2(e0))),!1 = @sid]
+goal reachable: attacker_device(D) && attacker_pkey(PK) && attacker_serial(T) && attacker_serial(S) && b-event(PGBLocked(pgbA)) -> event(RegularMembershipAuthorized(C2,D,PK,T,S,completionNonce_3))
+Abbreviations:
+completionNonce_3 = completionNonce_2[secondMessage_2 = partialResponse(C3,D,PK,T,S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share2(e0))),firstMessage_2 = partialResponse(C2,D,PK,T,S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,D,PK,regularMember,T,S),share1(e0))),!1 = @sid]
+goal reachable: attacker_serial(S) && b-event(PGBLocked(pgbA)) -> event(RegularMembershipAuthorized(C2,Dreg,pk(skDregDevice[]),tokenSerial[],S,completionNonce_3))
+Abbreviations:
+completionNonce_3 = completionNonce_2[secondMessage_2 = partialResponse(C3,Dreg,pk(skDregDevice[]),tokenSerial[],S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],S),share3(e0))),firstMessage_2 = partialResponse(C2,Dreg,pk(skDregDevice[]),tokenSerial[],S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],S),share1(e0))),!1 = @sid]
+goal reachable: attacker_serial(S) && b-event(PGBLocked(pgbA)) -> event(RegularMembershipAuthorized(C2,Dreg,pk(skDregDevice[]),tokenSerial[],S,completionNonce_3))
+Abbreviations:
+completionNonce_3 = completionNonce_2[secondMessage_2 = partialResponse(C3,Dreg,pk(skDregDevice[]),tokenSerial[],S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],S),share3(e0))),firstMessage_2 = partialResponse(C2,Dreg,pk(skDregDevice[]),tokenSerial[],S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],S),share2(e0))),!1 = @sid]
+RESULT event(RegularMembershipAuthorized(G,D,PK,T,S,NJ)) ==> event(PGBLocked(pgbA)) is true.
+-- Query inj-event(SignerValidated(Ci,D,PK,T,S,E,N)) ==> inj-event(RegularSignerPoPVerified(Ci,D,PK,S,E,N)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 261 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 61 rules.
+Starting query inj-event(SignerValidated(Ci,D,PK,T,S,E,N)) ==> inj-event(RegularSignerPoPVerified(Ci,D,PK,S,E,N))
+goal reachable: b-inj-event(RegularSignerPoPVerified(C1,Dreg,pk(skDregDevice[]),S,e0,verifierNonce_4),@occ102_1) && attacker_serial(S) -> inj-event(SignerValidated(C1,Dreg,pk(skDregDevice[]),tokenSerial[],S,e0,verifierNonce_4),@occ103_1)
+The 1st hypothesis occurs strictly before the conclusion.
+The 2nd hypothesis occurs before the conclusion.
+Abbreviations:
+verifierNonce_4 = verifierNonce[request = signerRequest(C1,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),S),!1 = @sid]
+@occ103_1 = @occ103[response = regularPoPResponse(C1,Dreg,pk(skDregDevice[]),S,verifierNonce_4,sign(regularPoPContext(tagRegPoP,pgbA,Dreg,pk(skDregDevice[]),S,C1,verifierNonce_4),skDregDevice[])),request = signerRequest(C1,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),S),!1 = @sid]
+@occ102_1 = @occ102[response = regularPoPResponse(C1,Dreg,pk(skDregDevice[]),S,verifierNonce_4,sign(regularPoPContext(tagRegPoP,pgbA,Dreg,pk(skDregDevice[]),S,C1,verifierNonce_4),skDregDevice[])),request = signerRequest(C1,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),S),!1 = @sid]
+goal reachable: b-inj-event(RegularSignerPoPVerified(C2,Dreg,pk(skDregDevice[]),S,e0,verifierNonce_4),@occ120_1) && attacker_serial(S) -> inj-event(SignerValidated(C2,Dreg,pk(skDregDevice[]),tokenSerial[],S,e0,verifierNonce_4),@occ121_1)
+The 1st hypothesis occurs strictly before the conclusion.
+The 2nd hypothesis occurs before the conclusion.
+Abbreviations:
+verifierNonce_4 = verifierNonce_1[request_1 = signerRequest(C2,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),S),!1 = @sid]
+@occ121_1 = @occ121[response_1 = regularPoPResponse(C2,Dreg,pk(skDregDevice[]),S,verifierNonce_4,sign(regularPoPContext(tagRegPoP,pgbA,Dreg,pk(skDregDevice[]),S,C2,verifierNonce_4),skDregDevice[])),request_1 = signerRequest(C2,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),S),!1 = @sid]
+@occ120_1 = @occ120[response_1 = regularPoPResponse(C2,Dreg,pk(skDregDevice[]),S,verifierNonce_4,sign(regularPoPContext(tagRegPoP,pgbA,Dreg,pk(skDregDevice[]),S,C2,verifierNonce_4),skDregDevice[])),request_1 = signerRequest(C2,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),S),!1 = @sid]
+goal reachable: b-inj-event(RegularSignerPoPVerified(C3,Dreg,pk(skDregDevice[]),S,e0,verifierNonce_4),@occ138_1) && attacker_serial(S) -> inj-event(SignerValidated(C3,Dreg,pk(skDregDevice[]),tokenSerial[],S,e0,verifierNonce_4),@occ139_1)
+The 1st hypothesis occurs strictly before the conclusion.
+The 2nd hypothesis occurs before the conclusion.
+Abbreviations:
+verifierNonce_4 = verifierNonce_2[request_2 = signerRequest(C3,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),S),!1 = @sid]
+@occ139_1 = @occ139[response_2 = regularPoPResponse(C3,Dreg,pk(skDregDevice[]),S,verifierNonce_4,sign(regularPoPContext(tagRegPoP,pgbA,Dreg,pk(skDregDevice[]),S,C3,verifierNonce_4),skDregDevice[])),request_2 = signerRequest(C3,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),S),!1 = @sid]
+@occ138_1 = @occ138[response_2 = regularPoPResponse(C3,Dreg,pk(skDregDevice[]),S,verifierNonce_4,sign(regularPoPContext(tagRegPoP,pgbA,Dreg,pk(skDregDevice[]),S,C3,verifierNonce_4),skDregDevice[])),request_2 = signerRequest(C3,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),S),!1 = @sid]
+RESULT inj-event(SignerValidated(Ci,D,PK,T,S,E,N)) ==> inj-event(RegularSignerPoPVerified(Ci,D,PK,S,E,N)) is true.
+-- Query inj-event(SignerValidated(Ci,D,PK,T,S,E,N)) ==> inj-event(RegularPoPProduced(D,PK,Ci,S,N)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 261 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 61 rules.
+Starting query inj-event(SignerValidated(Ci,D,PK,T,S,E,N)) ==> inj-event(RegularPoPProduced(D,PK,Ci,S,N))
+goal reachable: b-inj-event(RegularPoPProduced(Dreg,pk(skDregDevice[]),C1,S,verifierNonce_4),@occ150_1) && attacker_serial(S) -> inj-event(SignerValidated(C1,Dreg,pk(skDregDevice[]),tokenSerial[],S,e0,verifierNonce_4),@occ103_2)
+The 1st hypothesis occurs strictly before the conclusion.
+The 2nd hypothesis occurs before the conclusion.
+Abbreviations:
+verifierNonce_4 = verifierNonce[request = signerRequest(C1,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),S),!1 = @sid]
+@occ103_2 = @occ103_1[response = regularPoPResponse(C1,Dreg,pk(skDregDevice[]),S,verifierNonce_4,sign(regularPoPContext(tagRegPoP,pgbA,Dreg,pk(skDregDevice[]),S,C1,verifierNonce_4),skDregDevice[])),request = signerRequest(C1,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),S),!1 = @sid]
+@occ150_1 = @occ150[challenge = signerChallenge(pgbA,Dreg,pk(skDregDevice[]),S,C1,verifierNonce_4),!1 = @sid_1]
+goal reachable: b-inj-event(RegularPoPProduced(Dreg,pk(skDregDevice[]),C2,S,verifierNonce_4),@occ150_1) && attacker_serial(S) -> inj-event(SignerValidated(C2,Dreg,pk(skDregDevice[]),tokenSerial[],S,e0,verifierNonce_4),@occ121_2)
+The 1st hypothesis occurs strictly before the conclusion.
+The 2nd hypothesis occurs before the conclusion.
+Abbreviations:
+verifierNonce_4 = verifierNonce_1[request_1 = signerRequest(C2,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),S),!1 = @sid]
+@occ121_2 = @occ121_1[response_1 = regularPoPResponse(C2,Dreg,pk(skDregDevice[]),S,verifierNonce_4,sign(regularPoPContext(tagRegPoP,pgbA,Dreg,pk(skDregDevice[]),S,C2,verifierNonce_4),skDregDevice[])),request_1 = signerRequest(C2,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),S),!1 = @sid]
+@occ150_1 = @occ150[challenge = signerChallenge(pgbA,Dreg,pk(skDregDevice[]),S,C2,verifierNonce_4),!1 = @sid_1]
+goal reachable: b-inj-event(RegularPoPProduced(Dreg,pk(skDregDevice[]),C3,S,verifierNonce_4),@occ150_1) && attacker_serial(S) -> inj-event(SignerValidated(C3,Dreg,pk(skDregDevice[]),tokenSerial[],S,e0,verifierNonce_4),@occ139_2)
+The 1st hypothesis occurs strictly before the conclusion.
+The 2nd hypothesis occurs before the conclusion.
+Abbreviations:
+verifierNonce_4 = verifierNonce_2[request_2 = signerRequest(C3,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),S),!1 = @sid]
+@occ139_2 = @occ139_1[response_2 = regularPoPResponse(C3,Dreg,pk(skDregDevice[]),S,verifierNonce_4,sign(regularPoPContext(tagRegPoP,pgbA,Dreg,pk(skDregDevice[]),S,C3,verifierNonce_4),skDregDevice[])),request_2 = signerRequest(C3,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),S),!1 = @sid]
+@occ150_1 = @occ150[challenge = signerChallenge(pgbA,Dreg,pk(skDregDevice[]),S,C3,verifierNonce_4),!1 = @sid_1]
+RESULT inj-event(SignerValidated(Ci,D,PK,T,S,E,N)) ==> inj-event(RegularPoPProduced(D,PK,Ci,S,N)) is true.
+-- Query event(SignerValidated(Ci,D,PK,T,S,E,N)) ==> event(CardAuthorized(pgbA,D,PK,T)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 261 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 61 rules.
+600 rules inserted. Base: 519 rules (249 with conclusion selected). Queue: 2 rules.
+Starting query event(SignerValidated(Ci,D,PK,T,S,E,N)) ==> event(CardAuthorized(pgbA,D,PK,T))
+goal reachable: b-event(CardAuthorized(pgbA,Dreg,pk(skDregDevice[]),tokenSerial[])) && attacker_serial(S) -> event(SignerValidated(C1,Dreg,pk(skDregDevice[]),tokenSerial[],S,e0,verifierNonce_4))
+Abbreviations:
+verifierNonce_4 = verifierNonce[request = signerRequest(C1,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),S),!1 = @sid]
+goal reachable: b-event(CardAuthorized(pgbA,Dreg,pk(skDregDevice[]),tokenSerial[])) && attacker_serial(S) -> event(SignerValidated(C2,Dreg,pk(skDregDevice[]),tokenSerial[],S,e0,verifierNonce_4))
+Abbreviations:
+verifierNonce_4 = verifierNonce_1[request_1 = signerRequest(C2,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),S),!1 = @sid]
+goal reachable: b-event(CardAuthorized(pgbA,Dreg,pk(skDregDevice[]),tokenSerial[])) && attacker_serial(S) -> event(SignerValidated(C3,Dreg,pk(skDregDevice[]),tokenSerial[],S,e0,verifierNonce_4))
+Abbreviations:
+verifierNonce_4 = verifierNonce_2[request_2 = signerRequest(C3,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),S),!1 = @sid]
+RESULT event(SignerValidated(Ci,D,PK,T,S,E,N)) ==> event(CardAuthorized(pgbA,D,PK,T)) is true.
+-- Query event(PartialIssued(Ci,D,PK,S,E)) ==> event(SignerValidated(Ci,D,PK,T,S,E,N)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 261 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 61 rules.
+Starting query event(PartialIssued(Ci,D,PK,S,E)) ==> event(SignerValidated(Ci,D,PK,T,S,E,N))
+goal reachable: b-event(SignerValidated(C1,Dreg,pk(skDregDevice[]),tokenSerial[],S,e0,verifierNonce_4)) && attacker_serial(S) -> event(PartialIssued(C1,Dreg,pk(skDregDevice[]),S,e0))
+Abbreviations:
+verifierNonce_4 = verifierNonce[request = signerRequest(C1,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),S),!1 = @sid]
+goal reachable: b-event(SignerValidated(C2,Dreg,pk(skDregDevice[]),tokenSerial[],S,e0,verifierNonce_4)) && attacker_serial(S) -> event(PartialIssued(C2,Dreg,pk(skDregDevice[]),S,e0))
+Abbreviations:
+verifierNonce_4 = verifierNonce_1[request_1 = signerRequest(C2,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),S),!1 = @sid]
+goal reachable: b-event(SignerValidated(C3,Dreg,pk(skDregDevice[]),tokenSerial[],S,e0,verifierNonce_4)) && attacker_serial(S) -> event(PartialIssued(C3,Dreg,pk(skDregDevice[]),S,e0))
+Abbreviations:
+verifierNonce_4 = verifierNonce_2[request_2 = signerRequest(C3,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),S),!1 = @sid]
+RESULT event(PartialIssued(Ci,D,PK,S,E)) ==> event(SignerValidated(Ci,D,PK,T,S,E,N)) is true.
+-- Query event(RegularCredentialAccepted13(G,D,PK,T,S,NJ)) ==> event(SignerValidated(C3,D,PK,T,S,e0,N3)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 261 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 61 rules.
+Starting query event(RegularCredentialAccepted13(G,D,PK,T,S,NJ)) ==> event(SignerValidated(C3,D,PK,T,S,e0,N3))
+goal reachable: b-event(SignerValidated(C3,Dreg,pk(skDregDevice[]),tokenSerial[],S,e0,verifierNonce_4)) && attacker_serial(S) -> event(RegularCredentialAccepted13(C1,Dreg,pk(skDregDevice[]),tokenSerial[],S,completionNonce_3))
+Abbreviations:
+completionNonce_3 = completionNonce_1[secondMessage_1 = partialResponse(C3,Dreg,pk(skDregDevice[]),tokenSerial[],S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],S),share3(e0))),firstMessage_1 = partialResponse(C1,Dreg,pk(skDregDevice[]),tokenSerial[],S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],S),share1(e0))),!1 = @sid]
+verifierNonce_4 = verifierNonce_2[request_2 = signerRequest(C3,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),S),!1 = @sid_1]
+goal reachable: b-event(SignerValidated(C3,Dreg,pk(skDregDevice[]),tokenSerial[],S,e0,verifierNonce_4)) && attacker_serial(S) -> event(RegularCredentialAccepted13(C1,Dreg,pk(skDregDevice[]),tokenSerial[],S,completionNonce_3))
+Abbreviations:
+completionNonce_3 = completionNonce[secondMessage = partialResponse(C2,Dreg,pk(skDregDevice[]),tokenSerial[],S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],S),share3(e0))),firstMessage = partialResponse(C1,Dreg,pk(skDregDevice[]),tokenSerial[],S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],S),share1(e0))),!1 = @sid]
+verifierNonce_4 = verifierNonce_2[request_2 = signerRequest(C3,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),S),!1 = @sid_1]
+goal reachable: b-event(SignerValidated(C3,Dreg,pk(skDregDevice[]),tokenSerial[],S,e0,verifierNonce_4)) && attacker_serial(S) -> event(RegularCredentialAccepted13(C2,Dreg,pk(skDregDevice[]),tokenSerial[],S,completionNonce_3))
+Abbreviations:
+completionNonce_3 = completionNonce_2[secondMessage_2 = partialResponse(C3,Dreg,pk(skDregDevice[]),tokenSerial[],S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],S),share3(e0))),firstMessage_2 = partialResponse(C2,Dreg,pk(skDregDevice[]),tokenSerial[],S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],S),share1(e0))),!1 = @sid]
+verifierNonce_4 = verifierNonce_2[request_2 = signerRequest(C3,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),S),!1 = @sid_1]
+RESULT event(RegularCredentialAccepted13(G,D,PK,T,S,NJ)) ==> event(SignerValidated(C3,D,PK,T,S,e0,N3)) is true.
+-- Query event(RegularCredentialAccepted23(G,D,PK,T,S,NJ)) ==> event(SignerValidated(C3,D,PK,T,S,e0,N3)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 261 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 61 rules.
+Starting query event(RegularCredentialAccepted23(G,D,PK,T,S,NJ)) ==> event(SignerValidated(C3,D,PK,T,S,e0,N3))
+goal reachable: b-event(SignerValidated(C3,Dreg,pk(skDregDevice[]),tokenSerial[],S,e0,verifierNonce_4)) && attacker_serial(S) -> event(RegularCredentialAccepted23(C1,Dreg,pk(skDregDevice[]),tokenSerial[],S,completionNonce_3))
+Abbreviations:
+completionNonce_3 = completionNonce_1[secondMessage_1 = partialResponse(C3,Dreg,pk(skDregDevice[]),tokenSerial[],S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],S),share3(e0))),firstMessage_1 = partialResponse(C1,Dreg,pk(skDregDevice[]),tokenSerial[],S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],S),share2(e0))),!1 = @sid]
+verifierNonce_4 = verifierNonce_2[request_2 = signerRequest(C3,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),S),!1 = @sid_1]
+goal reachable: b-event(SignerValidated(C3,Dreg,pk(skDregDevice[]),tokenSerial[],S,e0,verifierNonce_4)) && attacker_serial(S) -> event(RegularCredentialAccepted23(C1,Dreg,pk(skDregDevice[]),tokenSerial[],S,completionNonce_3))
+Abbreviations:
+completionNonce_3 = completionNonce[secondMessage = partialResponse(C2,Dreg,pk(skDregDevice[]),tokenSerial[],S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],S),share3(e0))),firstMessage = partialResponse(C1,Dreg,pk(skDregDevice[]),tokenSerial[],S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],S),share2(e0))),!1 = @sid]
+verifierNonce_4 = verifierNonce_2[request_2 = signerRequest(C3,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),S),!1 = @sid_1]
+goal reachable: b-event(SignerValidated(C3,Dreg,pk(skDregDevice[]),tokenSerial[],S,e0,verifierNonce_4)) && attacker_serial(S) -> event(RegularCredentialAccepted23(C2,Dreg,pk(skDregDevice[]),tokenSerial[],S,completionNonce_3))
+Abbreviations:
+completionNonce_3 = completionNonce_2[secondMessage_2 = partialResponse(C3,Dreg,pk(skDregDevice[]),tokenSerial[],S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],S),share3(e0))),firstMessage_2 = partialResponse(C2,Dreg,pk(skDregDevice[]),tokenSerial[],S,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],S),share2(e0))),!1 = @sid]
+verifierNonce_4 = verifierNonce_2[request_2 = signerRequest(C3,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),S),!1 = @sid_1]
+RESULT event(RegularCredentialAccepted23(G,D,PK,T,S,NJ)) ==> event(SignerValidated(C3,D,PK,T,S,e0,N3)) is true.
+-- Query not event(ShareActivated(O1,E,pkChord,S)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 258 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 58 rules.
+Starting query not event(ShareActivated(O1,E,pkChord,S))
+RESULT not event(ShareActivated(O1,E,pkChord,S)) is true.
+-- Query not event(ShareActivated(Dreg,E,pkChord,S)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 258 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 58 rules.
+Starting query not event(ShareActivated(Dreg,E,pkChord,S))
+RESULT not event(ShareActivated(Dreg,E,pkChord,S)) is true.
+-- Query not attacker_bitstring(reachSetup[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 258 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 58 rules.
+Starting query not attacker_bitstring(reachSetup[])
+goal reachable: attacker_bitstring(reachSetup[])
+
+Derivation:
+
+1. The message reachSetup[] may be sent to the attacker at output {36}.
+attacker_bitstring(reachSetup[]).
+
+2. By 1, attacker_bitstring(reachSetup[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reachSetup[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+event InitialRegularMember(C1,pk(skC1Device)) at {10}
+
+event InitialRegularMember(C2,pk(skC2Device)) at {11}
+
+event InitialRegularMember(C3,pk(skC3Device)) at {12}
+
+event InitialRegularMember(O1,pk(skO1Device)) at {13}
+
+event InitialCommitteeMember(C1,e0) at {14}
+
+event InitialCommitteeMember(C2,e0) at {15}
+
+event InitialCommitteeMember(C3,e0) at {16}
+
+event SetupComplete(pgbA,pkChord,pk(skCard)) at {17}
+
+event PGBLocked(pgbA) at {18}
+
+event ShareCompromised(C1,e0) at {19}
+
+out(net, ~M) with ~M = share1(e0) at {20}
+
+out(net, ~M_1) with ~M_1 = reachShare1Leak at {21}
+
+event ShareCompromised(C2,e0) at {22}
+
+out(net, ~M_2) with ~M_2 = share2(e0) at {23}
+
+out(net, ~M_3) with ~M_3 = reachShare2Leak at {24}
+
+out(net, ~M_4) with ~M_4 = pk(skCard) at {25}
+
+out(net, ~M_5) with ~M_5 = pkChord at {26}
+
+out(net, ~M_6) with ~M_6 = pk(skC1Device) at {27}
+
+out(net, ~M_7) with ~M_7 = pk(skC2Device) at {28}
+
+out(net, ~M_8) with ~M_8 = pk(skC3Device) at {29}
+
+out(net, ~M_9) with ~M_9 = pk(skO1Device) at {30}
+
+out(net, ~M_10) with ~M_10 = pk(skAdv) at {31}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_11,~M_12,~M_13,~M_14,~M_15,~M_16,~M_17),~M_18)) with ~M_11 = tagRegularLDevID, ~M_12 = pgbA, ~M_13 = C1, ~M_14 = pk(skC1Device), ~M_15 = regularMember, ~M_16 = initialSerialC1, ~M_17 = initialSerialC1, ~M_18 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,C1,pk(skC1Device),regularMember,initialSerialC1,initialSerialC1)) at {32}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_19,~M_20,~M_21,~M_22,~M_23,~M_24,~M_25),~M_26)) with ~M_19 = tagRegularLDevID, ~M_20 = pgbA, ~M_21 = C2, ~M_22 = pk(skC2Device), ~M_23 = regularMember, ~M_24 = initialSerialC2, ~M_25 = initialSerialC2, ~M_26 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,C2,pk(skC2Device),regularMember,initialSerialC2,initialSerialC2)) at {33}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_27,~M_28,~M_29,~M_30,~M_31,~M_32,~M_33),~M_34)) with ~M_27 = tagRegularLDevID, ~M_28 = pgbA, ~M_29 = C3, ~M_30 = pk(skC3Device), ~M_31 = regularMember, ~M_32 = initialSerialC3, ~M_33 = initialSerialC3, ~M_34 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,C3,pk(skC3Device),regularMember,initialSerialC3,initialSerialC3)) at {34}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_35,~M_36,~M_37,~M_38,~M_39,~M_40,~M_41),~M_42)) with ~M_35 = tagRegularLDevID, ~M_36 = pgbA, ~M_37 = O1, ~M_38 = pk(skO1Device), ~M_39 = regularMember, ~M_40 = initialSerialO1, ~M_41 = initialSerialO1, ~M_42 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,O1,pk(skO1Device),regularMember,initialSerialO1,initialSerialO1)) at {35}
+
+out(net, ~M_43) with ~M_43 = reachSetup at {36}
+
+new tokenSerial: serial creating tokenSerial_7 at {37}
+
+event CardAuthorized(pgbA,Dreg,pk(skDregDevice),tokenSerial_7) at {39}
+
+The attacker has the message ~M_43 = reachSetup.
+A trace has been found.
+RESULT not attacker_bitstring(reachSetup[]) is false.
+-- Query not attacker_bitstring(reachShare1Leak[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 258 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 58 rules.
+Starting query not attacker_bitstring(reachShare1Leak[])
+goal reachable: attacker_bitstring(reachShare1Leak[])
+
+Derivation:
+
+1. The message reachShare1Leak[] may be sent to the attacker at output {21}.
+attacker_bitstring(reachShare1Leak[]).
+
+2. By 1, attacker_bitstring(reachShare1Leak[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reachShare1Leak[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+event InitialRegularMember(C1,pk(skC1Device)) at {10}
+
+event InitialRegularMember(C2,pk(skC2Device)) at {11}
+
+event InitialRegularMember(C3,pk(skC3Device)) at {12}
+
+event InitialRegularMember(O1,pk(skO1Device)) at {13}
+
+event InitialCommitteeMember(C1,e0) at {14}
+
+event InitialCommitteeMember(C2,e0) at {15}
+
+event InitialCommitteeMember(C3,e0) at {16}
+
+event SetupComplete(pgbA,pkChord,pk(skCard)) at {17}
+
+event PGBLocked(pgbA) at {18}
+
+event ShareCompromised(C1,e0) at {19}
+
+out(net, ~M) with ~M = share1(e0) at {20}
+
+out(net, ~M_1) with ~M_1 = reachShare1Leak at {21}
+
+event ShareCompromised(C2,e0) at {22}
+
+out(net, ~M_2) with ~M_2 = share2(e0) at {23}
+
+out(net, ~M_3) with ~M_3 = reachShare2Leak at {24}
+
+out(net, ~M_4) with ~M_4 = pk(skCard) at {25}
+
+out(net, ~M_5) with ~M_5 = pkChord at {26}
+
+out(net, ~M_6) with ~M_6 = pk(skC1Device) at {27}
+
+out(net, ~M_7) with ~M_7 = pk(skC2Device) at {28}
+
+out(net, ~M_8) with ~M_8 = pk(skC3Device) at {29}
+
+out(net, ~M_9) with ~M_9 = pk(skO1Device) at {30}
+
+out(net, ~M_10) with ~M_10 = pk(skAdv) at {31}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_11,~M_12,~M_13,~M_14,~M_15,~M_16,~M_17),~M_18)) with ~M_11 = tagRegularLDevID, ~M_12 = pgbA, ~M_13 = C1, ~M_14 = pk(skC1Device), ~M_15 = regularMember, ~M_16 = initialSerialC1, ~M_17 = initialSerialC1, ~M_18 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,C1,pk(skC1Device),regularMember,initialSerialC1,initialSerialC1)) at {32}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_19,~M_20,~M_21,~M_22,~M_23,~M_24,~M_25),~M_26)) with ~M_19 = tagRegularLDevID, ~M_20 = pgbA, ~M_21 = C2, ~M_22 = pk(skC2Device), ~M_23 = regularMember, ~M_24 = initialSerialC2, ~M_25 = initialSerialC2, ~M_26 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,C2,pk(skC2Device),regularMember,initialSerialC2,initialSerialC2)) at {33}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_27,~M_28,~M_29,~M_30,~M_31,~M_32,~M_33),~M_34)) with ~M_27 = tagRegularLDevID, ~M_28 = pgbA, ~M_29 = C3, ~M_30 = pk(skC3Device), ~M_31 = regularMember, ~M_32 = initialSerialC3, ~M_33 = initialSerialC3, ~M_34 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,C3,pk(skC3Device),regularMember,initialSerialC3,initialSerialC3)) at {34}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_35,~M_36,~M_37,~M_38,~M_39,~M_40,~M_41),~M_42)) with ~M_35 = tagRegularLDevID, ~M_36 = pgbA, ~M_37 = O1, ~M_38 = pk(skO1Device), ~M_39 = regularMember, ~M_40 = initialSerialO1, ~M_41 = initialSerialO1, ~M_42 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,O1,pk(skO1Device),regularMember,initialSerialO1,initialSerialO1)) at {35}
+
+out(net, ~M_43) with ~M_43 = reachSetup at {36}
+
+new tokenSerial: serial creating tokenSerial_7 at {37}
+
+event CardAuthorized(pgbA,Dreg,pk(skDregDevice),tokenSerial_7) at {39}
+
+The attacker has the message ~M_1 = reachShare1Leak.
+A trace has been found.
+RESULT not attacker_bitstring(reachShare1Leak[]) is false.
+-- Query not attacker_bitstring(reachShare2Leak[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 258 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 58 rules.
+Starting query not attacker_bitstring(reachShare2Leak[])
+goal reachable: attacker_bitstring(reachShare2Leak[])
+
+Derivation:
+
+1. The message reachShare2Leak[] may be sent to the attacker at output {24}.
+attacker_bitstring(reachShare2Leak[]).
+
+2. By 1, attacker_bitstring(reachShare2Leak[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reachShare2Leak[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+event InitialRegularMember(C1,pk(skC1Device)) at {10}
+
+event InitialRegularMember(C2,pk(skC2Device)) at {11}
+
+event InitialRegularMember(C3,pk(skC3Device)) at {12}
+
+event InitialRegularMember(O1,pk(skO1Device)) at {13}
+
+event InitialCommitteeMember(C1,e0) at {14}
+
+event InitialCommitteeMember(C2,e0) at {15}
+
+event InitialCommitteeMember(C3,e0) at {16}
+
+event SetupComplete(pgbA,pkChord,pk(skCard)) at {17}
+
+event PGBLocked(pgbA) at {18}
+
+event ShareCompromised(C1,e0) at {19}
+
+out(net, ~M) with ~M = share1(e0) at {20}
+
+out(net, ~M_1) with ~M_1 = reachShare1Leak at {21}
+
+event ShareCompromised(C2,e0) at {22}
+
+out(net, ~M_2) with ~M_2 = share2(e0) at {23}
+
+out(net, ~M_3) with ~M_3 = reachShare2Leak at {24}
+
+out(net, ~M_4) with ~M_4 = pk(skCard) at {25}
+
+out(net, ~M_5) with ~M_5 = pkChord at {26}
+
+out(net, ~M_6) with ~M_6 = pk(skC1Device) at {27}
+
+out(net, ~M_7) with ~M_7 = pk(skC2Device) at {28}
+
+out(net, ~M_8) with ~M_8 = pk(skC3Device) at {29}
+
+out(net, ~M_9) with ~M_9 = pk(skO1Device) at {30}
+
+out(net, ~M_10) with ~M_10 = pk(skAdv) at {31}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_11,~M_12,~M_13,~M_14,~M_15,~M_16,~M_17),~M_18)) with ~M_11 = tagRegularLDevID, ~M_12 = pgbA, ~M_13 = C1, ~M_14 = pk(skC1Device), ~M_15 = regularMember, ~M_16 = initialSerialC1, ~M_17 = initialSerialC1, ~M_18 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,C1,pk(skC1Device),regularMember,initialSerialC1,initialSerialC1)) at {32}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_19,~M_20,~M_21,~M_22,~M_23,~M_24,~M_25),~M_26)) with ~M_19 = tagRegularLDevID, ~M_20 = pgbA, ~M_21 = C2, ~M_22 = pk(skC2Device), ~M_23 = regularMember, ~M_24 = initialSerialC2, ~M_25 = initialSerialC2, ~M_26 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,C2,pk(skC2Device),regularMember,initialSerialC2,initialSerialC2)) at {33}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_27,~M_28,~M_29,~M_30,~M_31,~M_32,~M_33),~M_34)) with ~M_27 = tagRegularLDevID, ~M_28 = pgbA, ~M_29 = C3, ~M_30 = pk(skC3Device), ~M_31 = regularMember, ~M_32 = initialSerialC3, ~M_33 = initialSerialC3, ~M_34 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,C3,pk(skC3Device),regularMember,initialSerialC3,initialSerialC3)) at {34}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_35,~M_36,~M_37,~M_38,~M_39,~M_40,~M_41),~M_42)) with ~M_35 = tagRegularLDevID, ~M_36 = pgbA, ~M_37 = O1, ~M_38 = pk(skO1Device), ~M_39 = regularMember, ~M_40 = initialSerialO1, ~M_41 = initialSerialO1, ~M_42 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,O1,pk(skO1Device),regularMember,initialSerialO1,initialSerialO1)) at {35}
+
+out(net, ~M_43) with ~M_43 = reachSetup at {36}
+
+new tokenSerial: serial creating tokenSerial_7 at {37}
+
+event CardAuthorized(pgbA,Dreg,pk(skDregDevice),tokenSerial_7) at {39}
+
+The attacker has the message ~M_3 = reachShare2Leak.
+A trace has been found.
+RESULT not attacker_bitstring(reachShare2Leak[]) is false.
+-- Query not attacker_bitstring(reachRepresentativeOverlayForwarding[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 258 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 58 rules.
+Starting query not attacker_bitstring(reachRepresentativeOverlayForwarding[])
+goal reachable: attacker_bitstring(reachRepresentativeOverlayForwarding[])
+
+Derivation:
+
+1. The attacker has some term token_8.
+attacker_admissionToken(token_8).
+
+2. The attacker has some term subjectKey_10.
+attacker_pkey(subjectKey_10).
+
+3. The attacker has some term subject_10.
+attacker_device(subject_10).
+
+4. By 3, the attacker may know subject_10.
+By 2, the attacker may know subjectKey_10.
+By 1, the attacker may know token_8.
+Using the function admissionInit the attacker may obtain admissionInit(subject_10,subjectKey_10,token_8).
+attacker_wireMessage(admissionInit(subject_10,subjectKey_10,token_8)).
+
+5. Using the function O1 the attacker may obtain O1.
+attacker_device(O1).
+
+6. Using the function admissionService the attacker may obtain admissionService.
+attacker_service(admissionService).
+
+7. The attacker has some term source_5.
+attacker_device(source_5).
+
+8. The attacker has some term routeId_5.
+attacker_routeid(routeId_5).
+
+9. By 8, the attacker may know routeId_5.
+By 7, the attacker may know source_5.
+By 6, the attacker may know admissionService.
+By 5, the attacker may know O1.
+By 4, the attacker may know admissionInit(subject_10,subjectKey_10,token_8).
+Using the function route the attacker may obtain route(routeId_5,source_5,admissionService,O1,admissionInit(subject_10,subjectKey_10,token_8)).
+attacker_routeEnvelope(route(routeId_5,source_5,admissionService,O1,admissionInit(subject_10,subjectKey_10,token_8))).
+
+10. The message route(routeId_5,source_5,admissionService,O1,admissionInit(subject_10,subjectKey_10,token_8)) that the attacker may have by 9 may be received at input {47}.
+So the message reachRepresentativeOverlayForwarding[] may be sent to the attacker at output {51}.
+attacker_bitstring(reachRepresentativeOverlayForwarding[]).
+
+11. By 10, attacker_bitstring(reachRepresentativeOverlayForwarding[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reachRepresentativeOverlayForwarding[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+event InitialRegularMember(C1,pk(skC1Device)) at {10}
+
+event InitialRegularMember(C2,pk(skC2Device)) at {11}
+
+event InitialRegularMember(C3,pk(skC3Device)) at {12}
+
+event InitialRegularMember(O1,pk(skO1Device)) at {13}
+
+event InitialCommitteeMember(C1,e0) at {14}
+
+event InitialCommitteeMember(C2,e0) at {15}
+
+event InitialCommitteeMember(C3,e0) at {16}
+
+event SetupComplete(pgbA,pkChord,pk(skCard)) at {17}
+
+event PGBLocked(pgbA) at {18}
+
+event ShareCompromised(C1,e0) at {19}
+
+out(net, ~M) with ~M = share1(e0) at {20}
+
+out(net, ~M_1) with ~M_1 = reachShare1Leak at {21}
+
+event ShareCompromised(C2,e0) at {22}
+
+out(net, ~M_2) with ~M_2 = share2(e0) at {23}
+
+out(net, ~M_3) with ~M_3 = reachShare2Leak at {24}
+
+out(net, ~M_4) with ~M_4 = pk(skCard) at {25}
+
+out(net, ~M_5) with ~M_5 = pkChord at {26}
+
+out(net, ~M_6) with ~M_6 = pk(skC1Device) at {27}
+
+out(net, ~M_7) with ~M_7 = pk(skC2Device) at {28}
+
+out(net, ~M_8) with ~M_8 = pk(skC3Device) at {29}
+
+out(net, ~M_9) with ~M_9 = pk(skO1Device) at {30}
+
+out(net, ~M_10) with ~M_10 = pk(skAdv) at {31}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_11,~M_12,~M_13,~M_14,~M_15,~M_16,~M_17),~M_18)) with ~M_11 = tagRegularLDevID, ~M_12 = pgbA, ~M_13 = C1, ~M_14 = pk(skC1Device), ~M_15 = regularMember, ~M_16 = initialSerialC1, ~M_17 = initialSerialC1, ~M_18 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,C1,pk(skC1Device),regularMember,initialSerialC1,initialSerialC1)) at {32}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_19,~M_20,~M_21,~M_22,~M_23,~M_24,~M_25),~M_26)) with ~M_19 = tagRegularLDevID, ~M_20 = pgbA, ~M_21 = C2, ~M_22 = pk(skC2Device), ~M_23 = regularMember, ~M_24 = initialSerialC2, ~M_25 = initialSerialC2, ~M_26 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,C2,pk(skC2Device),regularMember,initialSerialC2,initialSerialC2)) at {33}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_27,~M_28,~M_29,~M_30,~M_31,~M_32,~M_33),~M_34)) with ~M_27 = tagRegularLDevID, ~M_28 = pgbA, ~M_29 = C3, ~M_30 = pk(skC3Device), ~M_31 = regularMember, ~M_32 = initialSerialC3, ~M_33 = initialSerialC3, ~M_34 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,C3,pk(skC3Device),regularMember,initialSerialC3,initialSerialC3)) at {34}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_35,~M_36,~M_37,~M_38,~M_39,~M_40,~M_41),~M_42)) with ~M_35 = tagRegularLDevID, ~M_36 = pgbA, ~M_37 = O1, ~M_38 = pk(skO1Device), ~M_39 = regularMember, ~M_40 = initialSerialO1, ~M_41 = initialSerialO1, ~M_42 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,O1,pk(skO1Device),regularMember,initialSerialO1,initialSerialO1)) at {35}
+
+out(net, ~M_43) with ~M_43 = reachSetup at {36}
+
+new tokenSerial: serial creating tokenSerial_7 at {37}
+
+event CardAuthorized(pgbA,Dreg,pk(skDregDevice),tokenSerial_7) at {39}
+
+in(net, route(a,a_1,admissionService,O1,admissionInit(a_2,a_3,a_4))) at {47} in copy a_5
+
+event OverlayForwarded(O1,a_1,C1,admissionService,a) at {50} in copy a_5
+
+out(net, ~M_44) with ~M_44 = reachRepresentativeOverlayForwarding at {51} in copy a_5
+
+out(net, route(~M_45,~M_46,~M_47,~M_48,admissionInit(~M_49,~M_50,~M_51))) with ~M_45 = a, ~M_46 = a_1, ~M_47 = admissionService, ~M_48 = C1, ~M_49 = a_2, ~M_50 = a_3, ~M_51 = a_4 at {52} in copy a_5
+
+The attacker has the message ~M_44 = reachRepresentativeOverlayForwarding.
+A trace has been found.
+RESULT not attacker_bitstring(reachRepresentativeOverlayForwarding[]) is false.
+-- Query not attacker_bitstring(reachHonestDregPair12MembershipAuthorized[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 258 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 58 rules.
+Starting query not attacker_bitstring(reachHonestDregPair12MembershipAuthorized[])
+goal reachable: attacker_bitstring(reachHonestDregPair12MembershipAuthorized[])
+
+Derivation:
+Abbreviations:
+lookupId_1 = lookupId[token_1 = makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[]))]
+
+1. The message share1(e0) may be sent to the attacker at output {20}.
+attacker_thresholdShare(share1(e0)).
+
+2. The attacker has some term admissionSerial_9.
+attacker_serial(admissionSerial_9).
+
+3. The attacker has some term tokenSerial_7.
+attacker_serial(tokenSerial_7).
+
+4. Using the function regularMember the attacker may obtain regularMember.
+attacker_role(regularMember).
+
+5. The message makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])) may be sent on channel cardProvision[] at output {41}.
+mess_admissionToken(cardProvision[],makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[]))).
+
+6. The message makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])) that may be sent on channel cardProvision[] by 5 may be received at input {42}.
+So the message route(lookupId_1,Dreg,admissionService,O1,admissionInit(Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])))) may be sent to the attacker at output {45}.
+attacker_routeEnvelope(route(lookupId_1,Dreg,admissionService,O1,admissionInit(Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[]))))).
+
+7. By 6, the attacker may know route(lookupId_1,Dreg,admissionService,O1,admissionInit(Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])))).
+Using the function 5-proj-route the attacker may obtain admissionInit(Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[]))).
+attacker_wireMessage(admissionInit(Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])))).
+
+8. By 7, the attacker may know admissionInit(Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[]))).
+Using the function 2-proj-admissionInit the attacker may obtain pk(skDregDevice[]).
+attacker_pkey(pk(skDregDevice[])).
+
+9. Using the function Dreg the attacker may obtain Dreg.
+attacker_device(Dreg).
+
+10. Using the function pgbA the attacker may obtain pgbA.
+attacker_pgb(pgbA).
+
+11. Using the function tagRegularLDevID the attacker may obtain tagRegularLDevID.
+attacker_domainTag(tagRegularLDevID).
+
+12. By 11, the attacker may know tagRegularLDevID.
+By 10, the attacker may know pgbA.
+By 9, the attacker may know Dreg.
+By 8, the attacker may know pk(skDregDevice[]).
+By 4, the attacker may know regularMember.
+By 3, the attacker may know tokenSerial_7.
+By 2, the attacker may know admissionSerial_9.
+Using the function regularLDevIDBody the attacker may obtain regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial_7,admissionSerial_9).
+attacker_thresholdMessage(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial_7,admissionSerial_9)).
+
+13. By 12, the attacker may know regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial_7,admissionSerial_9).
+By 1, the attacker may know share1(e0).
+Using the function partialSign the attacker may obtain partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial_7,admissionSerial_9),share1(e0)).
+attacker_partialSignature(partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial_7,admissionSerial_9),share1(e0))).
+
+14. Using the function C1 the attacker may obtain C1.
+attacker_device(C1).
+
+15. By 14, the attacker may know C1.
+By 9, the attacker may know Dreg.
+By 8, the attacker may know pk(skDregDevice[]).
+By 3, the attacker may know tokenSerial_7.
+By 2, the attacker may know admissionSerial_9.
+By 13, the attacker may know partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial_7,admissionSerial_9),share1(e0)).
+Using the function partialResponse the attacker may obtain partialResponse(C1,Dreg,pk(skDregDevice[]),tokenSerial_7,admissionSerial_9,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial_7,admissionSerial_9),share1(e0))).
+attacker_wireMessage(partialResponse(C1,Dreg,pk(skDregDevice[]),tokenSerial_7,admissionSerial_9,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial_7,admissionSerial_9),share1(e0)))).
+
+16. The message share2(e0) may be sent to the attacker at output {23}.
+attacker_thresholdShare(share2(e0)).
+
+17. By 12, the attacker may know regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial_7,admissionSerial_9).
+By 16, the attacker may know share2(e0).
+Using the function partialSign the attacker may obtain partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial_7,admissionSerial_9),share2(e0)).
+attacker_partialSignature(partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial_7,admissionSerial_9),share2(e0))).
+
+18. Using the function C2 the attacker may obtain C2.
+attacker_device(C2).
+
+19. By 18, the attacker may know C2.
+By 9, the attacker may know Dreg.
+By 8, the attacker may know pk(skDregDevice[]).
+By 3, the attacker may know tokenSerial_7.
+By 2, the attacker may know admissionSerial_9.
+By 17, the attacker may know partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial_7,admissionSerial_9),share2(e0)).
+Using the function partialResponse the attacker may obtain partialResponse(C2,Dreg,pk(skDregDevice[]),tokenSerial_7,admissionSerial_9,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial_7,admissionSerial_9),share2(e0))).
+attacker_wireMessage(partialResponse(C2,Dreg,pk(skDregDevice[]),tokenSerial_7,admissionSerial_9,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial_7,admissionSerial_9),share2(e0)))).
+
+20. The message partialResponse(C1,Dreg,pk(skDregDevice[]),tokenSerial_7,admissionSerial_9,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial_7,admissionSerial_9),share1(e0))) that the attacker may have by 15 may be received at input {155}.
+The message partialResponse(C2,Dreg,pk(skDregDevice[]),tokenSerial_7,admissionSerial_9,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial_7,admissionSerial_9),share2(e0))) that the attacker may have by 19 may be received at input {157}.
+So the message reachHonestDregPair12MembershipAuthorized[] may be sent to the attacker at output {170}.
+attacker_bitstring(reachHonestDregPair12MembershipAuthorized[]).
+
+21. By 20, attacker_bitstring(reachHonestDregPair12MembershipAuthorized[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reachHonestDregPair12MembershipAuthorized[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+event InitialRegularMember(C1,pk(skC1Device)) at {10}
+
+event InitialRegularMember(C2,pk(skC2Device)) at {11}
+
+event InitialRegularMember(C3,pk(skC3Device)) at {12}
+
+event InitialRegularMember(O1,pk(skO1Device)) at {13}
+
+event InitialCommitteeMember(C1,e0) at {14}
+
+event InitialCommitteeMember(C2,e0) at {15}
+
+event InitialCommitteeMember(C3,e0) at {16}
+
+event SetupComplete(pgbA,pkChord,pk(skCard)) at {17}
+
+event PGBLocked(pgbA) at {18}
+
+event ShareCompromised(C1,e0) at {19}
+
+out(net, ~M) with ~M = share1(e0) at {20}
+
+out(net, ~M_1) with ~M_1 = reachShare1Leak at {21}
+
+event ShareCompromised(C2,e0) at {22}
+
+out(net, ~M_2) with ~M_2 = share2(e0) at {23}
+
+out(net, ~M_3) with ~M_3 = reachShare2Leak at {24}
+
+out(net, ~M_4) with ~M_4 = pk(skCard) at {25}
+
+out(net, ~M_5) with ~M_5 = pkChord at {26}
+
+out(net, ~M_6) with ~M_6 = pk(skC1Device) at {27}
+
+out(net, ~M_7) with ~M_7 = pk(skC2Device) at {28}
+
+out(net, ~M_8) with ~M_8 = pk(skC3Device) at {29}
+
+out(net, ~M_9) with ~M_9 = pk(skO1Device) at {30}
+
+out(net, ~M_10) with ~M_10 = pk(skAdv) at {31}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_11,~M_12,~M_13,~M_14,~M_15,~M_16,~M_17),~M_18)) with ~M_11 = tagRegularLDevID, ~M_12 = pgbA, ~M_13 = C1, ~M_14 = pk(skC1Device), ~M_15 = regularMember, ~M_16 = initialSerialC1, ~M_17 = initialSerialC1, ~M_18 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,C1,pk(skC1Device),regularMember,initialSerialC1,initialSerialC1)) at {32}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_19,~M_20,~M_21,~M_22,~M_23,~M_24,~M_25),~M_26)) with ~M_19 = tagRegularLDevID, ~M_20 = pgbA, ~M_21 = C2, ~M_22 = pk(skC2Device), ~M_23 = regularMember, ~M_24 = initialSerialC2, ~M_25 = initialSerialC2, ~M_26 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,C2,pk(skC2Device),regularMember,initialSerialC2,initialSerialC2)) at {33}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_27,~M_28,~M_29,~M_30,~M_31,~M_32,~M_33),~M_34)) with ~M_27 = tagRegularLDevID, ~M_28 = pgbA, ~M_29 = C3, ~M_30 = pk(skC3Device), ~M_31 = regularMember, ~M_32 = initialSerialC3, ~M_33 = initialSerialC3, ~M_34 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,C3,pk(skC3Device),regularMember,initialSerialC3,initialSerialC3)) at {34}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_35,~M_36,~M_37,~M_38,~M_39,~M_40,~M_41),~M_42)) with ~M_35 = tagRegularLDevID, ~M_36 = pgbA, ~M_37 = O1, ~M_38 = pk(skO1Device), ~M_39 = regularMember, ~M_40 = initialSerialO1, ~M_41 = initialSerialO1, ~M_42 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,O1,pk(skO1Device),regularMember,initialSerialO1,initialSerialO1)) at {35}
+
+out(net, ~M_43) with ~M_43 = reachSetup at {36}
+
+new tokenSerial: serial creating tokenSerial_8 at {37}
+
+event CardAuthorized(pgbA,Dreg,pk(skDregDevice),tokenSerial_8) at {39}
+
+out(cardProvision, makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice),tokenSerial_8),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice),tokenSerial_8),skCard))) at {41} received at {42}
+
+new lookupId: routeid creating lookupId_2 at {43}
+
+event OverlayLookupRequested(Dreg,admissionService,lookupId_2) at {44}
+
+out(net, route(~M_44,~M_45,~M_46,~M_47,admissionInit(~M_48,~M_49,makeCardToken(cardTokenBody(~M_50,~M_51,~M_52,~M_53,~M_54),~M_55)))) with ~M_44 = lookupId_2, ~M_45 = Dreg, ~M_46 = admissionService, ~M_47 = O1, ~M_48 = Dreg, ~M_49 = pk(skDregDevice), ~M_50 = tagCardToken, ~M_51 = pgbA, ~M_52 = Dreg, ~M_53 = pk(skDregDevice), ~M_54 = tokenSerial_8, ~M_55 = sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice),tokenSerial_8),skCard) at {45}
+
+in(net, partialResponse(C1,Dreg,~M_49,a,a_1,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,~M_49,regularMember,a,a_1),~M))) with ~M_49 = pk(skDregDevice), partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,~M_49,regularMember,a,a_1),~M) = partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice),regularMember,a,a_1),share1(e0)) at {155} in copy a_2
+
+in(net, partialResponse(C2,Dreg,~M_49,a,a_1,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,~M_49,regularMember,a,a_1),~M_2))) with ~M_49 = pk(skDregDevice), partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,~M_49,regularMember,a,a_1),~M_2) = partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice),regularMember,a,a_1),share2(e0)) at {157} in copy a_2
+
+new completionNonce: nonce creating completionNonce_3 at {163} in copy a_2
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_56,~M_57,~M_58,~M_59,~M_60,~M_61,~M_62),~M_63)) with ~M_56 = tagRegularLDevID, ~M_57 = pgbA, ~M_58 = Dreg, ~M_59 = pk(skDregDevice), ~M_60 = regularMember, ~M_61 = a, ~M_62 = a_1, ~M_63 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice),regularMember,a,a_1)) at {164} in copy a_2
+
+event RegularCredentialAccepted12(C1,Dreg,pk(skDregDevice),a,a_1,completionNonce_3) at {166} in copy a_2
+
+event RegularMembershipAuthorized(C1,Dreg,pk(skDregDevice),a,a_1,completionNonce_3) at {167} in copy a_2
+
+out(net, ~M_64) with ~M_64 = reachHonestDregPair12MembershipAuthorized at {170} in copy a_2
+
+The attacker has the message ~M_64 = reachHonestDregPair12MembershipAuthorized.
+A trace has been found.
+RESULT not attacker_bitstring(reachHonestDregPair12MembershipAuthorized[]) is false.
+-- Query not attacker_bitstring(reachHonestDregPair13MembershipAuthorized[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 258 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 58 rules.
+Starting query not attacker_bitstring(reachHonestDregPair13MembershipAuthorized[])
+goal reachable: attacker_bitstring(reachHonestDregPair13MembershipAuthorized[])
+
+Derivation:
+Abbreviations:
+verifierNonce_4 = verifierNonce_2[request_2 = signerRequest(C3,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),admissionSerial_9),!1 = @sid]
+lookupId_1 = lookupId[token_1 = makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[]))]
+
+1. The message share1(e0) may be sent to the attacker at output {20}.
+attacker_thresholdShare(share1(e0)).
+
+2. The attacker has some term admissionSerial_9.
+attacker_serial(admissionSerial_9).
+
+3. The message makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])) may be sent on channel cardProvision[] at output {41}.
+mess_admissionToken(cardProvision[],makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[]))).
+
+4. The message makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])) that may be sent on channel cardProvision[] by 3 may be received at input {42}.
+So the message route(lookupId_1,Dreg,admissionService,O1,admissionInit(Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])))) may be sent to the attacker at output {45}.
+attacker_routeEnvelope(route(lookupId_1,Dreg,admissionService,O1,admissionInit(Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[]))))).
+
+5. By 4, the attacker may know route(lookupId_1,Dreg,admissionService,O1,admissionInit(Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])))).
+Using the function 5-proj-route the attacker may obtain admissionInit(Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[]))).
+attacker_wireMessage(admissionInit(Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])))).
+
+6. By 5, the attacker may know admissionInit(Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[]))).
+Using the function 3-proj-admissionInit the attacker may obtain makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])).
+attacker_admissionToken(makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[]))).
+
+7. By 6, the attacker may know makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])).
+Using the function 1-proj-makeCardToken the attacker may obtain cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]).
+attacker_protocolMessage(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[])).
+
+8. By 7, the attacker may know cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]).
+Using the function 5-proj-cardTokenBody the attacker may obtain tokenSerial[].
+attacker_serial(tokenSerial[]).
+
+9. Using the function regularMember the attacker may obtain regularMember.
+attacker_role(regularMember).
+
+10. By 5, the attacker may know admissionInit(Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[]))).
+Using the function 2-proj-admissionInit the attacker may obtain pk(skDregDevice[]).
+attacker_pkey(pk(skDregDevice[])).
+
+11. Using the function Dreg the attacker may obtain Dreg.
+attacker_device(Dreg).
+
+12. Using the function pgbA the attacker may obtain pgbA.
+attacker_pgb(pgbA).
+
+13. Using the function tagRegularLDevID the attacker may obtain tagRegularLDevID.
+attacker_domainTag(tagRegularLDevID).
+
+14. By 13, the attacker may know tagRegularLDevID.
+By 12, the attacker may know pgbA.
+By 11, the attacker may know Dreg.
+By 10, the attacker may know pk(skDregDevice[]).
+By 9, the attacker may know regularMember.
+By 8, the attacker may know tokenSerial[].
+By 2, the attacker may know admissionSerial_9.
+Using the function regularLDevIDBody the attacker may obtain regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],admissionSerial_9).
+attacker_thresholdMessage(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],admissionSerial_9)).
+
+15. By 14, the attacker may know regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],admissionSerial_9).
+By 1, the attacker may know share1(e0).
+Using the function partialSign the attacker may obtain partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],admissionSerial_9),share1(e0)).
+attacker_partialSignature(partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],admissionSerial_9),share1(e0))).
+
+16. Using the function C1 the attacker may obtain C1.
+attacker_device(C1).
+
+17. By 16, the attacker may know C1.
+By 11, the attacker may know Dreg.
+By 10, the attacker may know pk(skDregDevice[]).
+By 8, the attacker may know tokenSerial[].
+By 2, the attacker may know admissionSerial_9.
+By 15, the attacker may know partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],admissionSerial_9),share1(e0)).
+Using the function partialResponse the attacker may obtain partialResponse(C1,Dreg,pk(skDregDevice[]),tokenSerial[],admissionSerial_9,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],admissionSerial_9),share1(e0))).
+attacker_wireMessage(partialResponse(C1,Dreg,pk(skDregDevice[]),tokenSerial[],admissionSerial_9,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],admissionSerial_9),share1(e0)))).
+
+18. Using the function C3 the attacker may obtain C3.
+attacker_device(C3).
+
+19. By 18, the attacker may know C3.
+By 11, the attacker may know Dreg.
+By 10, the attacker may know pk(skDregDevice[]).
+By 6, the attacker may know makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])).
+By 2, the attacker may know admissionSerial_9.
+Using the function signerRequest the attacker may obtain signerRequest(C3,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),admissionSerial_9).
+attacker_wireMessage(signerRequest(C3,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),admissionSerial_9)).
+
+20. The message signerRequest(C3,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),admissionSerial_9) that the attacker may have by 19 may be received at input {128}.
+So the message signerChallenge(pgbA,Dreg,pk(skDregDevice[]),admissionSerial_9,C3,verifierNonce_4) may be sent to the attacker at output {131}.
+attacker_wireMessage(signerChallenge(pgbA,Dreg,pk(skDregDevice[]),admissionSerial_9,C3,verifierNonce_4)).
+
+21. By 20, the attacker may know signerChallenge(pgbA,Dreg,pk(skDregDevice[]),admissionSerial_9,C3,verifierNonce_4).
+Using the function 6-proj-signerChallenge the attacker may obtain verifierNonce_4.
+attacker_nonce(verifierNonce_4).
+
+22. By 12, the attacker may know pgbA.
+By 11, the attacker may know Dreg.
+By 10, the attacker may know pk(skDregDevice[]).
+By 2, the attacker may know admissionSerial_9.
+By 18, the attacker may know C3.
+By 21, the attacker may know verifierNonce_4.
+Using the function signerChallenge the attacker may obtain signerChallenge(pgbA,Dreg,pk(skDregDevice[]),admissionSerial_9,C3,verifierNonce_4).
+attacker_wireMessage(signerChallenge(pgbA,Dreg,pk(skDregDevice[]),admissionSerial_9,C3,verifierNonce_4)).
+
+23. The message signerChallenge(pgbA,Dreg,pk(skDregDevice[]),admissionSerial_9,C3,verifierNonce_4) that the attacker may have by 22 may be received at input {144}.
+So the message regularPoPResponse(C3,Dreg,pk(skDregDevice[]),admissionSerial_9,verifierNonce_4,sign(regularPoPContext(tagRegPoP,pgbA,Dreg,pk(skDregDevice[]),admissionSerial_9,C3,verifierNonce_4),skDregDevice[])) may be sent to the attacker at output {151}.
+attacker_wireMessage(regularPoPResponse(C3,Dreg,pk(skDregDevice[]),admissionSerial_9,verifierNonce_4,sign(regularPoPContext(tagRegPoP,pgbA,Dreg,pk(skDregDevice[]),admissionSerial_9,C3,verifierNonce_4),skDregDevice[]))).
+
+24. By 23, the attacker may know regularPoPResponse(C3,Dreg,pk(skDregDevice[]),admissionSerial_9,verifierNonce_4,sign(regularPoPContext(tagRegPoP,pgbA,Dreg,pk(skDregDevice[]),admissionSerial_9,C3,verifierNonce_4),skDregDevice[])).
+Using the function 6-proj-regularPoPResponse the attacker may obtain sign(regularPoPContext(tagRegPoP,pgbA,Dreg,pk(skDregDevice[]),admissionSerial_9,C3,verifierNonce_4),skDregDevice[]).
+attacker_signature(sign(regularPoPContext(tagRegPoP,pgbA,Dreg,pk(skDregDevice[]),admissionSerial_9,C3,verifierNonce_4),skDregDevice[])).
+
+25. By 18, the attacker may know C3.
+By 11, the attacker may know Dreg.
+By 10, the attacker may know pk(skDregDevice[]).
+By 2, the attacker may know admissionSerial_9.
+By 21, the attacker may know verifierNonce_4.
+By 24, the attacker may know sign(regularPoPContext(tagRegPoP,pgbA,Dreg,pk(skDregDevice[]),admissionSerial_9,C3,verifierNonce_4),skDregDevice[]).
+Using the function regularPoPResponse the attacker may obtain regularPoPResponse(C3,Dreg,pk(skDregDevice[]),admissionSerial_9,verifierNonce_4,sign(regularPoPContext(tagRegPoP,pgbA,Dreg,pk(skDregDevice[]),admissionSerial_9,C3,verifierNonce_4),skDregDevice[])).
+attacker_wireMessage(regularPoPResponse(C3,Dreg,pk(skDregDevice[]),admissionSerial_9,verifierNonce_4,sign(regularPoPContext(tagRegPoP,pgbA,Dreg,pk(skDregDevice[]),admissionSerial_9,C3,verifierNonce_4),skDregDevice[]))).
+
+26. The message signerRequest(C3,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),admissionSerial_9) that the attacker may have by 19 may be received at input {128}.
+The message regularPoPResponse(C3,Dreg,pk(skDregDevice[]),admissionSerial_9,verifierNonce_4,sign(regularPoPContext(tagRegPoP,pgbA,Dreg,pk(skDregDevice[]),admissionSerial_9,C3,verifierNonce_4),skDregDevice[])) that the attacker may have by 25 may be received at input {132}.
+So the message partialResponse(C3,Dreg,pk(skDregDevice[]),tokenSerial[],admissionSerial_9,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],admissionSerial_9),share3(e0))) may be sent to the attacker at output {142}.
+attacker_wireMessage(partialResponse(C3,Dreg,pk(skDregDevice[]),tokenSerial[],admissionSerial_9,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],admissionSerial_9),share3(e0)))).
+
+27. By 26, the attacker may know partialResponse(C3,Dreg,pk(skDregDevice[]),tokenSerial[],admissionSerial_9,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],admissionSerial_9),share3(e0))).
+Using the function 6-proj-partialResponse the attacker may obtain partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],admissionSerial_9),share3(e0)).
+attacker_partialSignature(partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],admissionSerial_9),share3(e0))).
+
+28. Using the function C2 the attacker may obtain C2.
+attacker_device(C2).
+
+29. By 28, the attacker may know C2.
+By 11, the attacker may know Dreg.
+By 10, the attacker may know pk(skDregDevice[]).
+By 8, the attacker may know tokenSerial[].
+By 2, the attacker may know admissionSerial_9.
+By 27, the attacker may know partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],admissionSerial_9),share3(e0)).
+Using the function partialResponse the attacker may obtain partialResponse(C2,Dreg,pk(skDregDevice[]),tokenSerial[],admissionSerial_9,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],admissionSerial_9),share3(e0))).
+attacker_wireMessage(partialResponse(C2,Dreg,pk(skDregDevice[]),tokenSerial[],admissionSerial_9,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],admissionSerial_9),share3(e0)))).
+
+30. The message partialResponse(C1,Dreg,pk(skDregDevice[]),tokenSerial[],admissionSerial_9,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],admissionSerial_9),share1(e0))) that the attacker may have by 17 may be received at input {155}.
+The message partialResponse(C2,Dreg,pk(skDregDevice[]),tokenSerial[],admissionSerial_9,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],admissionSerial_9),share3(e0))) that the attacker may have by 29 may be received at input {157}.
+So the message reachHonestDregPair13MembershipAuthorized[] may be sent to the attacker at output {180}.
+attacker_bitstring(reachHonestDregPair13MembershipAuthorized[]).
+
+31. By 30, attacker_bitstring(reachHonestDregPair13MembershipAuthorized[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reachHonestDregPair13MembershipAuthorized[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+event InitialRegularMember(C1,pk(skC1Device)) at {10}
+
+event InitialRegularMember(C2,pk(skC2Device)) at {11}
+
+event InitialRegularMember(C3,pk(skC3Device)) at {12}
+
+event InitialRegularMember(O1,pk(skO1Device)) at {13}
+
+event InitialCommitteeMember(C1,e0) at {14}
+
+event InitialCommitteeMember(C2,e0) at {15}
+
+event InitialCommitteeMember(C3,e0) at {16}
+
+event SetupComplete(pgbA,pkChord,pk(skCard)) at {17}
+
+event PGBLocked(pgbA) at {18}
+
+event ShareCompromised(C1,e0) at {19}
+
+out(net, ~M) with ~M = share1(e0) at {20}
+
+out(net, ~M_1) with ~M_1 = reachShare1Leak at {21}
+
+event ShareCompromised(C2,e0) at {22}
+
+out(net, ~M_2) with ~M_2 = share2(e0) at {23}
+
+out(net, ~M_3) with ~M_3 = reachShare2Leak at {24}
+
+out(net, ~M_4) with ~M_4 = pk(skCard) at {25}
+
+out(net, ~M_5) with ~M_5 = pkChord at {26}
+
+out(net, ~M_6) with ~M_6 = pk(skC1Device) at {27}
+
+out(net, ~M_7) with ~M_7 = pk(skC2Device) at {28}
+
+out(net, ~M_8) with ~M_8 = pk(skC3Device) at {29}
+
+out(net, ~M_9) with ~M_9 = pk(skO1Device) at {30}
+
+out(net, ~M_10) with ~M_10 = pk(skAdv) at {31}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_11,~M_12,~M_13,~M_14,~M_15,~M_16,~M_17),~M_18)) with ~M_11 = tagRegularLDevID, ~M_12 = pgbA, ~M_13 = C1, ~M_14 = pk(skC1Device), ~M_15 = regularMember, ~M_16 = initialSerialC1, ~M_17 = initialSerialC1, ~M_18 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,C1,pk(skC1Device),regularMember,initialSerialC1,initialSerialC1)) at {32}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_19,~M_20,~M_21,~M_22,~M_23,~M_24,~M_25),~M_26)) with ~M_19 = tagRegularLDevID, ~M_20 = pgbA, ~M_21 = C2, ~M_22 = pk(skC2Device), ~M_23 = regularMember, ~M_24 = initialSerialC2, ~M_25 = initialSerialC2, ~M_26 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,C2,pk(skC2Device),regularMember,initialSerialC2,initialSerialC2)) at {33}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_27,~M_28,~M_29,~M_30,~M_31,~M_32,~M_33),~M_34)) with ~M_27 = tagRegularLDevID, ~M_28 = pgbA, ~M_29 = C3, ~M_30 = pk(skC3Device), ~M_31 = regularMember, ~M_32 = initialSerialC3, ~M_33 = initialSerialC3, ~M_34 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,C3,pk(skC3Device),regularMember,initialSerialC3,initialSerialC3)) at {34}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_35,~M_36,~M_37,~M_38,~M_39,~M_40,~M_41),~M_42)) with ~M_35 = tagRegularLDevID, ~M_36 = pgbA, ~M_37 = O1, ~M_38 = pk(skO1Device), ~M_39 = regularMember, ~M_40 = initialSerialO1, ~M_41 = initialSerialO1, ~M_42 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,O1,pk(skO1Device),regularMember,initialSerialO1,initialSerialO1)) at {35}
+
+out(net, ~M_43) with ~M_43 = reachSetup at {36}
+
+new tokenSerial: serial creating tokenSerial_7 at {37}
+
+event CardAuthorized(pgbA,Dreg,pk(skDregDevice),tokenSerial_7) at {39}
+
+out(cardProvision, makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice),tokenSerial_7),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice),tokenSerial_7),skCard))) at {41} received at {42}
+
+new lookupId: routeid creating lookupId_2 at {43}
+
+event OverlayLookupRequested(Dreg,admissionService,lookupId_2) at {44}
+
+out(net, route(~M_44,~M_45,~M_46,~M_47,admissionInit(~M_48,~M_49,makeCardToken(cardTokenBody(~M_50,~M_51,~M_52,~M_53,~M_54),~M_55)))) with ~M_44 = lookupId_2, ~M_45 = Dreg, ~M_46 = admissionService, ~M_47 = O1, ~M_48 = Dreg, ~M_49 = pk(skDregDevice), ~M_50 = tagCardToken, ~M_51 = pgbA, ~M_52 = Dreg, ~M_53 = pk(skDregDevice), ~M_54 = tokenSerial_7, ~M_55 = sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice),tokenSerial_7),skCard) at {45}
+
+in(net, signerRequest(C3,Dreg,~M_49,makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,~M_49,~M_54),~M_55),a)) with ~M_49 = pk(skDregDevice), ~M_49 = pk(skDregDevice), ~M_54 = tokenSerial_7, ~M_55 = sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice),tokenSerial_7),skCard) at {128} in copy a_1
+
+new verifierNonce_2: nonce creating verifierNonce_5 at {130} in copy a_1
+
+out(net, signerChallenge(~M_56,~M_57,~M_58,~M_59,~M_60,~M_61)) with ~M_56 = pgbA, ~M_57 = Dreg, ~M_58 = pk(skDregDevice), ~M_59 = a, ~M_60 = C3, ~M_61 = verifierNonce_5 at {131} in copy a_1
+
+in(net, signerChallenge(pgbA,Dreg,~M_49,a,C3,~M_61)) with ~M_49 = pk(skDregDevice), ~M_61 = verifierNonce_5 at {144} in copy a_2
+
+event RegularPoPProduced(Dreg,pk(skDregDevice),C3,a,verifierNonce_5) at {150} in copy a_2
+
+out(net, regularPoPResponse(~M_62,~M_63,~M_64,~M_65,~M_66,~M_67)) with ~M_62 = C3, ~M_63 = Dreg, ~M_64 = pk(skDregDevice), ~M_65 = a, ~M_66 = verifierNonce_5, ~M_67 = sign(regularPoPContext(tagRegPoP,pgbA,Dreg,pk(skDregDevice),a,C3,verifierNonce_5),skDregDevice) at {151} in copy a_2
+
+in(net, regularPoPResponse(C3,Dreg,~M_49,a,~M_61,~M_67)) with ~M_49 = pk(skDregDevice), ~M_61 = verifierNonce_5, ~M_67 = sign(regularPoPContext(tagRegPoP,pgbA,Dreg,pk(skDregDevice),a,C3,verifierNonce_5),skDregDevice) at {132} in copy a_1
+
+event RegularSignerPoPVerified(C3,Dreg,pk(skDregDevice),a,e0,verifierNonce_5) at {138} in copy a_1
+
+event SignerValidated(C3,Dreg,pk(skDregDevice),tokenSerial_7,a,e0,verifierNonce_5) at {139} in copy a_1
+
+event PartialIssued(C3,Dreg,pk(skDregDevice),a,e0) at {141} in copy a_1
+
+out(net, partialResponse(~M_68,~M_69,~M_70,~M_71,~M_72,~M_73)) with ~M_68 = C3, ~M_69 = Dreg, ~M_70 = pk(skDregDevice), ~M_71 = tokenSerial_7, ~M_72 = a, ~M_73 = partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice),regularMember,tokenSerial_7,a),share3(e0)) at {142} in copy a_1
+
+in(net, partialResponse(C1,Dreg,~M_49,~M_54,a,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,~M_49,regularMember,~M_54,a),~M))) with ~M_49 = pk(skDregDevice), ~M_54 = tokenSerial_7, partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,~M_49,regularMember,~M_54,a),~M) = partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice),regularMember,tokenSerial_7,a),share1(e0)) at {155} in copy a_3
+
+in(net, partialResponse(C2,Dreg,~M_49,~M_54,a,~M_73)) with ~M_49 = pk(skDregDevice), ~M_54 = tokenSerial_7, ~M_73 = partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice),regularMember,tokenSerial_7,a),share3(e0)) at {157} in copy a_3
+
+new completionNonce: nonce creating completionNonce_3 at {163} in copy a_3
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_74,~M_75,~M_76,~M_77,~M_78,~M_79,~M_80),~M_81)) with ~M_74 = tagRegularLDevID, ~M_75 = pgbA, ~M_76 = Dreg, ~M_77 = pk(skDregDevice), ~M_78 = regularMember, ~M_79 = tokenSerial_7, ~M_80 = a, ~M_81 = thresholdSig13(e0,regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice),regularMember,tokenSerial_7,a)) at {164} in copy a_3
+
+event RegularCredentialAccepted13(C1,Dreg,pk(skDregDevice),tokenSerial_7,a,completionNonce_3) at {176} in copy a_3
+
+event RegularMembershipAuthorized(C1,Dreg,pk(skDregDevice),tokenSerial_7,a,completionNonce_3) at {177} in copy a_3
+
+out(net, ~M_82) with ~M_82 = reachHonestDregPair13MembershipAuthorized at {180} in copy a_3
+
+The attacker has the message ~M_82 = reachHonestDregPair13MembershipAuthorized.
+A trace has been found.
+RESULT not attacker_bitstring(reachHonestDregPair13MembershipAuthorized[]) is false.
+-- Query not attacker_bitstring(reachHonestDregPair23MembershipAuthorized[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 258 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 58 rules.
+Starting query not attacker_bitstring(reachHonestDregPair23MembershipAuthorized[])
+goal reachable: attacker_bitstring(reachHonestDregPair23MembershipAuthorized[])
+
+Derivation:
+Abbreviations:
+verifierNonce_4 = verifierNonce_2[request_2 = signerRequest(C3,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),admissionSerial_9),!1 = @sid]
+lookupId_1 = lookupId[token_1 = makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[]))]
+
+1. The message share2(e0) may be sent to the attacker at output {23}.
+attacker_thresholdShare(share2(e0)).
+
+2. The attacker has some term admissionSerial_9.
+attacker_serial(admissionSerial_9).
+
+3. The message makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])) may be sent on channel cardProvision[] at output {41}.
+mess_admissionToken(cardProvision[],makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[]))).
+
+4. The message makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])) that may be sent on channel cardProvision[] by 3 may be received at input {42}.
+So the message route(lookupId_1,Dreg,admissionService,O1,admissionInit(Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])))) may be sent to the attacker at output {45}.
+attacker_routeEnvelope(route(lookupId_1,Dreg,admissionService,O1,admissionInit(Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[]))))).
+
+5. By 4, the attacker may know route(lookupId_1,Dreg,admissionService,O1,admissionInit(Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])))).
+Using the function 5-proj-route the attacker may obtain admissionInit(Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[]))).
+attacker_wireMessage(admissionInit(Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])))).
+
+6. By 5, the attacker may know admissionInit(Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[]))).
+Using the function 3-proj-admissionInit the attacker may obtain makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])).
+attacker_admissionToken(makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[]))).
+
+7. By 6, the attacker may know makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])).
+Using the function 1-proj-makeCardToken the attacker may obtain cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]).
+attacker_protocolMessage(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[])).
+
+8. By 7, the attacker may know cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]).
+Using the function 5-proj-cardTokenBody the attacker may obtain tokenSerial[].
+attacker_serial(tokenSerial[]).
+
+9. Using the function regularMember the attacker may obtain regularMember.
+attacker_role(regularMember).
+
+10. By 5, the attacker may know admissionInit(Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[]))).
+Using the function 2-proj-admissionInit the attacker may obtain pk(skDregDevice[]).
+attacker_pkey(pk(skDregDevice[])).
+
+11. Using the function Dreg the attacker may obtain Dreg.
+attacker_device(Dreg).
+
+12. Using the function pgbA the attacker may obtain pgbA.
+attacker_pgb(pgbA).
+
+13. Using the function tagRegularLDevID the attacker may obtain tagRegularLDevID.
+attacker_domainTag(tagRegularLDevID).
+
+14. By 13, the attacker may know tagRegularLDevID.
+By 12, the attacker may know pgbA.
+By 11, the attacker may know Dreg.
+By 10, the attacker may know pk(skDregDevice[]).
+By 9, the attacker may know regularMember.
+By 8, the attacker may know tokenSerial[].
+By 2, the attacker may know admissionSerial_9.
+Using the function regularLDevIDBody the attacker may obtain regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],admissionSerial_9).
+attacker_thresholdMessage(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],admissionSerial_9)).
+
+15. By 14, the attacker may know regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],admissionSerial_9).
+By 1, the attacker may know share2(e0).
+Using the function partialSign the attacker may obtain partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],admissionSerial_9),share2(e0)).
+attacker_partialSignature(partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],admissionSerial_9),share2(e0))).
+
+16. Using the function C1 the attacker may obtain C1.
+attacker_device(C1).
+
+17. By 16, the attacker may know C1.
+By 11, the attacker may know Dreg.
+By 10, the attacker may know pk(skDregDevice[]).
+By 8, the attacker may know tokenSerial[].
+By 2, the attacker may know admissionSerial_9.
+By 15, the attacker may know partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],admissionSerial_9),share2(e0)).
+Using the function partialResponse the attacker may obtain partialResponse(C1,Dreg,pk(skDregDevice[]),tokenSerial[],admissionSerial_9,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],admissionSerial_9),share2(e0))).
+attacker_wireMessage(partialResponse(C1,Dreg,pk(skDregDevice[]),tokenSerial[],admissionSerial_9,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],admissionSerial_9),share2(e0)))).
+
+18. Using the function C3 the attacker may obtain C3.
+attacker_device(C3).
+
+19. By 18, the attacker may know C3.
+By 11, the attacker may know Dreg.
+By 10, the attacker may know pk(skDregDevice[]).
+By 6, the attacker may know makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])).
+By 2, the attacker may know admissionSerial_9.
+Using the function signerRequest the attacker may obtain signerRequest(C3,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),admissionSerial_9).
+attacker_wireMessage(signerRequest(C3,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),admissionSerial_9)).
+
+20. The message signerRequest(C3,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),admissionSerial_9) that the attacker may have by 19 may be received at input {128}.
+So the message signerChallenge(pgbA,Dreg,pk(skDregDevice[]),admissionSerial_9,C3,verifierNonce_4) may be sent to the attacker at output {131}.
+attacker_wireMessage(signerChallenge(pgbA,Dreg,pk(skDregDevice[]),admissionSerial_9,C3,verifierNonce_4)).
+
+21. By 20, the attacker may know signerChallenge(pgbA,Dreg,pk(skDregDevice[]),admissionSerial_9,C3,verifierNonce_4).
+Using the function 6-proj-signerChallenge the attacker may obtain verifierNonce_4.
+attacker_nonce(verifierNonce_4).
+
+22. By 12, the attacker may know pgbA.
+By 11, the attacker may know Dreg.
+By 10, the attacker may know pk(skDregDevice[]).
+By 2, the attacker may know admissionSerial_9.
+By 18, the attacker may know C3.
+By 21, the attacker may know verifierNonce_4.
+Using the function signerChallenge the attacker may obtain signerChallenge(pgbA,Dreg,pk(skDregDevice[]),admissionSerial_9,C3,verifierNonce_4).
+attacker_wireMessage(signerChallenge(pgbA,Dreg,pk(skDregDevice[]),admissionSerial_9,C3,verifierNonce_4)).
+
+23. The message signerChallenge(pgbA,Dreg,pk(skDregDevice[]),admissionSerial_9,C3,verifierNonce_4) that the attacker may have by 22 may be received at input {144}.
+So the message regularPoPResponse(C3,Dreg,pk(skDregDevice[]),admissionSerial_9,verifierNonce_4,sign(regularPoPContext(tagRegPoP,pgbA,Dreg,pk(skDregDevice[]),admissionSerial_9,C3,verifierNonce_4),skDregDevice[])) may be sent to the attacker at output {151}.
+attacker_wireMessage(regularPoPResponse(C3,Dreg,pk(skDregDevice[]),admissionSerial_9,verifierNonce_4,sign(regularPoPContext(tagRegPoP,pgbA,Dreg,pk(skDregDevice[]),admissionSerial_9,C3,verifierNonce_4),skDregDevice[]))).
+
+24. By 23, the attacker may know regularPoPResponse(C3,Dreg,pk(skDregDevice[]),admissionSerial_9,verifierNonce_4,sign(regularPoPContext(tagRegPoP,pgbA,Dreg,pk(skDregDevice[]),admissionSerial_9,C3,verifierNonce_4),skDregDevice[])).
+Using the function 6-proj-regularPoPResponse the attacker may obtain sign(regularPoPContext(tagRegPoP,pgbA,Dreg,pk(skDregDevice[]),admissionSerial_9,C3,verifierNonce_4),skDregDevice[]).
+attacker_signature(sign(regularPoPContext(tagRegPoP,pgbA,Dreg,pk(skDregDevice[]),admissionSerial_9,C3,verifierNonce_4),skDregDevice[])).
+
+25. By 18, the attacker may know C3.
+By 11, the attacker may know Dreg.
+By 10, the attacker may know pk(skDregDevice[]).
+By 2, the attacker may know admissionSerial_9.
+By 21, the attacker may know verifierNonce_4.
+By 24, the attacker may know sign(regularPoPContext(tagRegPoP,pgbA,Dreg,pk(skDregDevice[]),admissionSerial_9,C3,verifierNonce_4),skDregDevice[]).
+Using the function regularPoPResponse the attacker may obtain regularPoPResponse(C3,Dreg,pk(skDregDevice[]),admissionSerial_9,verifierNonce_4,sign(regularPoPContext(tagRegPoP,pgbA,Dreg,pk(skDregDevice[]),admissionSerial_9,C3,verifierNonce_4),skDregDevice[])).
+attacker_wireMessage(regularPoPResponse(C3,Dreg,pk(skDregDevice[]),admissionSerial_9,verifierNonce_4,sign(regularPoPContext(tagRegPoP,pgbA,Dreg,pk(skDregDevice[]),admissionSerial_9,C3,verifierNonce_4),skDregDevice[]))).
+
+26. The message signerRequest(C3,Dreg,pk(skDregDevice[]),makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice[]),tokenSerial[]),skCard[])),admissionSerial_9) that the attacker may have by 19 may be received at input {128}.
+The message regularPoPResponse(C3,Dreg,pk(skDregDevice[]),admissionSerial_9,verifierNonce_4,sign(regularPoPContext(tagRegPoP,pgbA,Dreg,pk(skDregDevice[]),admissionSerial_9,C3,verifierNonce_4),skDregDevice[])) that the attacker may have by 25 may be received at input {132}.
+So the message partialResponse(C3,Dreg,pk(skDregDevice[]),tokenSerial[],admissionSerial_9,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],admissionSerial_9),share3(e0))) may be sent to the attacker at output {142}.
+attacker_wireMessage(partialResponse(C3,Dreg,pk(skDregDevice[]),tokenSerial[],admissionSerial_9,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],admissionSerial_9),share3(e0)))).
+
+27. By 26, the attacker may know partialResponse(C3,Dreg,pk(skDregDevice[]),tokenSerial[],admissionSerial_9,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],admissionSerial_9),share3(e0))).
+Using the function 6-proj-partialResponse the attacker may obtain partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],admissionSerial_9),share3(e0)).
+attacker_partialSignature(partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],admissionSerial_9),share3(e0))).
+
+28. Using the function C2 the attacker may obtain C2.
+attacker_device(C2).
+
+29. By 28, the attacker may know C2.
+By 11, the attacker may know Dreg.
+By 10, the attacker may know pk(skDregDevice[]).
+By 8, the attacker may know tokenSerial[].
+By 2, the attacker may know admissionSerial_9.
+By 27, the attacker may know partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],admissionSerial_9),share3(e0)).
+Using the function partialResponse the attacker may obtain partialResponse(C2,Dreg,pk(skDregDevice[]),tokenSerial[],admissionSerial_9,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],admissionSerial_9),share3(e0))).
+attacker_wireMessage(partialResponse(C2,Dreg,pk(skDregDevice[]),tokenSerial[],admissionSerial_9,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],admissionSerial_9),share3(e0)))).
+
+30. The message partialResponse(C1,Dreg,pk(skDregDevice[]),tokenSerial[],admissionSerial_9,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],admissionSerial_9),share2(e0))) that the attacker may have by 17 may be received at input {155}.
+The message partialResponse(C2,Dreg,pk(skDregDevice[]),tokenSerial[],admissionSerial_9,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice[]),regularMember,tokenSerial[],admissionSerial_9),share3(e0))) that the attacker may have by 29 may be received at input {157}.
+So the message reachHonestDregPair23MembershipAuthorized[] may be sent to the attacker at output {190}.
+attacker_bitstring(reachHonestDregPair23MembershipAuthorized[]).
+
+31. By 30, attacker_bitstring(reachHonestDregPair23MembershipAuthorized[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reachHonestDregPair23MembershipAuthorized[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+event InitialRegularMember(C1,pk(skC1Device)) at {10}
+
+event InitialRegularMember(C2,pk(skC2Device)) at {11}
+
+event InitialRegularMember(C3,pk(skC3Device)) at {12}
+
+event InitialRegularMember(O1,pk(skO1Device)) at {13}
+
+event InitialCommitteeMember(C1,e0) at {14}
+
+event InitialCommitteeMember(C2,e0) at {15}
+
+event InitialCommitteeMember(C3,e0) at {16}
+
+event SetupComplete(pgbA,pkChord,pk(skCard)) at {17}
+
+event PGBLocked(pgbA) at {18}
+
+event ShareCompromised(C1,e0) at {19}
+
+out(net, ~M) with ~M = share1(e0) at {20}
+
+out(net, ~M_1) with ~M_1 = reachShare1Leak at {21}
+
+event ShareCompromised(C2,e0) at {22}
+
+out(net, ~M_2) with ~M_2 = share2(e0) at {23}
+
+out(net, ~M_3) with ~M_3 = reachShare2Leak at {24}
+
+out(net, ~M_4) with ~M_4 = pk(skCard) at {25}
+
+out(net, ~M_5) with ~M_5 = pkChord at {26}
+
+out(net, ~M_6) with ~M_6 = pk(skC1Device) at {27}
+
+out(net, ~M_7) with ~M_7 = pk(skC2Device) at {28}
+
+out(net, ~M_8) with ~M_8 = pk(skC3Device) at {29}
+
+out(net, ~M_9) with ~M_9 = pk(skO1Device) at {30}
+
+out(net, ~M_10) with ~M_10 = pk(skAdv) at {31}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_11,~M_12,~M_13,~M_14,~M_15,~M_16,~M_17),~M_18)) with ~M_11 = tagRegularLDevID, ~M_12 = pgbA, ~M_13 = C1, ~M_14 = pk(skC1Device), ~M_15 = regularMember, ~M_16 = initialSerialC1, ~M_17 = initialSerialC1, ~M_18 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,C1,pk(skC1Device),regularMember,initialSerialC1,initialSerialC1)) at {32}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_19,~M_20,~M_21,~M_22,~M_23,~M_24,~M_25),~M_26)) with ~M_19 = tagRegularLDevID, ~M_20 = pgbA, ~M_21 = C2, ~M_22 = pk(skC2Device), ~M_23 = regularMember, ~M_24 = initialSerialC2, ~M_25 = initialSerialC2, ~M_26 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,C2,pk(skC2Device),regularMember,initialSerialC2,initialSerialC2)) at {33}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_27,~M_28,~M_29,~M_30,~M_31,~M_32,~M_33),~M_34)) with ~M_27 = tagRegularLDevID, ~M_28 = pgbA, ~M_29 = C3, ~M_30 = pk(skC3Device), ~M_31 = regularMember, ~M_32 = initialSerialC3, ~M_33 = initialSerialC3, ~M_34 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,C3,pk(skC3Device),regularMember,initialSerialC3,initialSerialC3)) at {34}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_35,~M_36,~M_37,~M_38,~M_39,~M_40,~M_41),~M_42)) with ~M_35 = tagRegularLDevID, ~M_36 = pgbA, ~M_37 = O1, ~M_38 = pk(skO1Device), ~M_39 = regularMember, ~M_40 = initialSerialO1, ~M_41 = initialSerialO1, ~M_42 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,O1,pk(skO1Device),regularMember,initialSerialO1,initialSerialO1)) at {35}
+
+out(net, ~M_43) with ~M_43 = reachSetup at {36}
+
+new tokenSerial: serial creating tokenSerial_7 at {37}
+
+event CardAuthorized(pgbA,Dreg,pk(skDregDevice),tokenSerial_7) at {39}
+
+out(cardProvision, makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice),tokenSerial_7),sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice),tokenSerial_7),skCard))) at {41} received at {42}
+
+new lookupId: routeid creating lookupId_2 at {43}
+
+event OverlayLookupRequested(Dreg,admissionService,lookupId_2) at {44}
+
+out(net, route(~M_44,~M_45,~M_46,~M_47,admissionInit(~M_48,~M_49,makeCardToken(cardTokenBody(~M_50,~M_51,~M_52,~M_53,~M_54),~M_55)))) with ~M_44 = lookupId_2, ~M_45 = Dreg, ~M_46 = admissionService, ~M_47 = O1, ~M_48 = Dreg, ~M_49 = pk(skDregDevice), ~M_50 = tagCardToken, ~M_51 = pgbA, ~M_52 = Dreg, ~M_53 = pk(skDregDevice), ~M_54 = tokenSerial_7, ~M_55 = sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice),tokenSerial_7),skCard) at {45}
+
+in(net, signerRequest(C3,Dreg,~M_49,makeCardToken(cardTokenBody(tagCardToken,pgbA,Dreg,~M_49,~M_54),~M_55),a)) with ~M_49 = pk(skDregDevice), ~M_49 = pk(skDregDevice), ~M_54 = tokenSerial_7, ~M_55 = sign(cardTokenBody(tagCardToken,pgbA,Dreg,pk(skDregDevice),tokenSerial_7),skCard) at {128} in copy a_1
+
+new verifierNonce_2: nonce creating verifierNonce_5 at {130} in copy a_1
+
+out(net, signerChallenge(~M_56,~M_57,~M_58,~M_59,~M_60,~M_61)) with ~M_56 = pgbA, ~M_57 = Dreg, ~M_58 = pk(skDregDevice), ~M_59 = a, ~M_60 = C3, ~M_61 = verifierNonce_5 at {131} in copy a_1
+
+in(net, signerChallenge(pgbA,Dreg,~M_49,a,C3,~M_61)) with ~M_49 = pk(skDregDevice), ~M_61 = verifierNonce_5 at {144} in copy a_2
+
+event RegularPoPProduced(Dreg,pk(skDregDevice),C3,a,verifierNonce_5) at {150} in copy a_2
+
+out(net, regularPoPResponse(~M_62,~M_63,~M_64,~M_65,~M_66,~M_67)) with ~M_62 = C3, ~M_63 = Dreg, ~M_64 = pk(skDregDevice), ~M_65 = a, ~M_66 = verifierNonce_5, ~M_67 = sign(regularPoPContext(tagRegPoP,pgbA,Dreg,pk(skDregDevice),a,C3,verifierNonce_5),skDregDevice) at {151} in copy a_2
+
+in(net, regularPoPResponse(C3,Dreg,~M_49,a,~M_61,~M_67)) with ~M_49 = pk(skDregDevice), ~M_61 = verifierNonce_5, ~M_67 = sign(regularPoPContext(tagRegPoP,pgbA,Dreg,pk(skDregDevice),a,C3,verifierNonce_5),skDregDevice) at {132} in copy a_1
+
+event RegularSignerPoPVerified(C3,Dreg,pk(skDregDevice),a,e0,verifierNonce_5) at {138} in copy a_1
+
+event SignerValidated(C3,Dreg,pk(skDregDevice),tokenSerial_7,a,e0,verifierNonce_5) at {139} in copy a_1
+
+event PartialIssued(C3,Dreg,pk(skDregDevice),a,e0) at {141} in copy a_1
+
+out(net, partialResponse(~M_68,~M_69,~M_70,~M_71,~M_72,~M_73)) with ~M_68 = C3, ~M_69 = Dreg, ~M_70 = pk(skDregDevice), ~M_71 = tokenSerial_7, ~M_72 = a, ~M_73 = partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice),regularMember,tokenSerial_7,a),share3(e0)) at {142} in copy a_1
+
+in(net, partialResponse(C1,Dreg,~M_49,~M_54,a,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,~M_49,regularMember,~M_54,a),~M_2))) with ~M_49 = pk(skDregDevice), ~M_54 = tokenSerial_7, partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,~M_49,regularMember,~M_54,a),~M_2) = partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice),regularMember,tokenSerial_7,a),share2(e0)) at {155} in copy a_3
+
+in(net, partialResponse(C2,Dreg,~M_49,~M_54,a,~M_73)) with ~M_49 = pk(skDregDevice), ~M_54 = tokenSerial_7, ~M_73 = partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice),regularMember,tokenSerial_7,a),share3(e0)) at {157} in copy a_3
+
+new completionNonce: nonce creating completionNonce_3 at {163} in copy a_3
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_74,~M_75,~M_76,~M_77,~M_78,~M_79,~M_80),~M_81)) with ~M_74 = tagRegularLDevID, ~M_75 = pgbA, ~M_76 = Dreg, ~M_77 = pk(skDregDevice), ~M_78 = regularMember, ~M_79 = tokenSerial_7, ~M_80 = a, ~M_81 = thresholdSig23(e0,regularLDevIDBody(tagRegularLDevID,pgbA,Dreg,pk(skDregDevice),regularMember,tokenSerial_7,a)) at {164} in copy a_3
+
+event RegularCredentialAccepted23(C1,Dreg,pk(skDregDevice),tokenSerial_7,a,completionNonce_3) at {186} in copy a_3
+
+event RegularMembershipAuthorized(C1,Dreg,pk(skDregDevice),tokenSerial_7,a,completionNonce_3) at {187} in copy a_3
+
+out(net, ~M_82) with ~M_82 = reachHonestDregPair23MembershipAuthorized at {190} in copy a_3
+
+The attacker has the message ~M_82 = reachHonestDregPair23MembershipAuthorized.
+A trace has been found.
+RESULT not attacker_bitstring(reachHonestDregPair23MembershipAuthorized[]) is false.
+-- Query not attacker_bitstring(reachUnauthorizedDadvMembershipAuthorized[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (59 with conclusion selected). Queue: 258 rules.
+400 rules inserted. Base: 400 rules (193 with conclusion selected). Queue: 58 rules.
+Starting query not attacker_bitstring(reachUnauthorizedDadvMembershipAuthorized[])
+goal reachable: attacker_bitstring(reachUnauthorizedDadvMembershipAuthorized[])
+
+Derivation:
+
+1. The message share1(e0) may be sent to the attacker at output {20}.
+attacker_thresholdShare(share1(e0)).
+
+2. The attacker has some term admissionSerial_9.
+attacker_serial(admissionSerial_9).
+
+3. The attacker has some term tokenSerial_7.
+attacker_serial(tokenSerial_7).
+
+4. Using the function regularMember the attacker may obtain regularMember.
+attacker_role(regularMember).
+
+5. The attacker initially knows skAdv[].
+attacker_skey(skAdv[]).
+
+6. By 5, the attacker may know skAdv[].
+Using the function pk the attacker may obtain pk(skAdv[]).
+attacker_pkey(pk(skAdv[])).
+
+7. Using the function Dadv the attacker may obtain Dadv.
+attacker_device(Dadv).
+
+8. Using the function pgbA the attacker may obtain pgbA.
+attacker_pgb(pgbA).
+
+9. Using the function tagRegularLDevID the attacker may obtain tagRegularLDevID.
+attacker_domainTag(tagRegularLDevID).
+
+10. By 9, the attacker may know tagRegularLDevID.
+By 8, the attacker may know pgbA.
+By 7, the attacker may know Dadv.
+By 6, the attacker may know pk(skAdv[]).
+By 4, the attacker may know regularMember.
+By 3, the attacker may know tokenSerial_7.
+By 2, the attacker may know admissionSerial_9.
+Using the function regularLDevIDBody the attacker may obtain regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,tokenSerial_7,admissionSerial_9).
+attacker_thresholdMessage(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,tokenSerial_7,admissionSerial_9)).
+
+11. By 10, the attacker may know regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,tokenSerial_7,admissionSerial_9).
+By 1, the attacker may know share1(e0).
+Using the function partialSign the attacker may obtain partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,tokenSerial_7,admissionSerial_9),share1(e0)).
+attacker_partialSignature(partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,tokenSerial_7,admissionSerial_9),share1(e0))).
+
+12. Using the function C1 the attacker may obtain C1.
+attacker_device(C1).
+
+13. By 12, the attacker may know C1.
+By 7, the attacker may know Dadv.
+By 6, the attacker may know pk(skAdv[]).
+By 3, the attacker may know tokenSerial_7.
+By 2, the attacker may know admissionSerial_9.
+By 11, the attacker may know partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,tokenSerial_7,admissionSerial_9),share1(e0)).
+Using the function partialResponse the attacker may obtain partialResponse(C1,Dadv,pk(skAdv[]),tokenSerial_7,admissionSerial_9,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,tokenSerial_7,admissionSerial_9),share1(e0))).
+attacker_wireMessage(partialResponse(C1,Dadv,pk(skAdv[]),tokenSerial_7,admissionSerial_9,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,tokenSerial_7,admissionSerial_9),share1(e0)))).
+
+14. The message share2(e0) may be sent to the attacker at output {23}.
+attacker_thresholdShare(share2(e0)).
+
+15. By 10, the attacker may know regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,tokenSerial_7,admissionSerial_9).
+By 14, the attacker may know share2(e0).
+Using the function partialSign the attacker may obtain partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,tokenSerial_7,admissionSerial_9),share2(e0)).
+attacker_partialSignature(partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,tokenSerial_7,admissionSerial_9),share2(e0))).
+
+16. Using the function C2 the attacker may obtain C2.
+attacker_device(C2).
+
+17. By 16, the attacker may know C2.
+By 7, the attacker may know Dadv.
+By 6, the attacker may know pk(skAdv[]).
+By 3, the attacker may know tokenSerial_7.
+By 2, the attacker may know admissionSerial_9.
+By 15, the attacker may know partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,tokenSerial_7,admissionSerial_9),share2(e0)).
+Using the function partialResponse the attacker may obtain partialResponse(C2,Dadv,pk(skAdv[]),tokenSerial_7,admissionSerial_9,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,tokenSerial_7,admissionSerial_9),share2(e0))).
+attacker_wireMessage(partialResponse(C2,Dadv,pk(skAdv[]),tokenSerial_7,admissionSerial_9,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,tokenSerial_7,admissionSerial_9),share2(e0)))).
+
+18. The message partialResponse(C1,Dadv,pk(skAdv[]),tokenSerial_7,admissionSerial_9,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,tokenSerial_7,admissionSerial_9),share1(e0))) that the attacker may have by 13 may be received at input {155}.
+The message partialResponse(C2,Dadv,pk(skAdv[]),tokenSerial_7,admissionSerial_9,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,tokenSerial_7,admissionSerial_9),share2(e0))) that the attacker may have by 17 may be received at input {157}.
+So the message reachUnauthorizedDadvMembershipAuthorized[] may be sent to the attacker at output {174}.
+attacker_bitstring(reachUnauthorizedDadvMembershipAuthorized[]).
+
+19. By 18, attacker_bitstring(reachUnauthorizedDadvMembershipAuthorized[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reachUnauthorizedDadvMembershipAuthorized[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+event InitialRegularMember(C1,pk(skC1Device)) at {10}
+
+event InitialRegularMember(C2,pk(skC2Device)) at {11}
+
+event InitialRegularMember(C3,pk(skC3Device)) at {12}
+
+event InitialRegularMember(O1,pk(skO1Device)) at {13}
+
+event InitialCommitteeMember(C1,e0) at {14}
+
+event InitialCommitteeMember(C2,e0) at {15}
+
+event InitialCommitteeMember(C3,e0) at {16}
+
+event SetupComplete(pgbA,pkChord,pk(skCard)) at {17}
+
+event PGBLocked(pgbA) at {18}
+
+event ShareCompromised(C1,e0) at {19}
+
+out(net, ~M) with ~M = share1(e0) at {20}
+
+out(net, ~M_1) with ~M_1 = reachShare1Leak at {21}
+
+event ShareCompromised(C2,e0) at {22}
+
+out(net, ~M_2) with ~M_2 = share2(e0) at {23}
+
+out(net, ~M_3) with ~M_3 = reachShare2Leak at {24}
+
+out(net, ~M_4) with ~M_4 = pk(skCard) at {25}
+
+out(net, ~M_5) with ~M_5 = pkChord at {26}
+
+out(net, ~M_6) with ~M_6 = pk(skC1Device) at {27}
+
+out(net, ~M_7) with ~M_7 = pk(skC2Device) at {28}
+
+out(net, ~M_8) with ~M_8 = pk(skC3Device) at {29}
+
+out(net, ~M_9) with ~M_9 = pk(skO1Device) at {30}
+
+out(net, ~M_10) with ~M_10 = pk(skAdv) at {31}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_11,~M_12,~M_13,~M_14,~M_15,~M_16,~M_17),~M_18)) with ~M_11 = tagRegularLDevID, ~M_12 = pgbA, ~M_13 = C1, ~M_14 = pk(skC1Device), ~M_15 = regularMember, ~M_16 = initialSerialC1, ~M_17 = initialSerialC1, ~M_18 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,C1,pk(skC1Device),regularMember,initialSerialC1,initialSerialC1)) at {32}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_19,~M_20,~M_21,~M_22,~M_23,~M_24,~M_25),~M_26)) with ~M_19 = tagRegularLDevID, ~M_20 = pgbA, ~M_21 = C2, ~M_22 = pk(skC2Device), ~M_23 = regularMember, ~M_24 = initialSerialC2, ~M_25 = initialSerialC2, ~M_26 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,C2,pk(skC2Device),regularMember,initialSerialC2,initialSerialC2)) at {33}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_27,~M_28,~M_29,~M_30,~M_31,~M_32,~M_33),~M_34)) with ~M_27 = tagRegularLDevID, ~M_28 = pgbA, ~M_29 = C3, ~M_30 = pk(skC3Device), ~M_31 = regularMember, ~M_32 = initialSerialC3, ~M_33 = initialSerialC3, ~M_34 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,C3,pk(skC3Device),regularMember,initialSerialC3,initialSerialC3)) at {34}
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_35,~M_36,~M_37,~M_38,~M_39,~M_40,~M_41),~M_42)) with ~M_35 = tagRegularLDevID, ~M_36 = pgbA, ~M_37 = O1, ~M_38 = pk(skO1Device), ~M_39 = regularMember, ~M_40 = initialSerialO1, ~M_41 = initialSerialO1, ~M_42 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,O1,pk(skO1Device),regularMember,initialSerialO1,initialSerialO1)) at {35}
+
+out(net, ~M_43) with ~M_43 = reachSetup at {36}
+
+new tokenSerial: serial creating tokenSerial_8 at {37}
+
+event CardAuthorized(pgbA,Dreg,pk(skDregDevice),tokenSerial_8) at {39}
+
+in(net, partialResponse(C1,Dadv,pk(skAdv),a,a_1,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv),regularMember,a,a_1),~M))) with partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv),regularMember,a,a_1),~M) = partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv),regularMember,a,a_1),share1(e0)) at {155} in copy a_2
+
+in(net, partialResponse(C2,Dadv,pk(skAdv),a,a_1,partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv),regularMember,a,a_1),~M_2))) with partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv),regularMember,a,a_1),~M_2) = partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv),regularMember,a,a_1),share2(e0)) at {157} in copy a_2
+
+new completionNonce: nonce creating completionNonce_3 at {163} in copy a_2
+
+out(net, makeRegularCertificate(regularLDevIDBody(~M_44,~M_45,~M_46,~M_47,~M_48,~M_49,~M_50),~M_51)) with ~M_44 = tagRegularLDevID, ~M_45 = pgbA, ~M_46 = Dadv, ~M_47 = pk(skAdv), ~M_48 = regularMember, ~M_49 = a, ~M_50 = a_1, ~M_51 = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv),regularMember,a,a_1)) at {164} in copy a_2
+
+event RegularCredentialAccepted12(C1,Dadv,pk(skAdv),a,a_1,completionNonce_3) at {166} in copy a_2
+
+event RegularMembershipAuthorized(C1,Dadv,pk(skAdv),a,a_1,completionNonce_3) at {167} in copy a_2
+
+event UnauthorizedRegularMembershipAuthorized(C1,Dadv,pk(skAdv),a_1,completionNonce_3) at {172} in copy a_2
+
+out(net, ~M_52) with ~M_52 = reachUnauthorizedDadvMembershipAuthorized at {174} in copy a_2
+
+The attacker has the message ~M_52 = reachUnauthorizedDadvMembershipAuthorized.
+A trace has been found.
+RESULT not attacker_bitstring(reachUnauthorizedDadvMembershipAuthorized[]) is false.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query not attacker_skey(skCard[]) is true.
+
+Query not attacker_skey(skC1Device[]) is true.
+
+Query not attacker_skey(skC2Device[]) is true.
+
+Query not attacker_skey(skC3Device[]) is true.
+
+Query not attacker_skey(skO1Device[]) is true.
+
+Query not attacker_skey(skDregDevice[]) is true.
+
+Query not attacker_thresholdShare(share1(e0)) is false.
+
+Query not attacker_thresholdShare(share2(e0)) is false.
+
+Query not attacker_thresholdShare(share3(e0)) is true.
+
+Query event(RegularMembershipAuthorized(G,D,PK,T,S,NJ)) ==> event(CardAuthorized(pgbA,D,PK,T)) is false.
+
+Query event(RegularCredentialAccepted12(G,D,PK,T,S,NJ)) ==> event(CardAuthorized(pgbA,D,PK,T)) is false.
+
+Query event(RegularCredentialAccepted13(G,D,PK,T,S,NJ)) ==> event(CardAuthorized(pgbA,D,PK,T)) is true.
+
+Query event(RegularCredentialAccepted23(G,D,PK,T,S,NJ)) ==> event(CardAuthorized(pgbA,D,PK,T)) is true.
+
+Query event(RegularMembershipAuthorized(G,D,PK,T,S,NJ)) ==> event(PGBLocked(pgbA)) is true.
+
+Query inj-event(SignerValidated(Ci,D,PK,T,S,E,N)) ==> inj-event(RegularSignerPoPVerified(Ci,D,PK,S,E,N)) is true.
+
+Query inj-event(SignerValidated(Ci,D,PK,T,S,E,N)) ==> inj-event(RegularPoPProduced(D,PK,Ci,S,N)) is true.
+
+Query event(SignerValidated(Ci,D,PK,T,S,E,N)) ==> event(CardAuthorized(pgbA,D,PK,T)) is true.
+
+Query event(PartialIssued(Ci,D,PK,S,E)) ==> event(SignerValidated(Ci,D,PK,T,S,E,N)) is true.
+
+Query event(RegularCredentialAccepted13(G,D,PK,T,S,NJ)) ==> event(SignerValidated(C3,D,PK,T,S,e0,N3)) is true.
+
+Query event(RegularCredentialAccepted23(G,D,PK,T,S,NJ)) ==> event(SignerValidated(C3,D,PK,T,S,e0,N3)) is true.
+
+Query not event(ShareActivated(O1,E,pkChord,S)) is true.
+
+Query not event(ShareActivated(Dreg,E,pkChord,S)) is true.
+
+Query not attacker_bitstring(reachSetup[]) is false.
+
+Query not attacker_bitstring(reachShare1Leak[]) is false.
+
+Query not attacker_bitstring(reachShare2Leak[]) is false.
+
+Query not attacker_bitstring(reachRepresentativeOverlayForwarding[]) is false.
+
+Query not attacker_bitstring(reachHonestDregPair12MembershipAuthorized[]) is false.
+
+Query not attacker_bitstring(reachHonestDregPair13MembershipAuthorized[]) is false.
+
+Query not attacker_bitstring(reachHonestDregPair23MembershipAuthorized[]) is false.
+
+Query not attacker_bitstring(reachUnauthorizedDadvMembershipAuthorized[]) is false.
+
+--------------------------------------------------------------
+

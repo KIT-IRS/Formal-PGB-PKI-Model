@@ -1,0 +1,500 @@
+Process 0 (that is, the initial process):
+{1}out(net, share1(e0));
+{2}out(net, partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dpost,pk(skDpost),regularMember,postTokenSerial,postAdmissionSerial),share1(e0)));
+{3}out(net, reachOldShareStillUsable);
+(
+    {4}let proposal: thresholdMessage = committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,C3,C3,pk(skC3Device),pkChord,committeeAdmissionSerial,updateSerial) in
+    {5}event CommitteeVote(C1,e0,e1,C3,pk(skC3Device),committeeAdmissionSerial,updateSerial);
+    {6}event CommitteeVote(C2,e0,e1,C3,pk(skC3Device),committeeAdmissionSerial,updateSerial);
+    {7}let approval: thresholdSignature = combine(partialSign(proposal,share1(e0)),partialSign(proposal,share2(e0))) in
+    {8}let =pair12 = verifyThreshold(approval,proposal,pkChord) in
+    {9}event CommitteeApproved(e0,e1,C3,pk(skC3Device),committeeAdmissionSerial,updateSerial);
+    {10}event ReshareStarted(e0,e1,C3,pk(skC3Device),committeeAdmissionSerial,updateSerial);
+    {11}event ShareActivated(C1,e1,pkChord,updateSerial);
+    {12}event ShareActivated(C2,e1,pkChord,updateSerial);
+    {13}event ShareActivated(C3,e1,pkChord,updateSerial);
+    {14}event CommitteeActivated(e1,pkChord,updateSerial);
+    {15}out(net, reachE1Activated);
+    {16}out(e1Ready, updateSerial)
+) | (
+    {17}in(e1Ready, =updateSerial);
+    {18}let tokenBody: protocolMessage = cardTokenBody(tagCardToken,pgbA,Dpost,pk(skDpost),postTokenSerial) in
+    {19}event CardAuthorized(pgbA,Dpost,pk(skDpost),postTokenSerial);
+    {20}let token: admissionToken = makeCardToken(tokenBody,sign(tokenBody,skCard)) in
+    {21}let =postTokenSerial = validateCardToken(token,pk(skCard),pgbA,Dpost,pk(skDpost)) in
+    {22}new nonce1: nonce;
+    {23}let pop1: protocolMessage = regularPoPContext(tagRegPoP,pgbA,Dpost,pk(skDpost),postAdmissionSerial,C1,nonce1) in
+    {24}event RegularPoPProduced(Dpost,pk(skDpost),C1,postAdmissionSerial,nonce1);
+    {25}let =pop1 = checkSign(sign(pop1,skDpost),pk(skDpost)) in
+    {26}event RegularSignerPoPVerified(C1,Dpost,pk(skDpost),postAdmissionSerial,e1,nonce1);
+    {27}event SignerValidated(C1,Dpost,pk(skDpost),postTokenSerial,postAdmissionSerial,e1,nonce1);
+    {28}event PartialIssued(C1,Dpost,pk(skDpost),postAdmissionSerial,e1);
+    {29}new nonce3: nonce;
+    {30}let pop3: protocolMessage = regularPoPContext(tagRegPoP,pgbA,Dpost,pk(skDpost),postAdmissionSerial,C3,nonce3) in
+    {31}event RegularPoPProduced(Dpost,pk(skDpost),C3,postAdmissionSerial,nonce3);
+    {32}let =pop3 = checkSign(sign(pop3,skDpost),pk(skDpost)) in
+    {33}event RegularSignerPoPVerified(C3,Dpost,pk(skDpost),postAdmissionSerial,e1,nonce3);
+    {34}event SignerValidated(C3,Dpost,pk(skDpost),postTokenSerial,postAdmissionSerial,e1,nonce3);
+    {35}event PartialIssued(C3,Dpost,pk(skDpost),postAdmissionSerial,e1);
+    {36}let certBody: thresholdMessage = regularLDevIDBody(tagRegularLDevID,pgbA,Dpost,pk(skDpost),regularMember,postTokenSerial,postAdmissionSerial) in
+    {37}let rootSignature: thresholdSignature = combine(partialSign(certBody,share1(e1)),partialSign(certBody,share3(e1))) in
+    {38}let =pair13 = verifyThreshold(rootSignature,certBody,pkChord) in
+    {39}new completionNonce: nonce;
+    {40}event RegularCredentialAccepted13(C1,Dpost,pk(skDpost),postTokenSerial,postAdmissionSerial,completionNonce);
+    {41}event RegularMembershipAuthorized(C1,Dpost,pk(skDpost),postTokenSerial,postAdmissionSerial,completionNonce);
+    {42}event PostReshareRegularAccepted(Dpost,pk(skDpost),e1,postAdmissionSerial);
+    {43}out(net, reachPostReshareIssuance)
+)
+
+--  Process 1 (that is, process 0, with let moved downwards):
+{1}out(net, share1(e0));
+{2}out(net, partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dpost,pk(skDpost),regularMember,postTokenSerial,postAdmissionSerial),share1(e0)));
+{3}out(net, reachOldShareStillUsable);
+(
+    {5}event CommitteeVote(C1,e0,e1,C3,pk(skC3Device),committeeAdmissionSerial,updateSerial);
+    {6}event CommitteeVote(C2,e0,e1,C3,pk(skC3Device),committeeAdmissionSerial,updateSerial);
+    {4}let proposal: thresholdMessage = committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,C3,C3,pk(skC3Device),pkChord,committeeAdmissionSerial,updateSerial) in
+    {7}let approval: thresholdSignature = combine(partialSign(proposal,share1(e0)),partialSign(proposal,share2(e0))) in
+    {8}let =pair12 = verifyThreshold(approval,proposal,pkChord) in
+    {9}event CommitteeApproved(e0,e1,C3,pk(skC3Device),committeeAdmissionSerial,updateSerial);
+    {10}event ReshareStarted(e0,e1,C3,pk(skC3Device),committeeAdmissionSerial,updateSerial);
+    {11}event ShareActivated(C1,e1,pkChord,updateSerial);
+    {12}event ShareActivated(C2,e1,pkChord,updateSerial);
+    {13}event ShareActivated(C3,e1,pkChord,updateSerial);
+    {14}event CommitteeActivated(e1,pkChord,updateSerial);
+    {15}out(net, reachE1Activated);
+    {16}out(e1Ready, updateSerial)
+) | (
+    {17}in(e1Ready, =updateSerial);
+    {19}event CardAuthorized(pgbA,Dpost,pk(skDpost),postTokenSerial);
+    {18}let tokenBody: protocolMessage = cardTokenBody(tagCardToken,pgbA,Dpost,pk(skDpost),postTokenSerial) in
+    {20}let token: admissionToken = makeCardToken(tokenBody,sign(tokenBody,skCard)) in
+    {21}let =postTokenSerial = validateCardToken(token,pk(skCard),pgbA,Dpost,pk(skDpost)) in
+    {22}new nonce1: nonce;
+    {24}event RegularPoPProduced(Dpost,pk(skDpost),C1,postAdmissionSerial,nonce1);
+    {23}let pop1: protocolMessage = regularPoPContext(tagRegPoP,pgbA,Dpost,pk(skDpost),postAdmissionSerial,C1,nonce1) in
+    {25}let =pop1 = checkSign(sign(pop1,skDpost),pk(skDpost)) in
+    {26}event RegularSignerPoPVerified(C1,Dpost,pk(skDpost),postAdmissionSerial,e1,nonce1);
+    {27}event SignerValidated(C1,Dpost,pk(skDpost),postTokenSerial,postAdmissionSerial,e1,nonce1);
+    {28}event PartialIssued(C1,Dpost,pk(skDpost),postAdmissionSerial,e1);
+    {29}new nonce3: nonce;
+    {31}event RegularPoPProduced(Dpost,pk(skDpost),C3,postAdmissionSerial,nonce3);
+    {30}let pop3: protocolMessage = regularPoPContext(tagRegPoP,pgbA,Dpost,pk(skDpost),postAdmissionSerial,C3,nonce3) in
+    {32}let =pop3 = checkSign(sign(pop3,skDpost),pk(skDpost)) in
+    {33}event RegularSignerPoPVerified(C3,Dpost,pk(skDpost),postAdmissionSerial,e1,nonce3);
+    {34}event SignerValidated(C3,Dpost,pk(skDpost),postTokenSerial,postAdmissionSerial,e1,nonce3);
+    {35}event PartialIssued(C3,Dpost,pk(skDpost),postAdmissionSerial,e1);
+    {36}let certBody: thresholdMessage = regularLDevIDBody(tagRegularLDevID,pgbA,Dpost,pk(skDpost),regularMember,postTokenSerial,postAdmissionSerial) in
+    {37}let rootSignature: thresholdSignature = combine(partialSign(certBody,share1(e1)),partialSign(certBody,share3(e1))) in
+    {38}let =pair13 = verifyThreshold(rootSignature,certBody,pkChord) in
+    {39}new completionNonce: nonce;
+    {40}event RegularCredentialAccepted13(C1,Dpost,pk(skDpost),postTokenSerial,postAdmissionSerial,completionNonce);
+    {41}event RegularMembershipAuthorized(C1,Dpost,pk(skDpost),postTokenSerial,postAdmissionSerial,completionNonce);
+    {42}event PostReshareRegularAccepted(Dpost,pk(skDpost),e1,postAdmissionSerial);
+    {43}out(net, reachPostReshareIssuance)
+)
+
+-- Query not attacker_skey(skCard[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 297 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 100 rules.
+Starting query not attacker_skey(skCard[])
+RESULT not attacker_skey(skCard[]) is true.
+-- Query not attacker_skey(skC3Device[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 297 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 100 rules.
+Starting query not attacker_skey(skC3Device[])
+RESULT not attacker_skey(skC3Device[]) is true.
+-- Query not attacker_skey(skDpost[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 297 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 100 rules.
+Starting query not attacker_skey(skDpost[])
+RESULT not attacker_skey(skDpost[]) is true.
+-- Query not attacker_thresholdShare(share1(e0)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 297 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 100 rules.
+Starting query not attacker_thresholdShare(share1(e0))
+goal reachable: attacker_thresholdShare(share1(e0))
+
+Derivation:
+
+1. The message share1(e0) may be sent to the attacker at output {1}.
+attacker_thresholdShare(share1(e0)).
+
+2. By 1, attacker_thresholdShare(share1(e0)).
+The goal is reached, represented in the following fact:
+attacker_thresholdShare(share1(e0)).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(net, ~M) with ~M = share1(e0) at {1}
+
+out(net, ~M_1) with ~M_1 = partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dpost,pk(skDpost),regularMember,postTokenSerial,postAdmissionSerial),share1(e0)) at {2}
+
+out(net, ~M_2) with ~M_2 = reachOldShareStillUsable at {3}
+
+event CommitteeVote(C1,e0,e1,C3,pk(skC3Device),committeeAdmissionSerial,updateSerial) at {5}
+
+event CommitteeVote(C2,e0,e1,C3,pk(skC3Device),committeeAdmissionSerial,updateSerial) at {6}
+
+event CommitteeApproved(e0,e1,C3,pk(skC3Device),committeeAdmissionSerial,updateSerial) at {9}
+
+event ReshareStarted(e0,e1,C3,pk(skC3Device),committeeAdmissionSerial,updateSerial) at {10}
+
+event ShareActivated(C1,e1,pkChord,updateSerial) at {11}
+
+event ShareActivated(C2,e1,pkChord,updateSerial) at {12}
+
+event ShareActivated(C3,e1,pkChord,updateSerial) at {13}
+
+event CommitteeActivated(e1,pkChord,updateSerial) at {14}
+
+out(net, ~M_3) with ~M_3 = reachE1Activated at {15}
+
+The attacker has the message ~M = share1(e0).
+A trace has been found.
+RESULT not attacker_thresholdShare(share1(e0)) is false.
+-- Query not attacker_thresholdShare(share2(e0)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 297 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 100 rules.
+Starting query not attacker_thresholdShare(share2(e0))
+RESULT not attacker_thresholdShare(share2(e0)) is true.
+-- Query not attacker_thresholdShare(share3(e0)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 297 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 100 rules.
+Starting query not attacker_thresholdShare(share3(e0))
+RESULT not attacker_thresholdShare(share3(e0)) is true.
+-- Query not attacker_thresholdShare(share1(e1)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 297 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 100 rules.
+Starting query not attacker_thresholdShare(share1(e1))
+RESULT not attacker_thresholdShare(share1(e1)) is true.
+-- Query not attacker_thresholdShare(share2(e1)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 297 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 100 rules.
+Starting query not attacker_thresholdShare(share2(e1))
+RESULT not attacker_thresholdShare(share2(e1)) is true.
+-- Query not attacker_thresholdShare(share3(e1)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 297 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 100 rules.
+Starting query not attacker_thresholdShare(share3(e1))
+RESULT not attacker_thresholdShare(share3(e1)) is true.
+-- Query not attacker_partialSignature(partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dpost,pk(skDpost[]),regularMember,postTokenSerial,postAdmissionSerial),share1(e0))) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 297 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 100 rules.
+Starting query not attacker_partialSignature(partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dpost,pk(skDpost[]),regularMember,postTokenSerial,postAdmissionSerial),share1(e0)))
+goal reachable: attacker_partialSignature(partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dpost,pk(skDpost[]),regularMember,postTokenSerial,postAdmissionSerial),share1(e0)))
+
+Derivation:
+
+1. The message partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dpost,pk(skDpost[]),regularMember,postTokenSerial,postAdmissionSerial),share1(e0)) may be sent to the attacker at output {2}.
+attacker_partialSignature(partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dpost,pk(skDpost[]),regularMember,postTokenSerial,postAdmissionSerial),share1(e0))).
+
+2. By 1, attacker_partialSignature(partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dpost,pk(skDpost[]),regularMember,postTokenSerial,postAdmissionSerial),share1(e0))).
+The goal is reached, represented in the following fact:
+attacker_partialSignature(partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dpost,pk(skDpost[]),regularMember,postTokenSerial,postAdmissionSerial),share1(e0))).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(net, ~M) with ~M = share1(e0) at {1}
+
+out(net, ~M_1) with ~M_1 = partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dpost,pk(skDpost),regularMember,postTokenSerial,postAdmissionSerial),share1(e0)) at {2}
+
+out(net, ~M_2) with ~M_2 = reachOldShareStillUsable at {3}
+
+event CommitteeVote(C1,e0,e1,C3,pk(skC3Device),committeeAdmissionSerial,updateSerial) at {5}
+
+event CommitteeVote(C2,e0,e1,C3,pk(skC3Device),committeeAdmissionSerial,updateSerial) at {6}
+
+event CommitteeApproved(e0,e1,C3,pk(skC3Device),committeeAdmissionSerial,updateSerial) at {9}
+
+event ReshareStarted(e0,e1,C3,pk(skC3Device),committeeAdmissionSerial,updateSerial) at {10}
+
+event ShareActivated(C1,e1,pkChord,updateSerial) at {11}
+
+event ShareActivated(C2,e1,pkChord,updateSerial) at {12}
+
+event ShareActivated(C3,e1,pkChord,updateSerial) at {13}
+
+event CommitteeActivated(e1,pkChord,updateSerial) at {14}
+
+out(net, ~M_3) with ~M_3 = reachE1Activated at {15}
+
+The attacker has the message ~M_1 = partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dpost,pk(skDpost),regularMember,postTokenSerial,postAdmissionSerial),share1(e0)).
+A trace has been found.
+RESULT not attacker_partialSignature(partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dpost,pk(skDpost[]),regularMember,postTokenSerial,postAdmissionSerial),share1(e0))) is false.
+-- Query event(PostReshareRegularAccepted(Dpost,pk(skDpost[]),e1,S)) ==> event(CardAuthorized(pgbA,Dpost,pk(skDpost[]),postTokenSerial)) && event(SignerValidated(C1,Dpost,pk(skDpost[]),postTokenSerial,S,e1,N1)) && event(SignerValidated(C3,Dpost,pk(skDpost[]),postTokenSerial,S,e1,N3)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 298 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 101 rules.
+Starting query event(PostReshareRegularAccepted(Dpost,pk(skDpost[]),e1,S)) ==> event(CardAuthorized(pgbA,Dpost,pk(skDpost[]),postTokenSerial)) && event(SignerValidated(C1,Dpost,pk(skDpost[]),postTokenSerial,S,e1,N1)) && event(SignerValidated(C3,Dpost,pk(skDpost[]),postTokenSerial,S,e1,N3))
+goal reachable: b-event(SignerValidated(C3,Dpost,pk(skDpost[]),postTokenSerial,postAdmissionSerial,e1,nonce3[])) && b-event(SignerValidated(C1,Dpost,pk(skDpost[]),postTokenSerial,postAdmissionSerial,e1,nonce1[])) && b-event(CardAuthorized(pgbA,Dpost,pk(skDpost[]),postTokenSerial)) -> event(PostReshareRegularAccepted(Dpost,pk(skDpost[]),e1,postAdmissionSerial))
+RESULT event(PostReshareRegularAccepted(Dpost,pk(skDpost[]),e1,S)) ==> event(CardAuthorized(pgbA,Dpost,pk(skDpost[]),postTokenSerial)) && event(SignerValidated(C1,Dpost,pk(skDpost[]),postTokenSerial,S,e1,N1)) && event(SignerValidated(C3,Dpost,pk(skDpost[]),postTokenSerial,S,e1,N3)) is true.
+-- Query not event(PartialIssued(C1,Dpost,pk(skDpost[]),S,e0)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 299 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 102 rules.
+Starting query not event(PartialIssued(C1,Dpost,pk(skDpost[]),S,e0))
+RESULT not event(PartialIssued(C1,Dpost,pk(skDpost[]),S,e0)) is true.
+-- Query not event(PartialIssued(C3,Dpost,pk(skDpost[]),S,e0)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 299 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 102 rules.
+Starting query not event(PartialIssued(C3,Dpost,pk(skDpost[]),S,e0))
+RESULT not event(PartialIssued(C3,Dpost,pk(skDpost[]),S,e0)) is true.
+-- Query event(CommitteeActivated(E,PKRoot,S)) ==> PKRoot = pkChord in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 298 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 101 rules.
+Starting query event(CommitteeActivated(E,PKRoot,S)) ==> PKRoot = pkChord
+goal reachable: event(CommitteeActivated(e1,pkChord,updateSerial))
+RESULT event(CommitteeActivated(E,PKRoot,S)) ==> PKRoot = pkChord is true.
+-- Query not attacker_bitstring(reachE1Activated[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 297 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 100 rules.
+Starting query not attacker_bitstring(reachE1Activated[])
+goal reachable: attacker_bitstring(reachE1Activated[])
+
+Derivation:
+
+1. The message reachE1Activated[] may be sent to the attacker at output {15}.
+attacker_bitstring(reachE1Activated[]).
+
+2. By 1, attacker_bitstring(reachE1Activated[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reachE1Activated[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(net, ~M) with ~M = share1(e0) at {1}
+
+out(net, ~M_1) with ~M_1 = partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dpost,pk(skDpost),regularMember,postTokenSerial,postAdmissionSerial),share1(e0)) at {2}
+
+out(net, ~M_2) with ~M_2 = reachOldShareStillUsable at {3}
+
+event CommitteeVote(C1,e0,e1,C3,pk(skC3Device),committeeAdmissionSerial,updateSerial) at {5}
+
+event CommitteeVote(C2,e0,e1,C3,pk(skC3Device),committeeAdmissionSerial,updateSerial) at {6}
+
+event CommitteeApproved(e0,e1,C3,pk(skC3Device),committeeAdmissionSerial,updateSerial) at {9}
+
+event ReshareStarted(e0,e1,C3,pk(skC3Device),committeeAdmissionSerial,updateSerial) at {10}
+
+event ShareActivated(C1,e1,pkChord,updateSerial) at {11}
+
+event ShareActivated(C2,e1,pkChord,updateSerial) at {12}
+
+event ShareActivated(C3,e1,pkChord,updateSerial) at {13}
+
+event CommitteeActivated(e1,pkChord,updateSerial) at {14}
+
+out(net, ~M_3) with ~M_3 = reachE1Activated at {15}
+
+The attacker has the message ~M_3 = reachE1Activated.
+A trace has been found.
+RESULT not attacker_bitstring(reachE1Activated[]) is false.
+-- Query not attacker_bitstring(reachPostReshareIssuance[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 297 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 100 rules.
+Starting query not attacker_bitstring(reachPostReshareIssuance[])
+goal reachable: attacker_bitstring(reachPostReshareIssuance[])
+
+Derivation:
+
+1. The message updateSerial may be sent on channel e1Ready[] at output {16}.
+mess_serial(e1Ready[],updateSerial).
+
+2. The message updateSerial that may be sent on channel e1Ready[] by 1 may be received at input {17}.
+So the message reachPostReshareIssuance[] may be sent to the attacker at output {43}.
+attacker_bitstring(reachPostReshareIssuance[]).
+
+3. By 2, attacker_bitstring(reachPostReshareIssuance[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reachPostReshareIssuance[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(net, ~M) with ~M = share1(e0) at {1}
+
+out(net, ~M_1) with ~M_1 = partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dpost,pk(skDpost),regularMember,postTokenSerial,postAdmissionSerial),share1(e0)) at {2}
+
+out(net, ~M_2) with ~M_2 = reachOldShareStillUsable at {3}
+
+event CommitteeVote(C1,e0,e1,C3,pk(skC3Device),committeeAdmissionSerial,updateSerial) at {5}
+
+event CommitteeVote(C2,e0,e1,C3,pk(skC3Device),committeeAdmissionSerial,updateSerial) at {6}
+
+event CommitteeApproved(e0,e1,C3,pk(skC3Device),committeeAdmissionSerial,updateSerial) at {9}
+
+event ReshareStarted(e0,e1,C3,pk(skC3Device),committeeAdmissionSerial,updateSerial) at {10}
+
+event ShareActivated(C1,e1,pkChord,updateSerial) at {11}
+
+event ShareActivated(C2,e1,pkChord,updateSerial) at {12}
+
+event ShareActivated(C3,e1,pkChord,updateSerial) at {13}
+
+event CommitteeActivated(e1,pkChord,updateSerial) at {14}
+
+out(net, ~M_3) with ~M_3 = reachE1Activated at {15}
+
+out(e1Ready, updateSerial) at {16} received at {17}
+
+event CardAuthorized(pgbA,Dpost,pk(skDpost),postTokenSerial) at {19}
+
+new nonce1: nonce creating nonce1_1 at {22}
+
+event RegularPoPProduced(Dpost,pk(skDpost),C1,postAdmissionSerial,nonce1_1) at {24}
+
+event RegularSignerPoPVerified(C1,Dpost,pk(skDpost),postAdmissionSerial,e1,nonce1_1) at {26}
+
+event SignerValidated(C1,Dpost,pk(skDpost),postTokenSerial,postAdmissionSerial,e1,nonce1_1) at {27}
+
+event PartialIssued(C1,Dpost,pk(skDpost),postAdmissionSerial,e1) at {28}
+
+new nonce3: nonce creating nonce3_1 at {29}
+
+event RegularPoPProduced(Dpost,pk(skDpost),C3,postAdmissionSerial,nonce3_1) at {31}
+
+event RegularSignerPoPVerified(C3,Dpost,pk(skDpost),postAdmissionSerial,e1,nonce3_1) at {33}
+
+event SignerValidated(C3,Dpost,pk(skDpost),postTokenSerial,postAdmissionSerial,e1,nonce3_1) at {34}
+
+event PartialIssued(C3,Dpost,pk(skDpost),postAdmissionSerial,e1) at {35}
+
+new completionNonce: nonce creating completionNonce_1 at {39}
+
+event RegularCredentialAccepted13(C1,Dpost,pk(skDpost),postTokenSerial,postAdmissionSerial,completionNonce_1) at {40}
+
+event RegularMembershipAuthorized(C1,Dpost,pk(skDpost),postTokenSerial,postAdmissionSerial,completionNonce_1) at {41}
+
+event PostReshareRegularAccepted(Dpost,pk(skDpost),e1,postAdmissionSerial) at {42}
+
+out(net, ~M_4) with ~M_4 = reachPostReshareIssuance at {43}
+
+The attacker has the message ~M_4 = reachPostReshareIssuance.
+A trace has been found.
+RESULT not attacker_bitstring(reachPostReshareIssuance[]) is false.
+-- Query not attacker_bitstring(reachOldShareStillUsable[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 297 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 100 rules.
+Starting query not attacker_bitstring(reachOldShareStillUsable[])
+goal reachable: attacker_bitstring(reachOldShareStillUsable[])
+
+Derivation:
+
+1. The message reachOldShareStillUsable[] may be sent to the attacker at output {3}.
+attacker_bitstring(reachOldShareStillUsable[]).
+
+2. By 1, attacker_bitstring(reachOldShareStillUsable[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reachOldShareStillUsable[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(net, ~M) with ~M = share1(e0) at {1}
+
+out(net, ~M_1) with ~M_1 = partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dpost,pk(skDpost),regularMember,postTokenSerial,postAdmissionSerial),share1(e0)) at {2}
+
+out(net, ~M_2) with ~M_2 = reachOldShareStillUsable at {3}
+
+event CommitteeVote(C1,e0,e1,C3,pk(skC3Device),committeeAdmissionSerial,updateSerial) at {5}
+
+event CommitteeVote(C2,e0,e1,C3,pk(skC3Device),committeeAdmissionSerial,updateSerial) at {6}
+
+event CommitteeApproved(e0,e1,C3,pk(skC3Device),committeeAdmissionSerial,updateSerial) at {9}
+
+event ReshareStarted(e0,e1,C3,pk(skC3Device),committeeAdmissionSerial,updateSerial) at {10}
+
+event ShareActivated(C1,e1,pkChord,updateSerial) at {11}
+
+event ShareActivated(C2,e1,pkChord,updateSerial) at {12}
+
+event ShareActivated(C3,e1,pkChord,updateSerial) at {13}
+
+event CommitteeActivated(e1,pkChord,updateSerial) at {14}
+
+out(net, ~M_3) with ~M_3 = reachE1Activated at {15}
+
+The attacker has the message ~M_2 = reachOldShareStillUsable.
+A trace has been found.
+RESULT not attacker_bitstring(reachOldShareStillUsable[]) is false.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query not attacker_skey(skCard[]) is true.
+
+Query not attacker_skey(skC3Device[]) is true.
+
+Query not attacker_skey(skDpost[]) is true.
+
+Query not attacker_thresholdShare(share1(e0)) is false.
+
+Query not attacker_thresholdShare(share2(e0)) is true.
+
+Query not attacker_thresholdShare(share3(e0)) is true.
+
+Query not attacker_thresholdShare(share1(e1)) is true.
+
+Query not attacker_thresholdShare(share2(e1)) is true.
+
+Query not attacker_thresholdShare(share3(e1)) is true.
+
+Query not attacker_partialSignature(partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dpost,pk(skDpost[]),regularMember,postTokenSerial,postAdmissionSerial),share1(e0))) is false.
+
+Query event(PostReshareRegularAccepted(Dpost,pk(skDpost[]),e1,S)) ==> event(CardAuthorized(pgbA,Dpost,pk(skDpost[]),postTokenSerial)) && event(SignerValidated(C1,Dpost,pk(skDpost[]),postTokenSerial,S,e1,N1)) && event(SignerValidated(C3,Dpost,pk(skDpost[]),postTokenSerial,S,e1,N3)) is true.
+
+Query not event(PartialIssued(C1,Dpost,pk(skDpost[]),S,e0)) is true.
+
+Query not event(PartialIssued(C3,Dpost,pk(skDpost[]),S,e0)) is true.
+
+Query event(CommitteeActivated(E,PKRoot,S)) ==> PKRoot = pkChord is true.
+
+Query not attacker_bitstring(reachE1Activated[]) is false.
+
+Query not attacker_bitstring(reachPostReshareIssuance[]) is false.
+
+Query not attacker_bitstring(reachOldShareStillUsable[]) is false.
+
+--------------------------------------------------------------
+

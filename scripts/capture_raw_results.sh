@@ -6,7 +6,7 @@ repo_root="$(cd -- "${script_dir}/.." && pwd)"
 model_root="${repo_root}/models"
 lib_dir="${repo_root}/lib"
 proverif_bin="${PROVERIF_BIN:-proverif}"
-output_dir="${1:-${repo_root}/raw_proverif_outputs}"
+output_dir="${1:-${repo_root}/outputs}"
 
 if ! command -v "${proverif_bin}" >/dev/null 2>&1; then
   echo "error: ProVerif executable not found: ${proverif_bin}" >&2

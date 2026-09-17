@@ -56,6 +56,7 @@ The repository was reproduced on native 64-bit Windows with:
 - OPAM **2.5.2**
 - a dedicated `proverif` switch using OCaml **4.14.4**
 - ProVerif **2.05**
+- - **Python 3** for the result-contract regression test (tested with Python 3.14)
 
 On that tested setup, the standard `opam install proverif.2.05` path exposed Windows-specific `lablgtk` 2.18.14 build/install issues. The complete procedure used to obtain the working installation, including the local `lablgtk` patch and PowerShell environment settings, is documented separately in:
 
@@ -189,7 +190,7 @@ If desired, `scripts/capture_raw_results.sh` can be used to store the complete r
 The parser regression tests use saved outputs, explicitly synthetic fixtures,
 and intentionally altered copies. They test runner parsing, not the models,
 and do not constitute ProVerif verification evidence.
-With Python 3 installed, run them from the repository root with:
+With Python 3 installed, run them from the repository root with any interpreter, for example:
 
 ```bash
 python3 tests/test_result_contract.py
@@ -199,6 +200,7 @@ These tests exercise all assertion runners with LF, CRLF, and reordered results,
 then check rejection of missing/replaced results with retained summaries,
 duplicates, changed types/polarities, unexpected or inconclusive results,
 malformed result lines, warnings, and unsuccessful verifier exits.
+Depending on the setup, this can take a while.
 
 ## Model Overview
 

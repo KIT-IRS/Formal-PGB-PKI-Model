@@ -1,0 +1,731 @@
+Process 0 (that is, the initial process):
+{1}out(net, share1(e0));
+{2}out(net, reachFirstOldLeak);
+(
+    {3}let proposal: thresholdMessage = committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,C3,C3,pk(skC3Device),pkChord,admittedSerial,updateSerial) in
+    {4}event CommitteeVote(C1,e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial);
+    {5}event CommitteeVote(C2,e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial);
+    {6}let approval: thresholdSignature = combine(partialSign(proposal,share1(e0)),partialSign(proposal,share2(e0))) in
+    {7}let =pair12 = verifyThreshold(approval,proposal,pkChord) in
+    {8}event CommitteeApproved(e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial);
+    {9}event ReshareStarted(e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial);
+    {10}event ShareActivated(C1,e1,pkChord,updateSerial);
+    {11}event ShareActivated(C2,e1,pkChord,updateSerial);
+    {12}event ShareActivated(C3,e1,pkChord,updateSerial);
+    {13}event CommitteeActivated(e1,pkChord,updateSerial);
+    {14}let continuitySignature: thresholdSignature = combine(partialSign(proposal,share1(e1)),partialSign(proposal,share3(e1))) in
+    {15}let continuityPair: signerPair = verifyThreshold(continuitySignature,proposal,pkChord) in
+    {16}event RootContinuityAccepted(e1,pkChord,continuityPair,updateSerial);
+    {17}out(net, reachLegitimateReshare);
+    {18}out(net, share2(e0));
+    {19}out(net, reachSecondOldLeak)
+) | (
+    {20}!
+    {21}in(net, candidateSignature: thresholdSignature);
+    {22}let body: thresholdMessage = regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv),regularMember,historicalRootSerial,historicalRootSerial) in
+    {23}let =pair12 = verifyThreshold(candidateSignature,body,pkChord) in
+    {24}event HistoricalRootForgeryAccepted(Dadv,pk(skAdv),e0,historicalRootSerial);
+    {25}out(net, reachHistoricalForgery)
+)
+
+--  Process 1 (that is, process 0, with let moved downwards):
+{1}out(net, share1(e0));
+{2}out(net, reachFirstOldLeak);
+(
+    {4}event CommitteeVote(C1,e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial);
+    {5}event CommitteeVote(C2,e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial);
+    {3}let proposal: thresholdMessage = committeeProposal(tagCommittee,pgbA,e0,e1,C1,C2,C3,C3,pk(skC3Device),pkChord,admittedSerial,updateSerial) in
+    {6}let approval: thresholdSignature = combine(partialSign(proposal,share1(e0)),partialSign(proposal,share2(e0))) in
+    {7}let =pair12 = verifyThreshold(approval,proposal,pkChord) in
+    {8}event CommitteeApproved(e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial);
+    {9}event ReshareStarted(e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial);
+    {10}event ShareActivated(C1,e1,pkChord,updateSerial);
+    {11}event ShareActivated(C2,e1,pkChord,updateSerial);
+    {12}event ShareActivated(C3,e1,pkChord,updateSerial);
+    {13}event CommitteeActivated(e1,pkChord,updateSerial);
+    {14}let continuitySignature: thresholdSignature = combine(partialSign(proposal,share1(e1)),partialSign(proposal,share3(e1))) in
+    {15}let continuityPair: signerPair = verifyThreshold(continuitySignature,proposal,pkChord) in
+    {16}event RootContinuityAccepted(e1,pkChord,continuityPair,updateSerial);
+    {17}out(net, reachLegitimateReshare);
+    {18}out(net, share2(e0));
+    {19}out(net, reachSecondOldLeak)
+) | (
+    {20}!
+    {21}in(net, candidateSignature: thresholdSignature);
+    {22}let body: thresholdMessage = regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv),regularMember,historicalRootSerial,historicalRootSerial) in
+    {23}let =pair12 = verifyThreshold(candidateSignature,body,pkChord) in
+    {24}event HistoricalRootForgeryAccepted(Dadv,pk(skAdv),e0,historicalRootSerial);
+    {25}out(net, reachHistoricalForgery)
+)
+
+-- Query not attacker_skey(skC3Device[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 296 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 99 rules.
+Starting query not attacker_skey(skC3Device[])
+RESULT not attacker_skey(skC3Device[]) is true.
+-- Query not attacker_thresholdShare(share1(e0)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 296 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 99 rules.
+Starting query not attacker_thresholdShare(share1(e0))
+goal reachable: attacker_thresholdShare(share1(e0))
+
+Derivation:
+
+1. The message share1(e0) may be sent to the attacker at output {1}.
+attacker_thresholdShare(share1(e0)).
+
+2. By 1, attacker_thresholdShare(share1(e0)).
+The goal is reached, represented in the following fact:
+attacker_thresholdShare(share1(e0)).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(net, ~M) with ~M = share1(e0) at {1}
+
+out(net, ~M_1) with ~M_1 = reachFirstOldLeak at {2}
+
+event CommitteeVote(C1,e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial) at {4}
+
+event CommitteeVote(C2,e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial) at {5}
+
+event CommitteeApproved(e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial) at {8}
+
+event ReshareStarted(e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial) at {9}
+
+event ShareActivated(C1,e1,pkChord,updateSerial) at {10}
+
+event ShareActivated(C2,e1,pkChord,updateSerial) at {11}
+
+event ShareActivated(C3,e1,pkChord,updateSerial) at {12}
+
+event CommitteeActivated(e1,pkChord,updateSerial) at {13}
+
+event RootContinuityAccepted(e1,pkChord,pair13,updateSerial) at {16}
+
+out(net, ~M_2) with ~M_2 = reachLegitimateReshare at {17}
+
+out(net, ~M_3) with ~M_3 = share2(e0) at {18}
+
+out(net, ~M_4) with ~M_4 = reachSecondOldLeak at {19}
+
+The attacker has the message ~M = share1(e0).
+A trace has been found.
+RESULT not attacker_thresholdShare(share1(e0)) is false.
+-- Query not attacker_thresholdShare(share2(e0)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 296 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 99 rules.
+Starting query not attacker_thresholdShare(share2(e0))
+goal reachable: attacker_thresholdShare(share2(e0))
+
+Derivation:
+
+1. The message share2(e0) may be sent to the attacker at output {18}.
+attacker_thresholdShare(share2(e0)).
+
+2. By 1, attacker_thresholdShare(share2(e0)).
+The goal is reached, represented in the following fact:
+attacker_thresholdShare(share2(e0)).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(net, ~M) with ~M = share1(e0) at {1}
+
+out(net, ~M_1) with ~M_1 = reachFirstOldLeak at {2}
+
+event CommitteeVote(C1,e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial) at {4}
+
+event CommitteeVote(C2,e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial) at {5}
+
+event CommitteeApproved(e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial) at {8}
+
+event ReshareStarted(e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial) at {9}
+
+event ShareActivated(C1,e1,pkChord,updateSerial) at {10}
+
+event ShareActivated(C2,e1,pkChord,updateSerial) at {11}
+
+event ShareActivated(C3,e1,pkChord,updateSerial) at {12}
+
+event CommitteeActivated(e1,pkChord,updateSerial) at {13}
+
+event RootContinuityAccepted(e1,pkChord,pair13,updateSerial) at {16}
+
+out(net, ~M_2) with ~M_2 = reachLegitimateReshare at {17}
+
+out(net, ~M_3) with ~M_3 = share2(e0) at {18}
+
+out(net, ~M_4) with ~M_4 = reachSecondOldLeak at {19}
+
+The attacker has the message ~M_3 = share2(e0).
+A trace has been found.
+RESULT not attacker_thresholdShare(share2(e0)) is false.
+-- Query not attacker_thresholdShare(share3(e0)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 296 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 99 rules.
+Starting query not attacker_thresholdShare(share3(e0))
+RESULT not attacker_thresholdShare(share3(e0)) is true.
+-- Query not attacker_thresholdShare(share1(e1)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 296 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 99 rules.
+Starting query not attacker_thresholdShare(share1(e1))
+RESULT not attacker_thresholdShare(share1(e1)) is true.
+-- Query not attacker_thresholdShare(share2(e1)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 296 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 99 rules.
+Starting query not attacker_thresholdShare(share2(e1))
+RESULT not attacker_thresholdShare(share2(e1)) is true.
+-- Query not attacker_thresholdShare(share3(e1)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 296 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 99 rules.
+Starting query not attacker_thresholdShare(share3(e1))
+RESULT not attacker_thresholdShare(share3(e1)) is true.
+-- Query not attacker_thresholdSignature(thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial))) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 296 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 99 rules.
+Starting query not attacker_thresholdSignature(thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial)))
+goal reachable: attacker_thresholdSignature(thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial)))
+
+Derivation:
+
+1. The message share2(e0) may be sent to the attacker at output {18}.
+attacker_thresholdShare(share2(e0)).
+
+2. Using the function historicalRootSerial the attacker may obtain historicalRootSerial.
+attacker_serial(historicalRootSerial).
+
+3. Using the function regularMember the attacker may obtain regularMember.
+attacker_role(regularMember).
+
+4. The attacker initially knows skAdv[].
+attacker_skey(skAdv[]).
+
+5. By 4, the attacker may know skAdv[].
+Using the function pk the attacker may obtain pk(skAdv[]).
+attacker_pkey(pk(skAdv[])).
+
+6. Using the function Dadv the attacker may obtain Dadv.
+attacker_device(Dadv).
+
+7. Using the function pgbA the attacker may obtain pgbA.
+attacker_pgb(pgbA).
+
+8. Using the function tagRegularLDevID the attacker may obtain tagRegularLDevID.
+attacker_domainTag(tagRegularLDevID).
+
+9. By 8, the attacker may know tagRegularLDevID.
+By 7, the attacker may know pgbA.
+By 6, the attacker may know Dadv.
+By 5, the attacker may know pk(skAdv[]).
+By 3, the attacker may know regularMember.
+By 2, the attacker may know historicalRootSerial.
+By 2, the attacker may know historicalRootSerial.
+Using the function regularLDevIDBody the attacker may obtain regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial).
+attacker_thresholdMessage(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial)).
+
+10. By 9, the attacker may know regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial).
+By 1, the attacker may know share2(e0).
+Using the function partialSign the attacker may obtain partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial),share2(e0)).
+attacker_partialSignature(partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial),share2(e0))).
+
+11. The message share1(e0) may be sent to the attacker at output {1}.
+attacker_thresholdShare(share1(e0)).
+
+12. By 9, the attacker may know regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial).
+By 11, the attacker may know share1(e0).
+Using the function partialSign the attacker may obtain partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial),share1(e0)).
+attacker_partialSignature(partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial),share1(e0))).
+
+13. By 12, the attacker may know partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial),share1(e0)).
+By 10, the attacker may know partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial),share2(e0)).
+Using the function combine the attacker may obtain thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial)).
+attacker_thresholdSignature(thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial))).
+
+14. By 13, attacker_thresholdSignature(thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial))).
+The goal is reached, represented in the following fact:
+attacker_thresholdSignature(thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial))).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(net, ~M) with ~M = share1(e0) at {1}
+
+out(net, ~M_1) with ~M_1 = reachFirstOldLeak at {2}
+
+event CommitteeVote(C1,e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial) at {4}
+
+event CommitteeVote(C2,e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial) at {5}
+
+event CommitteeApproved(e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial) at {8}
+
+event ReshareStarted(e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial) at {9}
+
+event ShareActivated(C1,e1,pkChord,updateSerial) at {10}
+
+event ShareActivated(C2,e1,pkChord,updateSerial) at {11}
+
+event ShareActivated(C3,e1,pkChord,updateSerial) at {12}
+
+event CommitteeActivated(e1,pkChord,updateSerial) at {13}
+
+event RootContinuityAccepted(e1,pkChord,pair13,updateSerial) at {16}
+
+out(net, ~M_2) with ~M_2 = reachLegitimateReshare at {17}
+
+out(net, ~M_3) with ~M_3 = share2(e0) at {18}
+
+out(net, ~M_4) with ~M_4 = reachSecondOldLeak at {19}
+
+The attacker has the message combine(partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv),regularMember,historicalRootSerial,historicalRootSerial),~M),partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv),regularMember,historicalRootSerial,historicalRootSerial),~M_3)) = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv),regularMember,historicalRootSerial,historicalRootSerial)).
+A trace has been found.
+RESULT not attacker_thresholdSignature(thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial))) is false.
+-- Query event(HistoricalRootForgeryAccepted(Dadv,pk(skAdv[]),e0,S)) ==> event(CardAuthorized(pgbA,Dadv,pk(skAdv[]),S)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 297 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 100 rules.
+Starting query event(HistoricalRootForgeryAccepted(Dadv,pk(skAdv[]),e0,S)) ==> event(CardAuthorized(pgbA,Dadv,pk(skAdv[]),S))
+goal reachable: event(HistoricalRootForgeryAccepted(Dadv,pk(skAdv[]),e0,historicalRootSerial))
+
+Derivation:
+
+1. The message share2(e0) may be sent to the attacker at output {18}.
+attacker_thresholdShare(share2(e0)).
+
+2. Using the function historicalRootSerial the attacker may obtain historicalRootSerial.
+attacker_serial(historicalRootSerial).
+
+3. Using the function regularMember the attacker may obtain regularMember.
+attacker_role(regularMember).
+
+4. The attacker initially knows skAdv[].
+attacker_skey(skAdv[]).
+
+5. By 4, the attacker may know skAdv[].
+Using the function pk the attacker may obtain pk(skAdv[]).
+attacker_pkey(pk(skAdv[])).
+
+6. Using the function Dadv the attacker may obtain Dadv.
+attacker_device(Dadv).
+
+7. Using the function pgbA the attacker may obtain pgbA.
+attacker_pgb(pgbA).
+
+8. Using the function tagRegularLDevID the attacker may obtain tagRegularLDevID.
+attacker_domainTag(tagRegularLDevID).
+
+9. By 8, the attacker may know tagRegularLDevID.
+By 7, the attacker may know pgbA.
+By 6, the attacker may know Dadv.
+By 5, the attacker may know pk(skAdv[]).
+By 3, the attacker may know regularMember.
+By 2, the attacker may know historicalRootSerial.
+By 2, the attacker may know historicalRootSerial.
+Using the function regularLDevIDBody the attacker may obtain regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial).
+attacker_thresholdMessage(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial)).
+
+10. By 9, the attacker may know regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial).
+By 1, the attacker may know share2(e0).
+Using the function partialSign the attacker may obtain partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial),share2(e0)).
+attacker_partialSignature(partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial),share2(e0))).
+
+11. The message share1(e0) may be sent to the attacker at output {1}.
+attacker_thresholdShare(share1(e0)).
+
+12. By 9, the attacker may know regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial).
+By 11, the attacker may know share1(e0).
+Using the function partialSign the attacker may obtain partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial),share1(e0)).
+attacker_partialSignature(partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial),share1(e0))).
+
+13. By 12, the attacker may know partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial),share1(e0)).
+By 10, the attacker may know partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial),share2(e0)).
+Using the function combine the attacker may obtain thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial)).
+attacker_thresholdSignature(thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial))).
+
+14. The message thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial)) that the attacker may have by 13 may be received at input {21}.
+So event HistoricalRootForgeryAccepted(Dadv,pk(skAdv[]),e0,historicalRootSerial) may be executed at {24}.
+event(HistoricalRootForgeryAccepted(Dadv,pk(skAdv[]),e0,historicalRootSerial)).
+
+15. By 14, event(HistoricalRootForgeryAccepted(Dadv,pk(skAdv[]),e0,historicalRootSerial)).
+The goal is reached, represented in the following fact:
+event(HistoricalRootForgeryAccepted(Dadv,pk(skAdv[]),e0,historicalRootSerial)).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(net, ~M) with ~M = share1(e0) at {1}
+
+out(net, ~M_1) with ~M_1 = reachFirstOldLeak at {2}
+
+event CommitteeVote(C1,e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial) at {4}
+
+event CommitteeVote(C2,e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial) at {5}
+
+event CommitteeApproved(e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial) at {8}
+
+event ReshareStarted(e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial) at {9}
+
+event ShareActivated(C1,e1,pkChord,updateSerial) at {10}
+
+event ShareActivated(C2,e1,pkChord,updateSerial) at {11}
+
+event ShareActivated(C3,e1,pkChord,updateSerial) at {12}
+
+event CommitteeActivated(e1,pkChord,updateSerial) at {13}
+
+event RootContinuityAccepted(e1,pkChord,pair13,updateSerial) at {16}
+
+out(net, ~M_2) with ~M_2 = reachLegitimateReshare at {17}
+
+out(net, ~M_3) with ~M_3 = share2(e0) at {18}
+
+out(net, ~M_4) with ~M_4 = reachSecondOldLeak at {19}
+
+in(net, combine(partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv),regularMember,historicalRootSerial,historicalRootSerial),~M),partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv),regularMember,historicalRootSerial,historicalRootSerial),~M_3))) with combine(partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv),regularMember,historicalRootSerial,historicalRootSerial),~M),partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv),regularMember,historicalRootSerial,historicalRootSerial),~M_3)) = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv),regularMember,historicalRootSerial,historicalRootSerial)) at {21} in copy a
+
+event HistoricalRootForgeryAccepted(Dadv,pk(skAdv),e0,historicalRootSerial) at {24} in copy a (goal)
+
+The event HistoricalRootForgeryAccepted(Dadv,pk(skAdv),e0,historicalRootSerial) is executed at {24} in copy a.
+A trace has been found.
+RESULT event(HistoricalRootForgeryAccepted(Dadv,pk(skAdv[]),e0,S)) ==> event(CardAuthorized(pgbA,Dadv,pk(skAdv[]),S)) is false.
+-- Query event(CommitteeActivated(E,PKRoot,S)) ==> PKRoot = pkChord in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 297 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 100 rules.
+Starting query event(CommitteeActivated(E,PKRoot,S)) ==> PKRoot = pkChord
+goal reachable: event(CommitteeActivated(e1,pkChord,updateSerial))
+RESULT event(CommitteeActivated(E,PKRoot,S)) ==> PKRoot = pkChord is true.
+-- Query event(RootContinuityAccepted(E,PKRoot,P,S)) ==> event(CommitteeActivated(E,PKRoot,S)) && PKRoot = pkChord in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 297 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 100 rules.
+Starting query event(RootContinuityAccepted(E,PKRoot,P,S)) ==> event(CommitteeActivated(E,PKRoot,S)) && PKRoot = pkChord
+goal reachable: b-event(CommitteeActivated(e1,pkChord,updateSerial)) -> event(RootContinuityAccepted(e1,pkChord,pair13,updateSerial))
+RESULT event(RootContinuityAccepted(E,PKRoot,P,S)) ==> event(CommitteeActivated(E,PKRoot,S)) && PKRoot = pkChord is true.
+-- Query not attacker_bitstring(reachFirstOldLeak[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 296 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 99 rules.
+Starting query not attacker_bitstring(reachFirstOldLeak[])
+goal reachable: attacker_bitstring(reachFirstOldLeak[])
+
+Derivation:
+
+1. The message reachFirstOldLeak[] may be sent to the attacker at output {2}.
+attacker_bitstring(reachFirstOldLeak[]).
+
+2. By 1, attacker_bitstring(reachFirstOldLeak[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reachFirstOldLeak[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(net, ~M) with ~M = share1(e0) at {1}
+
+out(net, ~M_1) with ~M_1 = reachFirstOldLeak at {2}
+
+event CommitteeVote(C1,e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial) at {4}
+
+event CommitteeVote(C2,e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial) at {5}
+
+event CommitteeApproved(e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial) at {8}
+
+event ReshareStarted(e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial) at {9}
+
+event ShareActivated(C1,e1,pkChord,updateSerial) at {10}
+
+event ShareActivated(C2,e1,pkChord,updateSerial) at {11}
+
+event ShareActivated(C3,e1,pkChord,updateSerial) at {12}
+
+event CommitteeActivated(e1,pkChord,updateSerial) at {13}
+
+event RootContinuityAccepted(e1,pkChord,pair13,updateSerial) at {16}
+
+out(net, ~M_2) with ~M_2 = reachLegitimateReshare at {17}
+
+out(net, ~M_3) with ~M_3 = share2(e0) at {18}
+
+out(net, ~M_4) with ~M_4 = reachSecondOldLeak at {19}
+
+The attacker has the message ~M_1 = reachFirstOldLeak.
+A trace has been found.
+RESULT not attacker_bitstring(reachFirstOldLeak[]) is false.
+-- Query not attacker_bitstring(reachLegitimateReshare[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 296 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 99 rules.
+Starting query not attacker_bitstring(reachLegitimateReshare[])
+goal reachable: attacker_bitstring(reachLegitimateReshare[])
+
+Derivation:
+
+1. The message reachLegitimateReshare[] may be sent to the attacker at output {17}.
+attacker_bitstring(reachLegitimateReshare[]).
+
+2. By 1, attacker_bitstring(reachLegitimateReshare[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reachLegitimateReshare[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(net, ~M) with ~M = share1(e0) at {1}
+
+out(net, ~M_1) with ~M_1 = reachFirstOldLeak at {2}
+
+event CommitteeVote(C1,e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial) at {4}
+
+event CommitteeVote(C2,e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial) at {5}
+
+event CommitteeApproved(e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial) at {8}
+
+event ReshareStarted(e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial) at {9}
+
+event ShareActivated(C1,e1,pkChord,updateSerial) at {10}
+
+event ShareActivated(C2,e1,pkChord,updateSerial) at {11}
+
+event ShareActivated(C3,e1,pkChord,updateSerial) at {12}
+
+event CommitteeActivated(e1,pkChord,updateSerial) at {13}
+
+event RootContinuityAccepted(e1,pkChord,pair13,updateSerial) at {16}
+
+out(net, ~M_2) with ~M_2 = reachLegitimateReshare at {17}
+
+out(net, ~M_3) with ~M_3 = share2(e0) at {18}
+
+out(net, ~M_4) with ~M_4 = reachSecondOldLeak at {19}
+
+The attacker has the message ~M_2 = reachLegitimateReshare.
+A trace has been found.
+RESULT not attacker_bitstring(reachLegitimateReshare[]) is false.
+-- Query not attacker_bitstring(reachSecondOldLeak[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 296 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 99 rules.
+Starting query not attacker_bitstring(reachSecondOldLeak[])
+goal reachable: attacker_bitstring(reachSecondOldLeak[])
+
+Derivation:
+
+1. The message reachSecondOldLeak[] may be sent to the attacker at output {19}.
+attacker_bitstring(reachSecondOldLeak[]).
+
+2. By 1, attacker_bitstring(reachSecondOldLeak[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reachSecondOldLeak[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(net, ~M) with ~M = share1(e0) at {1}
+
+out(net, ~M_1) with ~M_1 = reachFirstOldLeak at {2}
+
+event CommitteeVote(C1,e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial) at {4}
+
+event CommitteeVote(C2,e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial) at {5}
+
+event CommitteeApproved(e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial) at {8}
+
+event ReshareStarted(e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial) at {9}
+
+event ShareActivated(C1,e1,pkChord,updateSerial) at {10}
+
+event ShareActivated(C2,e1,pkChord,updateSerial) at {11}
+
+event ShareActivated(C3,e1,pkChord,updateSerial) at {12}
+
+event CommitteeActivated(e1,pkChord,updateSerial) at {13}
+
+event RootContinuityAccepted(e1,pkChord,pair13,updateSerial) at {16}
+
+out(net, ~M_2) with ~M_2 = reachLegitimateReshare at {17}
+
+out(net, ~M_3) with ~M_3 = share2(e0) at {18}
+
+out(net, ~M_4) with ~M_4 = reachSecondOldLeak at {19}
+
+The attacker has the message ~M_4 = reachSecondOldLeak.
+A trace has been found.
+RESULT not attacker_bitstring(reachSecondOldLeak[]) is false.
+-- Query not attacker_bitstring(reachHistoricalForgery[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 200 rules (57 with conclusion selected). Queue: 296 rules.
+400 rules inserted. Base: 400 rules (130 with conclusion selected). Queue: 99 rules.
+Starting query not attacker_bitstring(reachHistoricalForgery[])
+goal reachable: attacker_bitstring(reachHistoricalForgery[])
+
+Derivation:
+
+1. The message share2(e0) may be sent to the attacker at output {18}.
+attacker_thresholdShare(share2(e0)).
+
+2. Using the function historicalRootSerial the attacker may obtain historicalRootSerial.
+attacker_serial(historicalRootSerial).
+
+3. Using the function regularMember the attacker may obtain regularMember.
+attacker_role(regularMember).
+
+4. The attacker initially knows skAdv[].
+attacker_skey(skAdv[]).
+
+5. By 4, the attacker may know skAdv[].
+Using the function pk the attacker may obtain pk(skAdv[]).
+attacker_pkey(pk(skAdv[])).
+
+6. Using the function Dadv the attacker may obtain Dadv.
+attacker_device(Dadv).
+
+7. Using the function pgbA the attacker may obtain pgbA.
+attacker_pgb(pgbA).
+
+8. Using the function tagRegularLDevID the attacker may obtain tagRegularLDevID.
+attacker_domainTag(tagRegularLDevID).
+
+9. By 8, the attacker may know tagRegularLDevID.
+By 7, the attacker may know pgbA.
+By 6, the attacker may know Dadv.
+By 5, the attacker may know pk(skAdv[]).
+By 3, the attacker may know regularMember.
+By 2, the attacker may know historicalRootSerial.
+By 2, the attacker may know historicalRootSerial.
+Using the function regularLDevIDBody the attacker may obtain regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial).
+attacker_thresholdMessage(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial)).
+
+10. By 9, the attacker may know regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial).
+By 1, the attacker may know share2(e0).
+Using the function partialSign the attacker may obtain partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial),share2(e0)).
+attacker_partialSignature(partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial),share2(e0))).
+
+11. The message share1(e0) may be sent to the attacker at output {1}.
+attacker_thresholdShare(share1(e0)).
+
+12. By 9, the attacker may know regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial).
+By 11, the attacker may know share1(e0).
+Using the function partialSign the attacker may obtain partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial),share1(e0)).
+attacker_partialSignature(partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial),share1(e0))).
+
+13. By 12, the attacker may know partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial),share1(e0)).
+By 10, the attacker may know partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial),share2(e0)).
+Using the function combine the attacker may obtain thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial)).
+attacker_thresholdSignature(thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial))).
+
+14. The message thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial)) that the attacker may have by 13 may be received at input {21}.
+So the message reachHistoricalForgery[] may be sent to the attacker at output {25}.
+attacker_bitstring(reachHistoricalForgery[]).
+
+15. By 14, attacker_bitstring(reachHistoricalForgery[]).
+The goal is reached, represented in the following fact:
+attacker_bitstring(reachHistoricalForgery[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(net, ~M) with ~M = share1(e0) at {1}
+
+out(net, ~M_1) with ~M_1 = reachFirstOldLeak at {2}
+
+event CommitteeVote(C1,e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial) at {4}
+
+event CommitteeVote(C2,e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial) at {5}
+
+event CommitteeApproved(e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial) at {8}
+
+event ReshareStarted(e0,e1,C3,pk(skC3Device),admittedSerial,updateSerial) at {9}
+
+event ShareActivated(C1,e1,pkChord,updateSerial) at {10}
+
+event ShareActivated(C2,e1,pkChord,updateSerial) at {11}
+
+event ShareActivated(C3,e1,pkChord,updateSerial) at {12}
+
+event CommitteeActivated(e1,pkChord,updateSerial) at {13}
+
+event RootContinuityAccepted(e1,pkChord,pair13,updateSerial) at {16}
+
+out(net, ~M_2) with ~M_2 = reachLegitimateReshare at {17}
+
+out(net, ~M_3) with ~M_3 = share2(e0) at {18}
+
+out(net, ~M_4) with ~M_4 = reachSecondOldLeak at {19}
+
+in(net, combine(partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv),regularMember,historicalRootSerial,historicalRootSerial),~M),partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv),regularMember,historicalRootSerial,historicalRootSerial),~M_3))) with combine(partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv),regularMember,historicalRootSerial,historicalRootSerial),~M),partialSign(regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv),regularMember,historicalRootSerial,historicalRootSerial),~M_3)) = thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv),regularMember,historicalRootSerial,historicalRootSerial)) at {21} in copy a
+
+event HistoricalRootForgeryAccepted(Dadv,pk(skAdv),e0,historicalRootSerial) at {24} in copy a
+
+out(net, ~M_5) with ~M_5 = reachHistoricalForgery at {25} in copy a
+
+The attacker has the message ~M_5 = reachHistoricalForgery.
+A trace has been found.
+RESULT not attacker_bitstring(reachHistoricalForgery[]) is false.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query not attacker_skey(skC3Device[]) is true.
+
+Query not attacker_thresholdShare(share1(e0)) is false.
+
+Query not attacker_thresholdShare(share2(e0)) is false.
+
+Query not attacker_thresholdShare(share3(e0)) is true.
+
+Query not attacker_thresholdShare(share1(e1)) is true.
+
+Query not attacker_thresholdShare(share2(e1)) is true.
+
+Query not attacker_thresholdShare(share3(e1)) is true.
+
+Query not attacker_thresholdSignature(thresholdSig12(e0,regularLDevIDBody(tagRegularLDevID,pgbA,Dadv,pk(skAdv[]),regularMember,historicalRootSerial,historicalRootSerial))) is false.
+
+Query event(HistoricalRootForgeryAccepted(Dadv,pk(skAdv[]),e0,S)) ==> event(CardAuthorized(pgbA,Dadv,pk(skAdv[]),S)) is false.
+
+Query event(CommitteeActivated(E,PKRoot,S)) ==> PKRoot = pkChord is true.
+
+Query event(RootContinuityAccepted(E,PKRoot,P,S)) ==> event(CommitteeActivated(E,PKRoot,S)) && PKRoot = pkChord is true.
+
+Query not attacker_bitstring(reachFirstOldLeak[]) is false.
+
+Query not attacker_bitstring(reachLegitimateReshare[]) is false.
+
+Query not attacker_bitstring(reachSecondOldLeak[]) is false.
+
+Query not attacker_bitstring(reachHistoricalForgery[]) is false.
+
+--------------------------------------------------------------
+
