@@ -84,8 +84,8 @@ opam exec --switch=proverif -- proverif -help
 |   |-- reshare/             Committee-transition and resharing models
 |   `-- threshold/           Focused threshold sanity models
 |-- scripts/                 Per-model runners and raw-output capture
-|-- tests/                   Runner-parsing tests and synthetic fixtures
-|-- outputs/                 Captured ProVerif output
+|-- tests/                   Auxiliary validation of the Bash runners and their result parsing
+|-- outputs/                 Captured ProVerif outputs used for runner validation
 `-- docs/                    Supplementary testing documentation
 ```
 
@@ -185,7 +185,22 @@ if (-not $Bash) {
 opam exec -- "$Bash" ./run_all_models.sh
 ```
 
-If desired, `scripts/capture_raw_results.sh` can be used to store the complete raw ProVerif output for every model in a separate output directory.
+### Captured ProVerif outputs
+
+The repository already contains the complete raw verifier output used for
+reproducibility in `outputs/`.
+
+The helper script
+
+```bash
+bash scripts/capture_raw_results.sh
+```
+
+can be used to regenerate these outputs from the ProVerif models.
+To avoidaccidentally overwriting the committed reference outputs, the script only
+creates its output when the outputs/ directory does not already exist.
+
+### Validate the assertion runners
 
 The parser regression tests use saved outputs, explicitly synthetic fixtures,
 and intentionally altered copies. They test runner parsing, not the models,
