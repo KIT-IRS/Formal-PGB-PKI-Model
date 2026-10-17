@@ -1,8 +1,6 @@
 (*
    Live adversarial emergency containment, with compromised PGB-I.
-   See docs/EMERGENCY_CONTAINMENT.md for assumptions and expected attack traces.
    Load common_primitives, reshare_primitives, emergency_containment_processes.
-   These are NEW, UNVERIFIED ProVerif 2.05 contracts, not saved proof results.
    Negative control: emergency credentials may satisfy the committee
    regular-admission gate. All other checks and processes are unchanged.
 *)
